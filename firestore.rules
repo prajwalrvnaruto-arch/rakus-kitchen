@@ -1,0 +1,45 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn()
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    // Order counter (generating RK-xxxxx ids). Any signed-in customer may
+    // increment it by exactly one — all other meta docs stay admin-only.
+    match /meta/counters {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.nextOrder == 1;
+      allow update: if isSignedIn()
+        && request.resource.data.nextOrder == resource.data.nextOrder + 1;
+    }
+    match /meta/{doc=**} {
+      allow read, write: if isAdmin();
+    }
+
+    // Admin allowlist — keyed by uid, e.g. admins/i06MiYnQCIaNYKGcYtRBaokQC7G3
+    match /admins/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow write: if isAdmin();
+    }
+
+    // Customers create/own their own orders; admins read every order and can update status.
+    match /orders/{orderId} {
+      allow read: if isSignedIn() && (
+        resource.data.customerId == request.auth.uid
+        || isAdmin()
+      );
+      allow create: if isSignedIn()
+        && request.resource.data.customerId == request.auth.uid
+        && request.resource.data.status == 'Order Received';
+      allow update: if isAdmin();
+      allow delete: if false;
+    }
+  }
+}

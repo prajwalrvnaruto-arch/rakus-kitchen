@@ -1,0 +1,118 @@
+Business name: Raku's Kitchen
+Instagram: @rakus.kitchen
+Business type: Nati-style home-cooked food and catering service.
+Location: Jambusavari Dinne, JP Nagar 8th Phase, Bangalore.
+Order contact: 9606888096.
+
+Their Instagram describes the business as serving Nati-style non-vegetarian food, with regular food orders and catering for events.
+
+Brand positioning
+Authentic Nati-style home-cooked food.
+Fresh ingredients.
+Traditional taste.
+Lunch and dinner service.
+Catering for different types of events.
+
+The catering poster specifically uses the positioning “Pure Taste of Nati Style” and highlights fresh ingredients, authentic taste, and hygienic preparation.
+
+2. Confirmed menu and prices
+
+The following prices are visible in the pricing reel screenshots you supplied.
+
+Biryani
+Quantity	Chicken Biryani	Mutton Biryani
+½ kg	₹400	₹800
+1 kg	₹800	₹1,600
+2 kg	₹1,600	₹3,200
+3 kg	₹2,400	₹4,800
+
+The 2 kg and 3 kg prices above are calculated using the displayed per-kilogram rates. They are not separately confirmed package prices.
+
+Biryani quantity and meat ratio
+
+Their ratio poster specifies the following quantities of uncooked rice and chicken/mutton:
+
+Biryani quantity	Uncooked rice	Chicken / Mutton
+½ kg	½ kg	250 g
+1 kg	1 kg	½ kg
+2 kg	2 kg	1 kg
+3 kg	3 kg	1½ kg
+
+The poster identifies C/M as chicken or mutton.
+
+Important correction: The earlier ₹750 chicken biryani price mentioned in this conversation does not match the pricing reel screenshots. The visible pricing reel shows ₹400 for ½ kg and ₹800 for 1 kg chicken biryani. Use ₹800/kg as the current working price, subject to confirmation from the business.
+
+3. Full menu from the catering poster
+
+This is the complete menu visible in the poster you shared. It does not establish that every item is available for individual daily ordering.
+
+Chicken specialities
+Chicken Biryani
+Andhra Chilli Chicken
+Guntur Chicken
+Chicken Chops
+Chicken Kabab
+Kshatriya Kabab
+Pepper Chicken
+Chicken Sambar
+Chicken Keema
+Mutton specialities
+Mutton Biryani
+Mutton Sambar
+Mutton Chops
+Mutton Kaima Sambar
+Kaima Gojju
+Mutton Boti — Fry / Dry / Gravy
+Mutton Sukka
+Fish specialities
+Choice of Fish Fry
+Fish Kabab
+Fish Sambar
+Rice and breads
+White Rice
+Ghee Rice
+Ragi Mudde
+Chapati
+Parotta
+Sides and add-ons
+Rasam
+Raita
+Egg — Masala / Fry
+Soups
+Mutton Paya Soup
+Chicken Soup
+Crab Soup
+
+The poster advertises custom catering for all types of events.
+
+4. Ordering and delivery information
+
+This is especially important for your website because you want customers to add food to a cart and send the order to WhatsApp.
+
+Detail	Confirmed information
+Pickup location	Jambusavari Dinne, JP Nagar 8th Phase
+Delivery	Throughout Bangalore
+Delivery charges	Paid by the customer
+Packaging fee	₹20 extra per parcel per item
+Order contact	9606888096
+Order timing	Orders should be placed one day before
+Food service	Lunch and dinner only
+Food ready	12:30 PM and 7:30 PM
+Holidays	Monday and Thursday
+Sunday dinner	Not listed in the schedule poster
+
+The delivery poster states that delivery is handled through delivery platforms and that customers pay the delivery charges. The profile also states that orders should be placed in advance.
+
+Website note: The ₹20 packaging charge needs to be implemented carefully. The poster says ₹20 extra per parcel per item. Before development, confirm whether it means ₹20 for each ordered food item, each parcel, or a single packaging fee per order.
+
+5. What the website should offer
+
+I would build Raku's Kitchen as a direct-ordering website rather than a conventional restaurant website.
+
+Main pages
+Home — Brand introduction, food photography, and “Order Now.”
+Menu — Chicken, mutton, fish, rice, sides, and soups.
+Biryani — Separate chicken and mutton quantities with pricing.
+Catering — Event catering and custom orders.
+About Us — The Nati-style home-cooked food story.
+Contact — Location, WhatsApp, and delivery information.
