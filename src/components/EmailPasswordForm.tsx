@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -11,7 +12,7 @@ import { useAuth } from "@/lib/auth-context";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function helperText(err: unknown): string {
+function helperText(err: unknown, resetting = false): string {
   const code = (err as { code?: string })?.code ?? "";
   switch (code) {
     case "auth/invalid-email":
@@ -21,7 +22,9 @@ function helperText(err: unknown): string {
     case "auth/user-not-found":
     case "auth/wrong-password":
     case "auth/invalid-credential":
-      return "Wrong email or password. Try again.";
+      return resetting
+        ? "If that account exists, a reset link is on its way."
+        : "Wrong email or password. Try again.";
     case "auth/email-already-in-use":
       return "This email is already registered — try signing in instead.";
     case "auth/weak-password":
@@ -43,6 +46,9 @@ export function EmailPasswordForm() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Forgot-password state: showReset morphs the form into a reset-email sender.
+  const [showReset, setShowReset] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
   const mountedRef = useRef(true);
 
   useEffect(() => {
@@ -67,14 +73,21 @@ export function EmailPasswordForm() {
       setError("Please enter a valid email address.");
       return;
     }
-    if (password.length < 6) {
-      setError("Password must be at least 6 characters.");
-      return;
-    }
     if (!auth) return;
 
     setBusy(true);
     try {
+      if (showReset) {
+        // Ask Firebase to email a password-reset link. Firebase's default reset
+        // email is sent automatically — no template or SMTP setup needed.
+        await sendPasswordResetEmail(auth, addr);
+        if (mountedRef.current) setResetSent(true);
+        return;
+      }
+      if (password.length < 6) {
+        setError("Password must be at least 6 characters.");
+        return;
+      }
       if (isSignUp) {
         await createUserWithEmailAndPassword(auth, addr, password);
       } else {
@@ -82,7 +95,7 @@ export function EmailPasswordForm() {
       }
       // onAuthStateChanged fires → redirect effect above handles navigation.
     } catch (err) {
-      if (mountedRef.current) setError(helperText(err));
+      if (mountedRef.current) setError(helperText(err, showReset));
     } finally {
       if (mountedRef.current) setBusy(false);
     }
@@ -99,6 +112,12 @@ export function EmailPasswordForm() {
 
   return (
     <div className="card w-full p-6 sm:p-8">
+      {resetSent && (
+        <p className="mb-4 rounded-xl border border-ok/40 bg-ok/10 px-4 py-3 text-sm font-medium text-ok" role="status">
+          ✓ We sent a password-reset link to <strong>{email.trim()}</strong>. Check your
+          inbox (and the spam folder) — it expires within the hour.
+        </p>
+      )}
       {error && (
         <p className="mb-4 rounded-xl border border-chili/30 bg-chili/5 px-4 py-3 text-sm font-medium text-chili" role="alert">
           {error}
@@ -123,29 +142,72 @@ export function EmailPasswordForm() {
             required
           />
         </div>
-        <div>
-          <label htmlFor="ep-password" className="mb-1.5 block text-sm font-semibold">
-            Password
-          </label>
-          <input
-            id="ep-password"
-            type="password"
-            autoComplete={isSignUp ? "new-password" : "current-password"}
-            placeholder="At least 6 characters"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="field"
-            required
-            minLength={6}
-          />
-        </div>
-        <button type="submit" disabled={busy || !email.trim() || !password} className="btn btn-chili w-full">
-          {busy ? "Please wait…" : isSignUp ? "Create account" : "Sign in"}
+        {!showReset && (
+          <div>
+            <label htmlFor="ep-password" className="mb-1.5 block text-sm font-semibold">
+              Password
+            </label>
+            <input
+              id="ep-password"
+              type="password"
+              autoComplete={isSignUp ? "new-password" : "current-password"}
+              placeholder="At least 6 characters"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="field"
+              required
+              minLength={6}
+            />
+            {!isSignUp && (
+              <button
+                type="button"
+                onClick={() => {
+                  setShowReset(true);
+                  setResetSent(false);
+                  setError(null);
+                }}
+                className="mt-1.5 text-xs font-semibold text-chilidark underline underline-offset-2 hover:text-ink"
+              >
+                Forgot password?
+              </button>
+            )}
+          </div>
+        )}
+        <button
+          type="submit"
+          disabled={busy || !email.trim() || (!showReset && !password)}
+          className="btn btn-chili w-full"
+        >
+          {busy
+            ? "Please wait…"
+            : showReset
+              ? "Send reset link"
+              : isSignUp
+                ? "Create account"
+                : "Sign in"}
         </button>
+        {showReset && (
+          <p className="text-center text-xs text-soft">
+            We&apos;ll email you a link to set a new password for{" "}
+            <strong>{email.trim() || "your account"}</strong>.
+          </p>
+        )}
       </form>
 
       <p className="mt-4 text-center text-xs text-soft">
-        {isSignUp ? (
+        {showReset ? (
+          <button
+            type="button"
+            onClick={() => {
+              setShowReset(false);
+              setResetSent(false);
+              setError(null);
+            }}
+            className="font-semibold text-chilidark underline underline-offset-2 hover:text-ink"
+          >
+            ← Back to sign in
+          </button>
+        ) : isSignUp ? (
           <>
             Already have an account?{" "}
             <button
