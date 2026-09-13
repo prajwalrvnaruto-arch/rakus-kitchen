@@ -117,7 +117,7 @@ export function subscribeAllOrders(
  * of leaving the UI stuck at zero orders. Errors are swallowed (never re-thrown) to avoid
  * the SDK internal-state corruption unhandled rejections used to cause.
  */
-function retryingListener(
+export function retryingListener(
   label: string,
   open: (onSnapshotError: (err: { message: string }) => void) => Unsubscribe,
   onError?: (message: string) => void,

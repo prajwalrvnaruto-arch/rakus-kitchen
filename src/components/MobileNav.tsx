@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 import { useCart } from "@/lib/cart-context";
 
 const TABS = [
@@ -14,6 +15,7 @@ const TABS = [
 
 export function MobileNav() {
   const pathname = usePathname();
+  const { isAdmin } = useAuth();
   const { setCartOpen, totalUnits } = useCart();
 
   const isActive = (href: string) =>
@@ -21,7 +23,7 @@ export function MobileNav() {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line/70 bg-paper/95 backdrop-blur md:hidden">
-      <div className="grid grid-cols-6">
+      <div className={isAdmin ? "grid grid-cols-7" : "grid grid-cols-6"}>
         {TABS.map((tab) => {
           const active = isActive(tab.href);
           return (
@@ -39,6 +41,17 @@ export function MobileNav() {
             </Link>
           );
         })}
+        {isAdmin && (
+          <Link
+            href="/admin"
+            className={`flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-semibold transition ${
+              isActive("/admin") ? "text-greenburn" : "text-soft"
+            }`}
+          >
+            <span className="text-lg leading-none" aria-hidden>⚙️</span>
+            Admin
+          </Link>
+        )}
         <button
           onClick={() => setCartOpen(true)}
           className="relative flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-semibold text-soft"

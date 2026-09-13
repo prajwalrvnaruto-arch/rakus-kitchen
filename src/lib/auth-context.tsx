@@ -6,6 +6,7 @@ import {
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { doc, onSnapshot } from "firebase/firestore";
 import { auth, db } from "./firebase";
+import { retryingListener } from "./db";
 
 interface AuthState {
   /** true while we're still restoring session state. */
@@ -37,22 +38,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Admins are granted by a Firestore allowlist doc /admins/{uid}.
   // Subscribing only while a user is signed in; re-subscribes on user change.
+  // Wrapped in retryingListener so a cold page load racing auth-token restore
+  // (or a rules-propagation window) recovers on its own instead of sticking
+  // isAdmin at false for the rest of the session.
   useEffect(() => {
     if (!db || !user?.uid) {
       setIsAdmin(false);
       return undefined;
     }
-    const unsubscribe = onSnapshot(
-      doc(db, "admins", user.uid),
-      (snap) => {
-        setIsAdmin(snap.exists());
-      },
-      (err) => {
-        console.warn("admins snapshot: error (non-fatal):", err.message);
-        setIsAdmin(false);
-      },
+    // Capture the narrowed (non-null) values so they survive the retrying-listener closure.
+    const firestore = db;
+    const uid = user.uid;
+    return retryingListener(
+      `admins:${uid}`,
+      (onSnapshotError) =>
+        onSnapshot(
+          doc(firestore, "admins", uid),
+          (snap) => {
+            setIsAdmin(snap.exists());
+          },
+          onSnapshotError,
+        ),
+      (err) => console.warn("admins snapshot: error (non-fatal):", err),
     );
-    return unsubscribe;
   }, [user?.uid]);
 
   return (

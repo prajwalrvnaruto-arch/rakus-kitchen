@@ -84,21 +84,21 @@ export const MENU: MenuItem[] = [
 
   // ── Rice & breads ──────────────────────────────────────────────────────
   { id: "white-rice", category: "Rice & Breads", name: "White Rice", emoji: "🍚", photo: "/images/dishes/white-rice.webp", description: "Steamed short-grain rice.", price: 60, placeholder: true, unit: "per plate", veg: true },
-  { id: "ghee-rice", category: "Rice & Breads", name: "Ghee Rice", emoji: "🧈", description: "Aromatic ghee rice.", price: 110, placeholder: true, unit: "per plate", veg: true },
-  { id: "ragi-mudde", category: "Rice & Breads", name: "Ragi Mudde", emoji: "⚪", description: "Traditional ragi balls.", price: 60, placeholder: true, unit: "per plate", veg: true },
-  { id: "chapati", category: "Rice & Breads", name: "Chapati", emoji: "🫓", description: "Whole-wheat chapatis (3 pcs).", price: 40, placeholder: true, unit: "per 3 pcs", veg: true },
-  { id: "parotta", category: "Rice & Breads", name: "Parotta", emoji: "🥞", description: "Flaky layered parotta.", price: 30, placeholder: true, unit: "per pcs", veg: true },
+  { id: "ghee-rice", category: "Rice & Breads", name: "Ghee Rice", emoji: "🧈", photo: "/images/dishes/ghee-rice.webp", description: "Aromatic ghee rice.", price: 110, placeholder: true, unit: "per plate", veg: true },
+  { id: "ragi-mudde", category: "Rice & Breads", name: "Ragi Mudde", emoji: "⚪", photo: "/images/dishes/ragi-mudde.webp", description: "Traditional ragi balls.", price: 60, placeholder: true, unit: "per plate", veg: true },
+  { id: "chapati", category: "Rice & Breads", name: "Chapati", emoji: "🫓", photo: "/images/dishes/chapati.webp", description: "Whole-wheat chapatis (3 pcs).", price: 40, placeholder: true, unit: "per 3 pcs", veg: true },
+  { id: "parotta", category: "Rice & Breads", name: "Parotta", emoji: "🥞", photo: "/images/dishes/parotta.webp", description: "Flaky layered parotta.", price: 30, placeholder: true, unit: "per pcs", veg: true },
 
   // ── Sides & add-ons ────────────────────────────────────────────────────
   { id: "rasam", category: "Sides & Add-ons", name: "Rasam", emoji: "🍮", description: "Peppery tomato rasam.", price: 60, placeholder: true, unit: "per bowl", veg: true },
-  { id: "raita", category: "Sides & Add-ons", name: "Raita", emoji: "🥛", description: "Cooling curd raita.", price: 60, placeholder: true, unit: "per bowl", veg: true },
-  { id: "egg-masala", category: "Sides & Add-ons", name: "Egg — Masala", emoji: "🥚", description: "Egg curry, masala style.", price: 90, placeholder: true, unit: "per plate" },
-  { id: "egg-fry", category: "Sides & Add-ons", name: "Egg — Fry", emoji: "🍳", description: "Crisp, spicy egg fry.", price: 90, placeholder: true, unit: "per plate" },
+  { id: "raita", category: "Sides & Add-ons", name: "Raita", emoji: "🥛", photo: "/images/dishes/raita.webp", description: "Cooling curd raita.", price: 60, placeholder: true, unit: "per bowl", veg: true },
+  { id: "egg-masala", category: "Sides & Add-ons", name: "Egg — Masala", emoji: "🥚", photo: "/images/dishes/egg-masala.webp", description: "Egg curry, masala style.", price: 90, placeholder: true, unit: "per plate" },
+  { id: "egg-fry", category: "Sides & Add-ons", name: "Egg — Fry", emoji: "🍳", photo: "/images/dishes/egg-fry.webp", description: "Crisp, spicy egg fry.", price: 90, placeholder: true, unit: "per plate" },
 
   // ── Soups ──────────────────────────────────────────────────────────────
-  { id: "mutton-paya-soup", category: "Soups", name: "Mutton Paya Soup", emoji: "🍵", description: "Slow-simmered paya broth.", price: 160, placeholder: true, unit: "per bowl" },
-  { id: "chicken-soup", category: "Soups", name: "Chicken Soup", emoji: "🍲", description: "Homestyle chicken broth.", price: 120, placeholder: true, unit: "per bowl" },
-  { id: "crab-soup", category: "Soups", name: "Crab Soup", emoji: "🦀", description: "Coastal crab soup.", price: 180, placeholder: true, unit: "per bowl" },
+  { id: "mutton-paya-soup", category: "Soups", name: "Mutton Paya Soup", emoji: "🍵", photo: "/images/dishes/mutton-paya-soup.webp", description: "Slow-simmered paya broth.", price: 160, placeholder: true, unit: "per bowl" },
+  { id: "chicken-soup", category: "Soups", name: "Chicken Soup", emoji: "🍲", photo: "/images/dishes/chicken-soup.webp", description: "Homestyle chicken broth.", price: 120, placeholder: true, unit: "per bowl" },
+  { id: "crab-soup", category: "Soups", name: "Crab Soup", emoji: "🦀", photo: "/images/dishes/crab-soup.webp", description: "Coastal crab soup.", price: 180, placeholder: true, unit: "per bowl" },
 ];
 
 export const MENU_BY_CATEGORY = MENU.reduce<Record<string, MenuItem[]>>((acc, item) => {

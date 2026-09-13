@@ -49,7 +49,7 @@ export function Nav() {
           {isAdmin && (
             <Link
               href="/admin"
-              className={`hidden lg:inline-flex rounded-full px-3.5 py-2 text-sm font-semibold transition ${
+              className={`inline-flex rounded-full px-3.5 py-2 text-sm font-semibold transition ${
                 pathname.startsWith("/admin")
                   ? "bg-greenburn/10 text-greenburn"
                   : "text-soft hover:text-ink"
