@@ -6,18 +6,18 @@ import { WhatsAppIcon, ClockIcon, MapPinIcon } from "@/components/icons";
 
 const CATEGORY_TILES = [
   { emoji: "🍗", label: "Chicken", note: "biryani · chops · kabab" },
-  { emoji: "🥘", label: "Mutton", note: "sambar · sukka · paya soup" },
-  { emoji: "🐟", label: "Fish", note: "fry · kabab · sambar" },
-  { emoji: "🍚", label: "Rice & Sides", note: "mudde · parotta · rasam" },
+  { emoji: "🥘", label: "Mutton", note: "sambar · fry · chops" },
+  { emoji: "🐟", label: "Fish", note: "fry · koli saru" },
+  { emoji: "🍚", label: "Rice & Sides", note: "mudde · raita · rasam" },
 ];
 
 const GALLERY = [
   { src: "/images/dishes/biryani-mutton.webp", label: "Mutton Biryani" },
-  { src: "/images/dishes/andhra-chilli-chicken.webp", label: "Andhra Chilli Chicken" },
+  { src: "/images/dishes/andhra-chilli-chicken.webp", label: "Chilly Chicken" },
   { src: "/images/dishes/mutton-chops.webp", label: "Mutton Chops" },
   { src: "/images/dishes/fish-fry.webp", label: "Fish Fry" },
   { src: "/images/dishes/kshatriya-kabab.webp", label: "Kshatriya Kabab" },
-  { src: "/images/dishes/mutton-boti-gravy.webp", label: "Mutton Boti Gravy" },
+  { src: "/images/dishes/mutton-sambar.webp", label: "Mutton Sambar" },
 ];
 
 const PILLARS = [
@@ -57,8 +57,8 @@ export default function HomePage() {
               <span className="text-chilidark">ordered in one tap.</span>
             </h1>
             <p className="mt-4 max-w-lg text-lg text-soft">
-              Biryani, chops, kababs & paya soup — made fresh for lunch and dinner
-              in JP Nagar 8th Phase, delivered across Bangalore.
+              Biryani, chops, kababs & nati-style curries — made fresh for lunch and
+              dinner in JP Nagar 8th Phase, delivered across Bangalore.
             </p>
             <div className="mt-7 flex flex-col gap-3 sm:flex-row">
               <Link href="/menu" className="btn btn-chili">

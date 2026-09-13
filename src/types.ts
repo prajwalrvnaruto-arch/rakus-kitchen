@@ -28,6 +28,12 @@ export type MealSlot = "Lunch" | "Dinner";
 export type BiryaniMeat = "chicken" | "mutton";
 export type BiryaniWeight = 0.5 | 1 | 2 | 3;
 
+/** A pickable size/weight for a dish, e.g. { label: "½ kg", price: 400 }. */
+export interface MenuVariant {
+  label: string;
+  price: number;
+}
+
 export interface MenuItem {
   id: string;
   category: string;
@@ -37,9 +43,12 @@ export interface MenuItem {
    *  Falls back to the emoji tile when absent. */
   photo?: string;
   description: string;
-  /** Price in rupees. null means "ask the business" — not addable to cart. */
-  price: number;
-  /** True when the price is a placeholder awaiting business confirmation. */
+  /** Price in rupees for the default unit. When `variants` is set, the dish is
+   *  priced per variant and `price` is ignored at add time (leave it unset). */
+  price?: number;
+  /** Pickable portion weights (e.g. ½ kg / 1 kg). The DishCard renders a
+   *  selector and adds the chosen variant to the cart. */
+  variants?: MenuVariant[];
   placeholder?: boolean;
   unit?: string; // e.g. "per plate", "per pcs"
   veg?: boolean;

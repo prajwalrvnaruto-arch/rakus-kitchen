@@ -3,9 +3,10 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { useCart } from "@/lib/cart-context";
 import { useAuth } from "@/lib/auth-context";
-import { formatINR } from "@/lib/menu";
+import { formatINR, menuItemById } from "@/lib/menu";
 import { CartIcon } from "./icons";
 
 export function CartDrawer() {
@@ -63,10 +64,20 @@ export function CartDrawer() {
         ) : (
           <>
             <ul className="flex-1 divide-y divide-line/60 overflow-y-auto px-5">
-              {items.map((item) => (
-                <li key={`${item.menuId}-${item.variant ?? ""}`} className="flex items-start gap-3 py-4">
-                  <span className="mt-0.5 text-2xl" aria-hidden>{item.emoji}</span>
-                  <div className="flex-1 min-w-0">
+              {items.map((item) => {
+                const photo = menuItemById(item.menuId)?.photo;
+                return (
+                  <li key={`${item.menuId}-${item.variant ?? ""}`} className="flex items-start gap-3 py-4">
+                    {photo ? (
+                      <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg ring-1 ring-ink/10">
+                        <Image src={photo} alt={item.name} fill sizes="48px" className="object-cover" />
+                      </div>
+                    ) : (
+                      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-creamdark text-xl" aria-hidden>
+                        {item.emoji}
+                      </span>
+                    )}
+                    <div className="flex-1 min-w-0">
                     <p className="font-semibold leading-tight">{item.name}</p>
                     {item.variant && <p className="text-xs font-medium text-soft">{item.variant}</p>}
                     <p className="mt-0.5 text-sm text-soft">
@@ -99,7 +110,8 @@ export function CartDrawer() {
                     </button>
                   </div>
                 </li>
-              ))}
+              );
+              })}
             </ul>
 
             <div className="space-y-1 border-t border-line px-5 py-4 text-sm">

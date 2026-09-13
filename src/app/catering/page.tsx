@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { waMeLink } from "@/lib/whatsapp";
+import { CATERING_MENU, formatINR } from "@/lib/menu";
 import { WhatsAppIcon } from "@/components/icons";
 
 const EVENT_TYPES = [
@@ -113,6 +115,52 @@ export default function CateringPage() {
           ))}
         </div>
       </div>
+
+      {/* Display-only catering price list (not cart-addable) */}
+      <section className="mt-12">
+        <div className="mb-4 text-center">
+          <h2 className="font-display text-xl font-semibold">Menu on request</h2>
+          <p className="mx-auto mt-1 max-w-2xl text-sm text-soft">
+            These dishes aren&apos;t on the daily menu — they&apos;re cooked to order for
+            catering and bulk orders. Mention them in your enquiry and we&apos;ll confirm
+            pricing and quantities.
+          </p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[480px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-ink/10 text-xs uppercase tracking-wide text-soft">
+                <th className="py-2 pr-4 font-semibold">Dish</th>
+                <th className="py-2 pr-4 font-semibold">Price</th>
+                <th className="py-2 font-semibold">Unit</th>
+              </tr>
+            </thead>
+            <tbody>
+              {CATERING_MENU.map((item) => (
+                <tr key={item.id} className="border-b border-ink/5">
+                  <td className="py-2.5 pr-4">
+                    <div className="flex items-center gap-2.5">
+                      {item.photo ? (
+                        <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg ring-1 ring-ink/10">
+                          <Image src={item.photo} alt={item.name} fill sizes="44px" className="object-cover" />
+                        </div>
+                      ) : (
+                        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-ink/5 text-xl" aria-hidden>
+                          {item.emoji}
+                        </span>
+                      )}
+                      <span className="font-medium">{item.name}</span>
+                      {item.veg && <span className="chip" title="Vegetarian">🟢</span>}
+                    </div>
+                  </td>
+                  <td className="py-2.5 pr-4 font-semibold">{formatINR(item.price ?? 0)}</td>
+                  <td className="py-2.5 text-soft">{item.unit ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }

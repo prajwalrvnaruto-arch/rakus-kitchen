@@ -136,7 +136,7 @@ export function BiryaniPicker() {
             </button>
           </div>
           <p className="text-xs text-soft">
-            ₹20 packaging fee per item applies. ½ kg chicken from ₹400, mutton from ₹800.
+            ₹20 packaging fee per item applies. ½ kg chicken from ₹400, mutton from ₹799.
           </p>
         </div>
       </div>

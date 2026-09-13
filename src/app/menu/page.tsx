@@ -15,7 +15,8 @@ export default function MenuPage() {
         <h1 className="section-title">The menu</h1>
         <p className="mx-auto mt-2 max-w-xl text-sm text-soft">
           Add to cart, pick a meal slot, and we&apos;ll confirm your order on WhatsApp.
-          Prices marked “confirm price” are placeholders until confirmed by the kitchen.
+          Prices follow the official menu card — dishes sold by weight let you pick
+          your portion right on the card.
         </p>
         <Link
           href={waMeLink("Hi Raku's Kitchen! I have a question about the menu.")}

@@ -12,16 +12,26 @@ import { CartIcon } from "./icons";
 export function DishCard({ item }: { item: MenuItem }) {
   const { add } = useCart();
   const [qty, setQty] = useState(1);
+  // Default to the first (lightest/cheapest) variant when the dish has portions.
+  const [variant, setVariant] = useState(item.variants?.[0]?.label ?? "");
+  const [variantPrice, setVariantPrice] = useState(item.variants?.[0]?.price ?? 0);
 
   const isBiryani = item.category === "Biryani";
+  const hasVariants = !!item.variants?.length;
+  // When portions are enabled the selected variant's price overrides `item.price`.
+  // All non-variant items define a price; the ?? fallback only guards an authoring slip.
+  const unitPrice = hasVariants ? variantPrice : item.price ?? 0;
 
   const handleAdd = () => {
     add({
       menuId: item.id,
       name: item.name,
       emoji: item.emoji,
-      price: item.price,
+      price: unitPrice,
       quantity: qty,
+      // Portion label (e.g. "½ kg"). The cart keys a line by (menuId, variant),
+      // so "½ kg" on two different dishes still resolves to the right line.
+      ...(hasVariants ? { variant } : {}),
     });
     setQty(1);
   };
@@ -72,16 +82,44 @@ export function DishCard({ item }: { item: MenuItem }) {
                 Pick weight
               </Link>
             </>
+          ) : hasVariants ? (
+            <>
+              <div className="flex flex-col gap-1">
+                <p className="text-sm font-bold text-chilidark">{formatINR(unitPrice)}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {item.variants!.map((v) => (
+                    <button
+                      key={v.label}
+                      onClick={() => {
+                        setVariant(v.label);
+                        setVariantPrice(v.price);
+                      }}
+                      className={`rounded-full border px-2.5 py-0.5 text-xs font-medium transition ${
+                        variant === v.label
+                          ? "border-chili bg-chili/10 text-chilidark"
+                          : "border-ink/15 text-soft hover:border-chili/40"
+                      }`}
+                      aria-pressed={variant === v.label}
+                    >
+                      {formatINR(v.price)} · {v.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <QtyStepper value={qty} onChange={setQty} labelFor={item.name} />
+                <button
+                  onClick={handleAdd}
+                  className="btn btn-chili px-3.5 py-2 text-xs"
+                  aria-label={`Add ${qty} ${variant} ${item.name} to cart`}
+                >
+                  <CartIcon className="h-4 w-4" /> Add
+                </button>
+              </div>
+            </>
           ) : (
             <>
-              <p className="text-sm font-bold">
-                {formatINR(item.price)}
-                {item.placeholder && (
-                  <span className="ml-1.5 rounded-full bg-turmeric/20 px-1.5 py-0.5 text-[10px] font-bold text-turmerick">
-                    confirm price
-                  </span>
-                )}
-              </p>
+              <p className="text-sm font-bold">{formatINR(item.price ?? 0)}</p>
               <div className="flex items-center gap-1.5">
                 <QtyStepper value={qty} onChange={setQty} labelFor={item.name} />
                 <button
