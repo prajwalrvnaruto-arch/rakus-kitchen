@@ -47,7 +47,7 @@ export default function HomePage() {
           aria-hidden
           className="pointer-events-none absolute inset-0 bg-[radial-gradient(60rem_30rem_at_80%_-10%,rgba(233,163,25,0.18),transparent),radial-gradient(45rem_25rem_at_10%_110%,rgba(180,55,30,0.12),transparent)]"
         />
-        <div className="relative mx-auto grid max-w-6xl items-center gap-8 px-4 py-14 sm:py-20 md:grid-cols-2">
+        <div className="relative mx-auto grid max-w-6xl items-center gap-8 px-4 pb-14 pt-8 sm:py-20 md:grid-cols-2">
           <div>
             <span className="chip mb-4 border-turmeric/40 bg-turmeric/10 text-turmerick">
               🍲 Pure Taste of Nati Style
