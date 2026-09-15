@@ -8,7 +8,7 @@ import { auth } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { subscribeAllOrders, updateOrderStatus, checkAdminAccess, setAdmin, type AdminAccessReport } from "@/lib/db";
 import { formatINR } from "@/lib/menu";
-import { buildOrderMessage } from "@/lib/whatsapp";
+import { waLinkToCustomer } from "@/lib/whatsapp";
 import type { Order, OrderStatus } from "@/types";
 import { ORDER_STATUSES } from "@/types";
 
@@ -300,9 +300,16 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
   const changeStatus = async (status: OrderStatus) => {
     if (status === order.status) return;
     setBusy(true);
+    // No WhatsApp draft for the "Preparing" step — the Confirmed update already
+    // tells the customer cooking is starting, so Preparing updates silently.
+    const notify = status !== "Preparing";
+    // Open the customer's WhatsApp draft up front (synchronously) so the popup
+    // isn't blocked after the awaited Firestore write. The admin taps Send.
+    const win = notify ? window.open(waLinkToCustomer(order, status), "_blank") : null;
     try {
       await updateOrderStatus(order.id, status);
     } catch (err) {
+      win?.close(); // nothing was sent — don't leave a stale draft open
       console.error(err);
       const e = err as Error;
       const code = e.name === "FirebaseError" ? (err as { code?: string }).code ?? "" : "";
@@ -377,14 +384,25 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
               <option key={s}>{s}</option>
             ))}
           </select>
-          <a
-            href={`https://wa.me/919606888096?text=${encodeURIComponent(buildOrderMessage(order))}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-chili py-2 text-xs"
-          >
-            Resend to WhatsApp
-          </a>
+          {order.status === "Preparing" ? (
+            <span className="text-[11px] text-soft">
+              No WhatsApp message is sent for the Preparing step — status updates silently.
+            </span>
+          ) : (
+            <>
+              <a
+                href={waLinkToCustomer(order, order.status)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-chili py-2 text-xs"
+              >
+                Message customer on WhatsApp
+              </a>
+              <span className="hidden text-[11px] text-soft md:block">
+                Opens WhatsApp to {order.phone} — sent from your Raku&apos;s Kitchen account.
+              </span>
+            </>
+          )}
           <span className="hidden text-[11px] text-soft md:block">
             {order.statusHistory.length > 1
               ? `From ${order.statusHistory[0].status} → ${order.statusHistory.slice(1).map((h) => h.status).join(" → ")}`
