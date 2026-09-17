@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth-context";
 import { subscribeAllOrders, updateOrderStatus, checkAdminAccess, setAdmin, type AdminAccessReport } from "@/lib/db";
 import { formatINR } from "@/lib/menu";
 import { waLinkToCustomer } from "@/lib/whatsapp";
+import { launchPorterAppDeepLink } from "@/lib/porterDeepLink";
 import type { Order, OrderStatus } from "@/types";
 import { ORDER_STATUSES } from "@/types";
 
@@ -297,19 +298,16 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
     day: "numeric", month: "short", hour: "numeric", minute: "2-digit",
   });
 
+  /** Change order status and notify customer via WhatsApp (silent for "Preparing"). */
   const changeStatus = async (status: OrderStatus) => {
     if (status === order.status) return;
     setBusy(true);
-    // No WhatsApp draft for the "Preparing" step — the Confirmed update already
-    // tells the customer cooking is starting, so Preparing updates silently.
     const notify = status !== "Preparing";
-    // Open the customer's WhatsApp draft up front (synchronously) so the popup
-    // isn't blocked after the awaited Firestore write. The admin taps Send.
     const win = notify ? window.open(waLinkToCustomer(order, status), "_blank") : null;
     try {
       await updateOrderStatus(order.id, status);
     } catch (err) {
-      win?.close(); // nothing was sent — don't leave a stale draft open
+      win?.close();
       console.error(err);
       const e = err as Error;
       const code = e.name === "FirebaseError" ? (err as { code?: string }).code ?? "" : "";
@@ -322,6 +320,10 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
       setBusy(false);
     }
   };
+
+  /** Show "Open Porter App" only when cooking is done or preparing. */
+  const canBookDelivery =
+    order.status === "Confirmed" || order.status === "Preparing";
 
   return (
     <article className={`card overflow-hidden ${archived ? "opacity-75" : ""}`}>
@@ -347,7 +349,28 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
           <p className="text-soft">
             <span className="font-bold text-ink">{order.mealSlot}</span> · {order.mealDate}
           </p>
-          <p className="text-soft">📍 {order.deliveryAddress}</p>
+
+          {/* Address — structured (new orders) or plain string (legacy) */}
+          {order.addressComponents ? (
+            <div className="rounded-xl border border-line bg-paper p-3 text-xs">
+              <p className="font-semibold text-ink">{order.addressComponents.doorAndBuilding}</p>
+              <p className="mt-0.5 text-soft">{order.addressComponents.displayAddress}</p>
+              {order.addressComponents.landmark && (
+                <p className="mt-0.5 italic text-soft">Landmark: {order.addressComponents.landmark}</p>
+              )}
+              <a
+                href={`https://maps.google.com/?q=${order.addressComponents.lat},${order.addressComponents.lng}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 inline-block text-chilidark underline underline-offset-2 hover:text-ink"
+              >
+                📍 View on Google Maps ↗
+              </a>
+            </div>
+          ) : (
+            <p className="text-soft">📍 {order.deliveryAddress}</p>
+          )}
+
           {order.notes && <p className="text-soft italic">Notes: {order.notes}</p>}
 
           <ul className="rounded-xl border border-line bg-paper px-3 py-2">
@@ -366,10 +389,48 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
               <span>Total</span><span>{formatINR(order.grandTotal)}</span>
             </li>
           </ul>
+
+          {/* Porter booking status badge */}
+          {order.deliveryMeta?.carrierOrderId && (
+            <div className="flex items-center gap-2 rounded-lg border border-ok/30 bg-ok/5 px-3 py-2 text-xs">
+              <span className="text-ok">✓</span>
+              <span>
+                <span className="font-semibold text-ink">Porter booked</span>
+                {" · "}Order: {order.deliveryMeta.carrierOrderId}
+                {order.deliveryMeta.fareEstimate !== undefined && (
+                  <span className="ml-1 text-soft">
+                    · Delivery fee ₹{order.deliveryMeta.fareEstimate} (COD to driver)
+                  </span>
+                )}
+                {order.deliveryMeta.trackingUrl && (
+                  <a
+                    href={order.deliveryMeta.trackingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ml-1 text-chilidark underline"
+                  >
+                    Track rider ↗
+                  </a>
+                )}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Actions */}
         <div className="flex flex-col gap-2 md:w-52 md:items-stretch">
+          {/* Book via Porter App Deep Link Button */}
+          {canBookDelivery && (
+            <button
+              onClick={() => launchPorterAppDeepLink(order)}
+              disabled={busy}
+              className="rounded-xl bg-turmeric px-4 py-2.5 text-xs font-bold text-inkdark shadow-sm transition hover:bg-turmeric/80 disabled:opacity-50"
+              title="Opens installed Porter App on phone with pre-filled coordinates & copies details to clipboard"
+            >
+              🚚 Book via Porter App
+            </button>
+          )}
+
           <label className="text-xs font-bold uppercase tracking-wider text-soft" htmlFor={`status-${order.id}`}>
             Update status
           </label>

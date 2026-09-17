@@ -12,4 +12,9 @@ export const BUSINESS = {
   delivery: "Delivery across Bangalore",
   readyLunch: "12:30 PM",
   readyDinner: "7:30 PM",
+  // Kitchen geo-coordinates for Porter/Borzo pickup point.
+  // TODO: Confirm exact coordinates with the kitchen.
+  lat: 12.8892,
+  lng: 77.5985,
+  kitchenAddress: "Jambusavari Dinne, JP Nagar 8th Phase, Bengaluru, Karnataka 560078",
 } as const;

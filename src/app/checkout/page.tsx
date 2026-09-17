@@ -1,6 +1,6 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
@@ -9,9 +9,10 @@ import { formatINR } from "@/lib/menu";
 import { upcomingMeals, validateMeal, type MealOption } from "@/lib/order-dates";
 import { createOrder, type OrderDraft } from "@/lib/db";
 import { buildOrderMessage } from "@/lib/whatsapp";
+import { AddressPicker } from "@/components/AddressPicker";
 import { OrderStatusSteps } from "@/components/OrderStatusSteps";
 import { WhatsAppIcon } from "@/components/icons";
-import type { Order, OrderLineItem } from "@/types";
+import type { AddressComponents, Order, OrderLineItem } from "@/types";
 
 type Phase = "form" | "placing" | "done";
 
@@ -24,22 +25,25 @@ export default function CheckoutPage() {
   const [placedOrder, setPlacedOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Same sign-ups get their address remembered (per-device convenience).
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [address, setAddress] = useState("");
+  // Structured address — replaces the old plain-text `address` string.
+  const [addressComponents, setAddressComponents] = useState<AddressComponents | null>(null);
   const [meal, setMeal] = useState<MealOption | null>(null);
   const [notes, setNotes] = useState("");
 
   const mealOptions = useMemo(() => upcomingMeals(7), []);
 
-  // Remember the delivery address for returning customers.
+  // Restore the last saved structured address for returning customers.
   useEffect(() => {
     if (!user) return;
     try {
-      const saved = window.localStorage.getItem(`rk-address-${user.uid}`);
-      if (saved) setAddress(saved);
-    } catch { /* storage unavailable */ }
+      const raw = window.localStorage.getItem(`rk-address-v2-${user.uid}`);
+      if (raw) {
+        const parsed: AddressComponents = JSON.parse(raw);
+        setAddressComponents(parsed);
+      }
+    } catch { /* storage unavailable or malformed JSON */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid]);
 
@@ -51,10 +55,15 @@ export default function CheckoutPage() {
     }
   }, [mealOptions, meal]);
 
-  // Not signed in → send them to log in, then return here.
+  // Not signed in → redirect to login, then back here.
   useEffect(() => {
     if (!loading && !user) router.replace("/login?next=%2Fcheckout");
   }, [loading, user, router]);
+
+  // Stable callback so AddressPicker doesn't re-bind Autocomplete on every render.
+  const handleAddressChange = useCallback((addr: AddressComponents | null) => {
+    setAddressComponents(addr);
+  }, []);
 
   if (loading) {
     return <div className="mx-auto max-w-3xl px-4 py-12 text-center text-soft">Loading…</div>;
@@ -73,7 +82,7 @@ export default function CheckoutPage() {
     );
   }
 
-  /* ── Confirmation (order placed) ─────────────────────────────────────── */
+  /* ── Confirmation screen (order placed) ─────────────────────────────── */
   if (phase === "done" && placedOrder) {
     const waHref = `https://wa.me/919606888096?text=${encodeURIComponent(buildOrderMessage(placedOrder))}`;
     return (
@@ -116,6 +125,15 @@ export default function CheckoutPage() {
             <span className="text-soft">Meal</span>
             <span className="font-semibold">{placedOrder.mealSlot} · {placedOrder.mealDate}</span>
           </div>
+          {placedOrder.addressComponents && (
+            <div className="px-5 py-3 text-soft">
+              <span className="block text-xs font-semibold text-soft">Delivery to</span>
+              <span className="block font-semibold text-ink">
+                {placedOrder.addressComponents.doorAndBuilding}
+              </span>
+              <span className="block text-xs">{placedOrder.addressComponents.displayAddress}</span>
+            </div>
+          )}
           {placedOrder.items.map((it) => (
             <div key={`${it.menuId}-${it.variant}`} className="flex justify-between px-5 py-3">
               <span className="text-soft">
@@ -154,12 +172,15 @@ export default function CheckoutPage() {
       return;
     }
     const problem = validateMeal({ date: meal.date, slot: meal.slot });
-    if (problem) {
-      setError(problem);
+    if (problem) { setError(problem); return; }
+
+    // Require a confirmed structured address (at minimum the doorAndBuilding field).
+    if (!addressComponents) {
+      setError("Please search for your delivery address above.");
       return;
     }
-    if (address.trim().length < 10) {
-      setError("Please enter a complete delivery address.");
+    if (addressComponents.doorAndBuilding.trim().length < 3) {
+      setError("Please enter your flat / floor / building details.");
       return;
     }
 
@@ -175,7 +196,14 @@ export default function CheckoutPage() {
     const draft: OrderDraft = {
       customerName: name.trim(),
       phone: `+91 ${phone}`,
-      deliveryAddress: address.trim(),
+      // Keep a human-readable plain string for backward compat and WhatsApp messages.
+      deliveryAddress: [
+        addressComponents.doorAndBuilding,
+        addressComponents.displayAddress,
+        addressComponents.landmark,
+      ].filter(Boolean).join(", "),
+      // The full structured address — used by Porter for precise delivery.
+      addressComponents,
       mealSlot: meal.slot,
       mealDate: meal.date,
       items: lines,
@@ -187,9 +215,14 @@ export default function CheckoutPage() {
 
     setPhase("placing");
     try {
+      // Persist structured address for the next visit.
       try {
-        window.localStorage.setItem(`rk-address-${user.uid}`, address.trim());
-      } catch { /* ignore */ }
+        window.localStorage.setItem(
+          `rk-address-v2-${user.uid}`,
+          JSON.stringify(addressComponents),
+        );
+      } catch { /* ignore storage errors */ }
+
       const order = await createOrder(user.uid, draft);
       clear();
       setPlacedOrder(order);
@@ -212,7 +245,7 @@ export default function CheckoutPage() {
         <form onSubmit={submit} className="space-y-6">
           {/* Meal day & slot */}
           <fieldset className="card p-5">
-            <legend className="mb-1 text-sm font-semibold text-ink">Meal day & slot</legend>
+            <legend className="mb-1 text-sm font-semibold text-ink">Meal day &amp; slot</legend>
             <p className="mb-3 text-xs text-soft">
               Lunch ready 12:30 PM · Dinner ready 7:30 PM · Closed Mon &amp; Thu · Sunday dinner not served
             </p>
@@ -243,7 +276,7 @@ export default function CheckoutPage() {
             </div>
           </fieldset>
 
-          {/* Contact & address */}
+          {/* Contact details */}
           <fieldset className="card p-5">
             <legend className="mb-3 text-sm font-semibold text-ink">Your details</legend>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -273,31 +306,30 @@ export default function CheckoutPage() {
                 />
               </div>
             </div>
-            <div className="mt-4">
-              <label htmlFor="address" className="mb-1.5 block text-sm font-semibold">Delivery address</label>
-              <textarea
-                id="address"
-                rows={3}
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                className="field resize-none"
-                placeholder="House / flat, street, area, landmark…"
-                required
-              />
-              <p className="mt-1.5 text-xs text-soft">
-                Delivery across Bangalore · delivery charges paid by the customer to the partner.
-              </p>
-            </div>
-            <div className="mt-4">
-              <label htmlFor="notes" className="mb-1.5 block text-sm font-semibold">Order note (optional)</label>
-              <input
-                id="notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="field"
-                placeholder="Any instructions for the kitchen?"
-              />
-            </div>
+          </fieldset>
+
+          {/* Delivery address — structured picker */}
+          <fieldset className="card p-5">
+            <legend className="mb-1 text-sm font-semibold text-ink">Delivery address</legend>
+            <p className="mb-3 text-xs text-soft">
+              Delivery across Bangalore · Delivery charges are paid by the customer to the delivery partner.
+            </p>
+            <AddressPicker
+              value={addressComponents}
+              onChange={handleAddressChange}
+            />
+          </fieldset>
+
+          {/* Order note */}
+          <fieldset className="card p-5">
+            <legend className="mb-1.5 text-sm font-semibold text-ink">Order note (optional)</legend>
+            <input
+              id="notes"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              className="field"
+              placeholder="Any instructions for the kitchen?"
+            />
           </fieldset>
 
           {error && (
@@ -311,7 +343,7 @@ export default function CheckoutPage() {
           </button>
         </form>
 
-        {/* Summary */}
+        {/* Order summary */}
         <aside className="card h-fit p-5">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-display text-lg font-semibold">Summary</h2>

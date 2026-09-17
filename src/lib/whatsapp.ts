@@ -6,6 +6,19 @@ export const waMeLink = (message?: string) =>
 
 /** WhatsApp message for a freshly placed order. */
 export const buildOrderMessage = (order: Order): string => {
+  // Build address block — use structured components if available (new orders),
+  // fall back to the legacy plain string for backward compat.
+  const addressLines: string[] = [];
+  if (order.addressComponents) {
+    addressLines.push(`📍 Address: ${order.addressComponents.displayAddress}`);
+    addressLines.push(`   Flat/Building: ${order.addressComponents.doorAndBuilding}`);
+    if (order.addressComponents.landmark) {
+      addressLines.push(`   Landmark: ${order.addressComponents.landmark}`);
+    }
+  } else {
+    addressLines.push(`📍 Address: ${order.deliveryAddress}`);
+  }
+
   const lines: string[] = [
     "🟠 *Raku's Kitchen — NEW ORDER*",
     "",
@@ -13,7 +26,7 @@ export const buildOrderMessage = (order: Order): string => {
     `👤 Name: *${order.customerName}*`,
     `📞 Phone: ${order.phone}`,
     `🗓️ Meal: *${order.mealSlot}* · ${order.mealDate}`,
-    `📍 Address: ${order.deliveryAddress}`,
+    ...addressLines,
     "",
     "---- Items ----",
     ...order.items.map(
@@ -32,6 +45,7 @@ export const buildOrderMessage = (order: Order): string => {
   ];
   return lines.join("\n");
 };
+
 
 const rupees = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 

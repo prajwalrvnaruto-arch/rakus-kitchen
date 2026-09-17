@@ -80,13 +80,55 @@ export interface StatusEvent {
   at: number; // epoch ms
 }
 
+/**
+ * Geo-coded, structured delivery address.
+ * Stored on new orders alongside the legacy plain-string `deliveryAddress`
+ * so old orders still render gracefully.
+ */
+export interface AddressComponents {
+  lat: number;
+  lng: number;
+  /** Google Places place_id — enables linking back to the exact POI. */
+  googlePlaceId?: string;
+  /** Full verified address string sourced from Google Places / Geocoding API. */
+  displayAddress: string;
+  /** Customer-entered details: e.g. "Flat 4B, 3rd Floor, Prestige Tower". */
+  doorAndBuilding: string;
+  /** Optional landmark for driver navigation, e.g. "Opposite Metro Station". */
+  landmark?: string;
+  city: string;
+  pincode: string;
+}
+
+/**
+ * Third-party delivery carrier booking metadata.
+ * Written to the order document when the admin clicks "Book Delivery".
+ */
+export interface DeliveryMeta {
+  /** Fare estimate in ₹ fetched from the carrier API at checkout time. */
+  fareEstimate?: number;
+  /** Carrier identifier: "porter" | "borzo". */
+  carrierId?: string;
+  /** Order ID returned by the carrier after a successful booking. */
+  carrierOrderId?: string;
+  /** Epoch ms when the admin triggered the carrier booking. */
+  bookedAt?: number;
+  /** Live tracking URL provided by the carrier, if available. */
+  trackingUrl?: string;
+}
+
 export interface Order {
   id: string; // Firestore doc id
   orderId: string; // human-friendly RK-00001
   customerId: string;
   customerName: string;
   phone: string;
+  /** Legacy plain-text address — preserved for backward compat. */
   deliveryAddress: string;
+  /** Structured geo-coded address — present on all orders placed after this feature ships. */
+  addressComponents?: AddressComponents;
+  /** Carrier booking metadata — populated when the admin books a delivery ride. */
+  deliveryMeta?: DeliveryMeta;
   mealSlot: MealSlot;
   mealDate: string; // YYYY-MM-DD
   items: OrderLineItem[];

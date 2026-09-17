@@ -7,7 +7,7 @@ import {
 } from "firebase/firestore";
 import { getIdToken, getIdTokenResult } from "firebase/auth";
 import { auth, db } from "./firebase";
-import type { Order, OrderLineItem, OrderStatus, StatusEvent } from "@/types";
+import type { AddressComponents, DeliveryMeta, Order, OrderLineItem, OrderStatus, StatusEvent } from "@/types";
 
 /* ── Order creation ────────────────────────────────────────────────────── */
 
@@ -15,6 +15,8 @@ export interface OrderDraft {
   customerName: string;
   phone: string;
   deliveryAddress: string;
+  /** Structured geo-coded address — collected by AddressPicker. */
+  addressComponents?: AddressComponents;
   mealSlot: "Lunch" | "Dinner";
   mealDate: string; // YYYY-MM-DD
   items: OrderLineItem[];
@@ -43,11 +45,12 @@ export async function createOrder(customerId: string, draft: OrderDraft): Promis
     tx.set(counterRef, { nextOrder: next }, { merge: true });
   });
 
-  // Firestore rejects `undefined` values, so strip optional fields that are unset.
-  const { notes, ...rest } = draft;
+  // Firestore rejects `undefined` values — strip every optional field that is unset.
+  const { notes, addressComponents, ...rest } = draft;
   const docRef = await addDoc(ordersRef, {
     ...rest,
     ...(notes ? { notes } : {}),
+    ...(addressComponents ? { addressComponents } : {}),
     orderId,
     customerId,
     status: "Order Received",
@@ -245,6 +248,14 @@ function mapOrder(doc: { id: string; data: () => Record<string, unknown> }): Ord
     customerName: (d.customerName as string) ?? "",
     phone: (d.phone as string) ?? "",
     deliveryAddress: (d.deliveryAddress as string) ?? "",
+    // New structured address — undefined for legacy orders (backward compat).
+    addressComponents: d.addressComponents
+      ? (d.addressComponents as AddressComponents)
+      : undefined,
+    // Carrier booking metadata — undefined until admin books a ride.
+    deliveryMeta: d.deliveryMeta
+      ? (d.deliveryMeta as DeliveryMeta)
+      : undefined,
     mealSlot: (d.mealSlot as "Lunch" | "Dinner") ?? "Lunch",
     mealDate: (d.mealDate as string) ?? "",
     items: (d.items as OrderLineItem[]) ?? [],
@@ -257,6 +268,26 @@ function mapOrder(doc: { id: string; data: () => Record<string, unknown> }): Ord
     createdAt: toEpoch(createdAt),
     updatedAt: toEpoch(updatedAt),
   };
+}
+
+/**
+ * Writes carrier booking metadata (Porter order ID, fare estimate, tracking URL)
+ * back onto the order document after the admin clicks "Book Delivery".
+ * Uses a partial update so no other order fields are touched.
+ */
+export async function updateDeliveryMeta(
+  docId: string,
+  meta: Partial<DeliveryMeta>,
+): Promise<void> {
+  if (!db) return;
+  // Firestore rejects undefined values — strip them before writing.
+  const clean = Object.fromEntries(
+    Object.entries(meta).filter(([, v]) => v !== undefined),
+  );
+  await updateDoc(doc(db, "orders", docId), {
+    deliveryMeta: clean,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 // Re-exported for the rare case admin tools want a one-off order fetch.
