@@ -21,6 +21,7 @@ export function buildPorterDeepLink(order: Order): {
   androidIntentUrl: string;
   iosSchemeUrl: string;
   clipboardText: string;
+  fullSummary: string;
   payload: PorterBookingPayload;
 } {
   const pickup: PorterLocationData = {
@@ -49,43 +50,23 @@ export function buildPorterDeepLink(order: Order): {
 
   const payload: PorterBookingPayload = { pickup, dropoff };
 
-  // Copy-paste summary clipboard text
-  const clipboardText = `📦 RAKU'S KITCHEN DELIVERY (#${order.orderId})\n` +
+  // Format clean address string for 1-tap Gboard/Keyboard paste chip
+  const clipboardText = dropAddress;
+
+  // Detailed summary clipboard text (logged/available if needed)
+  const fullSummary = `📦 RAKU'S KITCHEN DELIVERY (#${order.orderId})\n` +
     `👤 Customer: ${dropoff.name}\n` +
     `📞 Mobile: ${dropoff.phone}\n` +
-    `📍 Dropoff Address: ${dropoff.addressString}\n` +
-    `🗺️ Coordinates: ${dropoff.lat}, ${dropoff.lng}`;
+    `📍 Dropoff Address: ${dropoff.addressString}`;
 
-  // Android Intent URI (Targeting com.theporter.android.customerapp)
+  // Direct Android Intent URI (Launches com.theporter.android.customerapp directly without Play Store page)
   const androidIntentUrl =
-    `intent://book` +
-    `?pickup_name=${encodeURIComponent(pickup.name)}` +
-    `&pickup_phone=${encodeURIComponent(pickup.phone)}` +
-    `&pickup_lat=${pickup.lat}` +
-    `&pickup_lng=${pickup.lng}` +
-    `&pickup_address=${encodeURIComponent(pickup.addressString)}` +
-    `&drop_name=${encodeURIComponent(dropoff.name)}` +
-    `&drop_phone=${encodeURIComponent(dropoff.phone)}` +
-    `&drop_lat=${dropoff.lat}` +
-    `&drop_lng=${dropoff.lng}` +
-    `&drop_address=${encodeURIComponent(dropoff.addressString)}` +
-    `#Intent;scheme=porter;package=com.theporter.android.customerapp;S.browser_fallback_url=${encodeURIComponent("https://play.google.com/store/apps/details?id=com.theporter.android.customerapp")};end`;
+    `intent://#Intent;package=com.theporter.android.customerapp;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;end`;
 
   // iOS Custom Scheme (porter://)
-  const iosSchemeUrl =
-    `porter://book` +
-    `?pickup_name=${encodeURIComponent(pickup.name)}` +
-    `&pickup_phone=${encodeURIComponent(pickup.phone)}` +
-    `&pickup_lat=${pickup.lat}` +
-    `&pickup_lng=${pickup.lng}` +
-    `&pickup_address=${encodeURIComponent(pickup.addressString)}` +
-    `&drop_name=${encodeURIComponent(dropoff.name)}` +
-    `&drop_phone=${encodeURIComponent(dropoff.phone)}` +
-    `&drop_lat=${dropoff.lat}` +
-    `&drop_lng=${dropoff.lng}` +
-    `&drop_address=${encodeURIComponent(dropoff.addressString)}`;
+  const iosSchemeUrl = `porter://`;
 
-  return { androidIntentUrl, iosSchemeUrl, clipboardText, payload };
+  return { androidIntentUrl, iosSchemeUrl, clipboardText, fullSummary, payload };
 }
 
 /**
@@ -95,14 +76,13 @@ export function buildPorterDeepLink(order: Order): {
 export async function launchPorterAppDeepLink(order: Order) {
   const { androidIntentUrl, iosSchemeUrl, clipboardText } = buildPorterDeepLink(order);
 
-  // Copy customer details to clipboard as fallback
+  // Copy clean dropoff address to clipboard so Gboard / keyboard displays 1-tap paste chip
   try {
     await navigator.clipboard.writeText(clipboardText);
     alert(
-      `📋 Customer details copied to clipboard!\n\n` +
-      `Customer: ${order.customerName}\n` +
-      `Phone: ${order.phone}\n\n` +
-      `Opening Porter app...`,
+      `📋 Address copied to clipboard!\n\n` +
+      `📍 ${clipboardText}\n\n` +
+      `Opening Porter app...\nTap the search box in Porter and tap Paste!`,
     );
   } catch (err) {
     console.warn("Clipboard write failed:", err);
@@ -116,7 +96,7 @@ export async function launchPorterAppDeepLink(order: Order) {
   } else if (isIOS) {
     window.location.href = iosSchemeUrl;
   } else {
-    // Desktop browser fallback — open Android Intent URL
+    // Desktop browser fallback
     window.location.href = androidIntentUrl;
   }
 }

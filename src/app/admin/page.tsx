@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
-import { subscribeAllOrders, updateOrderStatus, checkAdminAccess, setAdmin, type AdminAccessReport } from "@/lib/db";
+import { subscribeAllOrders, updateOrderStatus, checkAdminAccess, setAdmin, updateDeliveryMeta, type AdminAccessReport } from "@/lib/db";
 import { formatINR } from "@/lib/menu";
 import { waLinkToCustomer } from "@/lib/whatsapp";
 import { launchPorterAppDeepLink } from "@/lib/porterDeepLink";
@@ -294,6 +294,7 @@ function AccessRow({ label, value, ok }: { label: string; value: string; ok: boo
 
 function AdminOrderCard({ order, archived = false }: { order: Order; archived?: boolean }) {
   const [busy, setBusy] = useState(false);
+  const [bookingBusy, setBookingBusy] = useState(false);
   const time = new Date(order.createdAt).toLocaleString("en-IN", {
     day: "numeric", month: "short", hour: "numeric", minute: "2-digit",
   });
@@ -321,9 +322,76 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
     }
   };
 
-  /** Show "Open Porter App" only when cooking is done or preparing. */
+  /**
+   * Books a Borzo delivery ride (Automated 1-Click API).
+   */
+  const handleBookBorzo = async () => {
+    const dropAddress = order.addressComponents
+      ? `${order.addressComponents.doorAndBuilding}, ${order.addressComponents.displayAddress}${
+          order.addressComponents.landmark ? ` (Landmark: ${order.addressComponents.landmark})` : ""
+        }`
+      : order.deliveryAddress;
+
+    if (!confirm(
+      `Book 1-click Borzo delivery for ${order.orderId}?\n\n` +
+      `Customer: ${order.customerName}\n` +
+      `Drop: ${dropAddress}`,
+    )) return;
+
+    setBookingBusy(true);
+    try {
+      const res = await fetch("/api/delivery/borzo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId: order.orderId,
+          customerName: order.customerName,
+          customerPhone: order.phone,
+          dropAddress,
+        }),
+      });
+
+      const data = (await res.json()) as {
+        carrierId?: string;
+        carrierOrderId?: string;
+        fareEstimate?: number;
+        trackingUrl?: string;
+        mock?: boolean;
+        error?: string;
+      };
+
+      if (!res.ok || data.error) throw new Error(data.error || `Borzo API error (${res.status})`);
+
+      await updateDeliveryMeta(order.id, {
+        carrierId: data.carrierId || "borzo",
+        carrierOrderId: data.carrierOrderId,
+        fareEstimate: data.fareEstimate,
+        bookedAt: Date.now(),
+        trackingUrl: data.trackingUrl,
+      });
+
+      await updateOrderStatus(order.id, "Out for Delivery");
+      window.open(waLinkToCustomer(order, "Out for Delivery"), "_blank");
+
+      if (data.mock) {
+        alert(
+          `✅ Borzo Delivery Booked (MOCK MODE)\n\n` +
+          `Order ID: ${data.carrierOrderId}\n` +
+          `Fare Estimate: ₹${data.fareEstimate}\n\n` +
+          `Set BORZO_API_KEY in .env.local for real Borzo bookings.`,
+        );
+      }
+    } catch (err) {
+      alert(`Borzo delivery booking failed: ${(err as Error).message}`);
+    } finally {
+      setBookingBusy(false);
+    }
+  };
+
+  /** Show delivery options only when cooking is done or preparing and ride not yet booked. */
   const canBookDelivery =
-    order.status === "Confirmed" || order.status === "Preparing";
+    (order.status === "Confirmed" || order.status === "Preparing") &&
+    !order.deliveryMeta?.carrierOrderId;
 
   return (
     <article className={`card overflow-hidden ${archived ? "opacity-75" : ""}`}>
@@ -419,16 +487,26 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
 
         {/* Actions */}
         <div className="flex flex-col gap-2 md:w-52 md:items-stretch">
-          {/* Book via Porter App Deep Link Button */}
+          {/* Dual Delivery Dispatch Buttons — Borzo API & Porter Deep Link */}
           {canBookDelivery && (
-            <button
-              onClick={() => launchPorterAppDeepLink(order)}
-              disabled={busy}
-              className="rounded-xl bg-turmeric px-4 py-2.5 text-xs font-bold text-inkdark shadow-sm transition hover:bg-turmeric/80 disabled:opacity-50"
-              title="Opens installed Porter App on phone with pre-filled coordinates & copies details to clipboard"
-            >
-              🚚 Book via Porter App
-            </button>
+            <div className="flex flex-col gap-1.5">
+              <button
+                onClick={handleBookBorzo}
+                disabled={bookingBusy || busy}
+                className="rounded-xl bg-turmeric px-4 py-2.5 text-xs font-bold text-inkdark shadow-sm transition hover:bg-turmeric/80 disabled:opacity-50"
+                title="Automatically creates rider booking via Borzo Business API with pre-filled details"
+              >
+                {bookingBusy ? "Booking Borzo..." : "⚡ Book via Borzo (1-Click API)"}
+              </button>
+              <button
+                onClick={() => launchPorterAppDeepLink(order)}
+                disabled={bookingBusy || busy}
+                className="rounded-xl border border-turmeric/60 bg-paper px-4 py-2 text-xs font-bold text-ink transition hover:bg-turmeric/10 disabled:opacity-50"
+                title="Opens installed Porter App directly & copies address for 1-tap paste"
+              >
+                📱 Open Porter App (1-Tap Paste)
+              </button>
+            </div>
           )}
 
           <label className="text-xs font-bold uppercase tracking-wider text-soft" htmlFor={`status-${order.id}`}>
