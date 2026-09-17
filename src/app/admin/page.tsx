@@ -106,7 +106,29 @@ export default function AdminPage() {
     acc[o.status] = (acc[o.status] ?? 0) + 1;
     return acc;
   }, {});
-  const active = orders?.filter((o) => o.status !== "Delivered" && o.status !== "Cancelled") ?? [];
+
+  // Action Priority ranking: Order Received (1) -> Preparing/Confirmed (2) -> Out for Delivery (3)
+  const STATUS_PRIORITY: Record<string, number> = {
+    "Order Received": 1,
+    Confirmed: 2,
+    Preparing: 2,
+    "Out for Delivery": 3,
+  };
+
+  // Active orders: Action priority first, then FIFO (Oldest created order first)
+  const active = (orders ?? [])
+    .filter((o) => o.status !== "Delivered" && o.status !== "Cancelled")
+    .sort((a, b) => {
+      const prioA = STATUS_PRIORITY[a.status] ?? 99;
+      const prioB = STATUS_PRIORITY[b.status] ?? 99;
+      if (prioA !== prioB) return prioA - prioB;
+      return a.createdAt - b.createdAt; // FIFO within same priority group
+    });
+
+  // Archived orders: Newest completed/cancelled first
+  const archivedOrders = (orders ?? [])
+    .filter((o) => o.status === "Delivered" || o.status === "Cancelled")
+    .sort((a, b) => b.createdAt - a.createdAt);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:py-12">
@@ -272,9 +294,9 @@ export default function AdminPage() {
         {active.map((order) => (
           <AdminOrderCard key={order.id} order={order} />
         ))}
-        {orders
-          ?.filter((o) => o.status === "Delivered" || o.status === "Cancelled")
-          .map((order) => <AdminOrderCard key={order.id} order={order} archived />)}
+        {archivedOrders.map((order) => (
+          <AdminOrderCard key={order.id} order={order} archived />
+        ))}
       </div>
     </div>
   );
@@ -299,23 +321,18 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
     day: "numeric", month: "short", hour: "numeric", minute: "2-digit",
   });
 
-  /** Change order status and notify customer via WhatsApp (silent for "Preparing"). */
+  /** Change order status silently in Firestore (WhatsApp is sent via the explicit button below). */
   const changeStatus = async (status: OrderStatus) => {
     if (status === order.status) return;
     setBusy(true);
-    const notify = status !== "Preparing";
-    const win = notify ? window.open(waLinkToCustomer(order, status), "_blank") : null;
     try {
       await updateOrderStatus(order.id, status);
     } catch (err) {
-      win?.close();
       console.error(err);
       const e = err as Error;
       const code = e.name === "FirebaseError" ? (err as { code?: string }).code ?? "" : "";
       alert(
-        `Couldn't update the status.\n\n${e.message ?? "Unknown error"}${code ? `\n\n(code: ${code})` : ""}\n\n` +
-        "It says READ step → the console READ rule is stale; WRITE step → the console UPDATE rule is stale.\n" +
-        "Fix: Firebase console → Firestore → Rules → paste firestore.rules.console-safe → Publish.",
+        `Couldn't update the status.\n\n${e.message ?? "Unknown error"}${code ? `\n\n(code: ${code})` : ""}`,
       );
     } finally {
       setBusy(false);
@@ -458,12 +475,14 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
             </li>
           </ul>
 
-          {/* Porter booking status badge */}
+          {/* Delivery booking status badge */}
           {order.deliveryMeta?.carrierOrderId && (
             <div className="flex items-center gap-2 rounded-lg border border-ok/30 bg-ok/5 px-3 py-2 text-xs">
               <span className="text-ok">✓</span>
               <span>
-                <span className="font-semibold text-ink">Porter booked</span>
+                <span className="font-semibold text-ink">
+                  {order.deliveryMeta.carrierId === "borzo" ? "Borzo" : "Porter"} booked
+                </span>
                 {" · "}Order: {order.deliveryMeta.carrierOrderId}
                 {order.deliveryMeta.fareEstimate !== undefined && (
                   <span className="ml-1 text-soft">
@@ -512,17 +531,36 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
           <label className="text-xs font-bold uppercase tracking-wider text-soft" htmlFor={`status-${order.id}`}>
             Update status
           </label>
-          <select
-            id={`status-${order.id}`}
-            value={order.status}
-            disabled={busy}
-            onChange={(e) => changeStatus(e.target.value as OrderStatus)}
-            className="field py-2.5 text-sm font-semibold"
-          >
-            {[...ORDER_STATUSES, "Cancelled"].map((s) => (
-              <option key={s}>{s}</option>
-            ))}
-          </select>
+
+          {/* Forward-only status dropdown & backward locks */}
+          {order.status === "Delivered" || order.status === "Cancelled" ? (
+            <div className="rounded-xl border border-line bg-cream/50 px-3 py-2 text-center text-xs font-semibold text-soft">
+              🔒 Order {order.status} (Locked)
+            </div>
+          ) : (
+            <select
+              id={`status-${order.id}`}
+              value={order.status}
+              disabled={busy}
+              onChange={(e) => changeStatus(e.target.value as OrderStatus)}
+              className="field py-2.5 text-sm font-semibold"
+            >
+              {(
+                {
+                  "Order Received": ["Order Received", "Preparing", "Cancelled"],
+                  Confirmed: ["Confirmed", "Preparing", "Cancelled"],
+                  Preparing: ["Preparing", "Out for Delivery", "Cancelled"],
+                  "Out for Delivery": ["Out for Delivery", "Delivered", "Cancelled"],
+                  Delivered: ["Delivered"],
+                  Cancelled: ["Cancelled"],
+                }[order.status] ?? ORDER_STATUSES
+              ).map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          )}
           {order.status === "Preparing" ? (
             <span className="text-[11px] text-soft">
               No WhatsApp message is sent for the Preparing step — status updates silently.
