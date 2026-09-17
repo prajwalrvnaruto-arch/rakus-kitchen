@@ -27,6 +27,22 @@ export interface OrderDraft {
 }
 
 /**
+ * Recursively strips keys with `undefined` values from an object or array.
+ * Firestore strictly rejects documents containing `undefined` property values.
+ */
+function sanitizeFirestoreData<T>(obj: T): T {
+  if (obj === null || typeof obj !== "object") return obj;
+  if (Array.isArray(obj)) return obj.map(sanitizeFirestoreData) as unknown as T;
+  const cleaned: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
+    if (value !== undefined) {
+      cleaned[key] = sanitizeFirestoreData(value);
+    }
+  }
+  return cleaned as T;
+}
+
+/**
  * Writes a new order with a unique, human-friendly ID (RK-00001).
  * The ID comes from a transactional counter so two orders can never collide.
  */
@@ -46,18 +62,17 @@ export async function createOrder(customerId: string, draft: OrderDraft): Promis
   });
 
   // Firestore rejects `undefined` values — strip every optional field that is unset.
-  const { notes, addressComponents, ...rest } = draft;
-  const docRef = await addDoc(ordersRef, {
-    ...rest,
-    ...(notes ? { notes } : {}),
-    ...(addressComponents ? { addressComponents } : {}),
+  const payload = sanitizeFirestoreData({
+    ...draft,
     orderId,
     customerId,
-    status: "Order Received",
-    statusHistory: [{ status: "Order Received", at: Date.now() }] as StatusEvent[],
+    status: "Order Received" as OrderStatus,
+    statusHistory: [{ status: "Order Received" as OrderStatus, at: Date.now() }],
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+
+  const docRef = await addDoc(ordersRef, payload);
 
   return {
     id: docRef.id,

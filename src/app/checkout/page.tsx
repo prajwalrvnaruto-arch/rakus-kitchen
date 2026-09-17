@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
@@ -228,8 +228,13 @@ export default function CheckoutPage() {
       setPlacedOrder(order);
       setPhase("done");
     } catch (err) {
-      console.error(err);
-      setError("We couldn't place your order. Please check your connection and try again.");
+      console.error("Order placement failed:", err);
+      const msg = (err as Error)?.message;
+      setError(
+        msg && !msg.includes("Quota")
+          ? `Could not place order: ${msg}`
+          : "We couldn't place your order. Please check your connection and try again.",
+      );
       setPhase("form");
     }
   };
