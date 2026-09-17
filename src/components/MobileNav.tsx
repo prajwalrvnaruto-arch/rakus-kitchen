@@ -5,13 +5,15 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/lib/auth-context";
 import { useCart } from "@/lib/cart-context";
 
-const TABS = [
-  { href: "/", label: "Home", icon: "🏠" },
-  { href: "/menu", label: "Menu", icon: "🥘" },
-  { href: "/biryani", label: "Biryani", icon: "🍗" },
-  { href: "/catering", label: "Catering", icon: "🎉" },
-  { href: "/orders", label: "Orders", icon: "🧾" },
-];
+import {
+  BiryaniPotIcon,
+  CartIcon,
+  CateringIcon,
+  HomeIcon,
+  MenuBookIcon,
+  OrdersReceiptIcon,
+  SettingsIcon,
+} from "./icons";
 
 export function MobileNav() {
   const pathname = usePathname();
@@ -21,22 +23,29 @@ export function MobileNav() {
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
 
+  const tabs = [
+    { href: "/", label: "Home", Icon: HomeIcon },
+    { href: "/menu", label: "Menu", Icon: MenuBookIcon },
+    { href: "/biryani", label: "Biryani", Icon: BiryaniPotIcon },
+    { href: "/catering", label: "Catering", Icon: CateringIcon },
+    { href: "/orders", label: "Orders", Icon: OrdersReceiptIcon },
+  ];
+
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line/70 bg-paper/95 backdrop-blur md:hidden">
       <div className={isAdmin ? "grid grid-cols-7" : "grid grid-cols-6"}>
-        {TABS.map((tab) => {
+        {tabs.map((tab) => {
           const active = isActive(tab.href);
+          const Icon = tab.Icon;
           return (
             <Link
               key={tab.href}
               href={tab.href}
-              className={`flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-semibold transition ${
-                active ? "text-chilidark" : "text-soft"
+              className={`flex flex-col items-center gap-1 py-2 text-[11px] font-semibold transition ${
+                active ? "text-chilidark" : "text-soft hover:text-ink"
               }`}
             >
-              <span className="text-lg leading-none" aria-hidden>
-                {tab.icon}
-              </span>
+              <Icon className={`h-5 w-5 ${active ? "stroke-[2.2]" : "stroke-[1.7]"}`} />
               {tab.label}
             </Link>
           );
@@ -44,27 +53,27 @@ export function MobileNav() {
         {isAdmin && (
           <Link
             href="/admin"
-            className={`flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-semibold transition ${
-              isActive("/admin") ? "text-greenburn" : "text-soft"
+            className={`flex flex-col items-center gap-1 py-2 text-[11px] font-semibold transition ${
+              isActive("/admin") ? "text-greenburn font-bold" : "text-soft hover:text-ink"
             }`}
           >
-            <span className="text-lg leading-none" aria-hidden>⚙️</span>
+            <SettingsIcon className={`h-5 w-5 ${isActive("/admin") ? "stroke-[2.2]" : "stroke-[1.7]"}`} />
             Admin
           </Link>
         )}
         <button
           onClick={() => setCartOpen(true)}
-          className="relative flex flex-col items-center gap-0.5 py-2.5 text-[11px] font-semibold text-soft"
+          className="relative flex flex-col items-center gap-1 py-2 text-[11px] font-semibold text-soft hover:text-ink"
           aria-label="Open cart"
         >
-          <span className="relative text-lg leading-none" aria-hidden>
-            🛒
+          <div className="relative">
+            <CartIcon className="h-5 w-5 stroke-[1.7]" />
             {totalUnits > 0 && (
-              <span className="animate-cart-pop absolute -right-2 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-chili px-1 text-[10px] font-bold text-cream">
+              <span className="animate-cart-pop absolute -right-2.5 -top-1.5 grid h-4 min-w-4 place-items-center rounded-full bg-chili px-1 text-[10px] font-bold text-cream">
                 {totalUnits}
               </span>
             )}
-          </span>
+          </div>
           Cart
         </button>
       </div>

@@ -7,7 +7,7 @@ import Image from "next/image";
 import { useCart } from "@/lib/cart-context";
 import { useAuth } from "@/lib/auth-context";
 import { formatINR, menuItemById } from "@/lib/menu";
-import { CartIcon } from "./icons";
+import { CartIcon, EmptyPlateIcon, DishPlaceholderIcon } from "./icons";
 
 export function CartDrawer() {
   const { items, itemTotal, packagingFee, grandTotal, cartOpen, setCartOpen, setQuantity, remove } = useCart();
@@ -50,7 +50,9 @@ export function CartDrawer() {
 
         {items.length === 0 ? (
           <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
-            <span className="text-5xl" aria-hidden>🍽️</span>
+            <span className="text-soft/60" aria-hidden>
+              <EmptyPlateIcon className="h-14 w-14" />
+            </span>
             <p className="font-semibold">Your cart is empty</p>
             <p className="text-sm text-soft">Add something delicious from our menu.</p>
             <Link
@@ -73,8 +75,8 @@ export function CartDrawer() {
                         <Image src={photo} alt={item.name} fill sizes="48px" className="object-cover" />
                       </div>
                     ) : (
-                      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-creamdark text-xl" aria-hidden>
-                        {item.emoji}
+                      <span className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-creamdark text-soft/50" aria-hidden>
+                        <DishPlaceholderIcon className="h-5 w-5" />
                       </span>
                     )}
                     <div className="flex-1 min-w-0">

@@ -7,7 +7,7 @@ import type { MenuItem } from "@/types";
 import { formatINR } from "@/lib/menu";
 import { useCart } from "@/lib/cart-context";
 import { QtyStepper } from "./QtyStepper";
-import { CartIcon } from "./icons";
+import { CartIcon, NonVegBadge, VegBadge, BiryaniPotIcon, ChickenCategoryIcon, MuttonCategoryIcon, OtherCategoryIcon } from "./icons";
 
 export function DishCard({ item }: { item: MenuItem }) {
   const { add } = useCart();
@@ -21,6 +21,16 @@ export function DishCard({ item }: { item: MenuItem }) {
   // When portions are enabled the selected variant's price overrides `item.price`.
   // All non-variant items define a price; the ?? fallback only guards an authoring slip.
   const unitPrice = hasVariants ? variantPrice : item.price ?? 0;
+
+  // Pick the right category fallback icon when there is no photo
+  const FallbackIcon =
+    item.category === "Biryani"
+      ? BiryaniPotIcon
+      : item.category === "Chicken Specialities" || item.category === "Catering"
+        ? ChickenCategoryIcon
+        : item.category === "Mutton Specialities"
+          ? MuttonCategoryIcon
+          : OtherCategoryIcon;
 
   const handleAdd = () => {
     add({
@@ -51,15 +61,16 @@ export function DishCard({ item }: { item: MenuItem }) {
         </div>
       ) : (
         <div
-          className={`grid h-24 w-24 shrink-0 place-items-center rounded-xl text-4xl sm:h-28 sm:w-28 ${isBiryani
-              ? "bg-gradient-to-br from-turmeric/25 to-chili/20"
+          className={`grid h-24 w-24 shrink-0 place-items-center rounded-xl sm:h-28 sm:w-28 ${
+            isBiryani
+              ? "bg-gradient-to-br from-turmeric/25 to-chili/20 text-chilidark"
               : item.veg
-                ? "bg-gradient-to-br from-ok/15 to-greenburn/10"
-                : "bg-gradient-to-br from-turmeric/25 to-chili/25"
-            }`}
+                ? "bg-gradient-to-br from-ok/15 to-greenburn/10 text-ok"
+                : "bg-gradient-to-br from-turmeric/25 to-chili/25 text-chili"
+          }`}
           aria-hidden
         >
-          {item.emoji}
+          <FallbackIcon className="h-10 w-10 sm:h-12 sm:w-12" />
         </div>
       )}
 
@@ -69,7 +80,7 @@ export function DishCard({ item }: { item: MenuItem }) {
             <p className="font-semibold leading-snug">{item.name}</p>
             {item.unit && <p className="text-xs text-soft">{item.unit}</p>}
           </div>
-          {item.veg && <span className="chip shrink-0" title="Vegetarian">🟢 Veg</span>}
+          {item.veg ? <VegBadge /> : <NonVegBadge />}
         </div>
 
         <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-soft">{item.description}</p>

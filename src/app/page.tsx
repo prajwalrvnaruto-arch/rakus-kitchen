@@ -2,13 +2,20 @@ import Link from "next/link";
 import Image from "next/image";
 import { BUSINESS } from "@/lib/config";
 import { waMeLink } from "@/lib/whatsapp";
-import { WhatsAppIcon, ClockIcon, MapPinIcon } from "@/components/icons";
+import {
+  WhatsAppIcon,
+  ClockIcon,
+  MapPinIcon,
+  FreshIngredientsIcon,
+  AuthenticTasteIcon,
+  HygienicPrepIcon,
+} from "@/components/icons";
 
 const CATEGORY_TILES = [
-  { emoji: "🍗", label: "Chicken", note: "biryani · chops · kabab" },
-  { emoji: "🥘", label: "Mutton", note: "sambar · fry · chops" },
-  { emoji: "🐟", label: "Fish", note: "fry · koli saru" },
-  { emoji: "🍚", label: "Rice & Sides", note: "mudde · raita · rasam" },
+  { src: "/images/tiles/tile-chicken.jpg",   href: "/menu#chicken-specialities", label: "Chicken",     note: "biryani · chops · kabab" },
+  { src: "/images/tiles/tile-mutton.jpg",    href: "/menu#mutton-specialities",  label: "Mutton",      note: "sambar · fry · chops" },
+  { src: "/images/tiles/tile-fish.jpg",      href: "/menu#other-items",          label: "Fish",        note: "fry · koli saru" },
+  { src: "/images/tiles/tile-rice-sides.jpg",href: "/menu#other-items",          label: "Rice & Sides",note: "mudde · raita · rasam" },
 ];
 
 const GALLERY = [
@@ -22,17 +29,17 @@ const GALLERY = [
 
 const PILLARS = [
   {
-    emoji: "🌾",
+    Icon: FreshIngredientsIcon,
     title: "Fresh ingredients",
     text: "Every order gets its rice and meat weighed and cooked the same day — nothing frozen, nothing held over.",
   },
   {
-    emoji: "🔥",
+    Icon: AuthenticTasteIcon,
     title: "Authentic taste",
     text: "Proper Nati-style stove-top cooking, the way a home kitchen in JP Nagar would make it.",
   },
   {
-    emoji: "🧼",
+    Icon: HygienicPrepIcon,
     title: "Hygienic preparation",
     text: "Clean, careful, home-standard kitchen practices on every single parcel.",
   },
@@ -111,10 +118,18 @@ export default function HomePage() {
           {CATEGORY_TILES.map((tile) => (
             <Link
               key={tile.label}
-              href="/menu"
+              href={tile.href}
               className="card flex items-center gap-3 p-4 transition hover:-translate-y-0.5 hover:shadow-card"
             >
-              <span className="text-3xl" aria-hidden>{tile.emoji}</span>
+              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl ring-1 ring-ink/10" aria-hidden>
+                <Image
+                  src={tile.src}
+                  alt={tile.label}
+                  fill
+                  sizes="48px"
+                  className="object-cover"
+                />
+              </div>
               <span>
                 <span className="block font-semibold">{tile.label}</span>
                 <span className="block text-xs text-soft">{tile.note}</span>
@@ -132,8 +147,8 @@ export default function HomePage() {
         <div className="mt-8 grid gap-4 md:grid-cols-3">
           {PILLARS.map((p) => (
             <div key={p.title} className="card p-6 text-center">
-              <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-turmeric/20 text-3xl" aria-hidden>
-                {p.emoji}
+              <span className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-turmeric/20 text-chilidark" aria-hidden>
+                <p.Icon className="h-7 w-7" />
               </span>
               <h3 className="mt-4 font-display text-lg font-semibold">{p.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-soft">{p.text}</p>
