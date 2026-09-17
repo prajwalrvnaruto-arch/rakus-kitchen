@@ -56,7 +56,7 @@ export function buildPorterDeepLink(order: Order): {
     `📍 Dropoff Address: ${dropoff.addressString}\n` +
     `🗺️ Coordinates: ${dropoff.lat}, ${dropoff.lng}`;
 
-  // Android Intent URI (Targeting in.porter.android)
+  // Android Intent URI (Targeting com.theporter.android.customerapp)
   const androidIntentUrl =
     `intent://book` +
     `?pickup_name=${encodeURIComponent(pickup.name)}` +
@@ -69,7 +69,7 @@ export function buildPorterDeepLink(order: Order): {
     `&drop_lat=${dropoff.lat}` +
     `&drop_lng=${dropoff.lng}` +
     `&drop_address=${encodeURIComponent(dropoff.addressString)}` +
-    `#Intent;scheme=porter;package=in.porter.android;S.browser_fallback_url=${encodeURIComponent("https://play.google.com/store/apps/details?id=in.porter.android")};end`;
+    `#Intent;scheme=porter;package=com.theporter.android.customerapp;S.browser_fallback_url=${encodeURIComponent("https://play.google.com/store/apps/details?id=com.theporter.android.customerapp")};end`;
 
   // iOS Custom Scheme (porter://)
   const iosSchemeUrl =
@@ -98,6 +98,12 @@ export async function launchPorterAppDeepLink(order: Order) {
   // Copy customer details to clipboard as fallback
   try {
     await navigator.clipboard.writeText(clipboardText);
+    alert(
+      `📋 Customer details copied to clipboard!\n\n` +
+      `Customer: ${order.customerName}\n` +
+      `Phone: ${order.phone}\n\n` +
+      `Opening Porter app...`,
+    );
   } catch (err) {
     console.warn("Clipboard write failed:", err);
   }
@@ -110,11 +116,7 @@ export async function launchPorterAppDeepLink(order: Order) {
   } else if (isIOS) {
     window.location.href = iosSchemeUrl;
   } else {
-    // Desktop browser fallback — open Android Intent URL & alert admin
-    alert(
-      `📱 Porter Deep Link Triggered!\n\n` +
-      `Customer details copied to clipboard:\n${clipboardText}`,
-    );
+    // Desktop browser fallback — open Android Intent URL
     window.location.href = androidIntentUrl;
   }
 }
