@@ -80,8 +80,14 @@ export function CartDrawer() {
                       </span>
                     )}
                     <div className="flex-1 min-w-0">
-                    <p className="font-semibold leading-tight">{item.name}</p>
+                    <p className="font-semibold leading-tight">
+                      {item.isAddon && <span className="mr-1 text-soft" aria-hidden>↳</span>}
+                      {item.name}
+                    </p>
                     {item.variant && <p className="text-xs font-medium text-soft">{item.variant}</p>}
+                    {item.isAddon && (
+                      <p className="text-[11px] text-soft">Add-on · adjusts with its biryani</p>
+                    )}
                     <p className="mt-0.5 text-sm text-soft">
                       {formatINR(item.price)} {item.quantity > 1 && `× ${item.quantity}`}
                     </p>

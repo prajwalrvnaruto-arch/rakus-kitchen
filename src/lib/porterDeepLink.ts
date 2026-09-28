@@ -1,4 +1,5 @@
 import { BUSINESS } from "./config";
+import { toLocal10 } from "./phone";
 import type { Order } from "@/types";
 
 export interface PorterLocationData {
@@ -12,6 +13,74 @@ export interface PorterLocationData {
 export interface PorterBookingPayload {
   pickup: PorterLocationData;
   dropoff: PorterLocationData;
+}
+
+/**
+ * The exact strings an admin pastes into Porter's booking form.
+ * Ordered to match the flow in the Porter app: drop address → building →
+ * receiver's name → receiver's mobile. `allDetails` is a formatted block
+ * for cases where the admin wants everything at once.
+ */
+export interface PorterClipboardData {
+  /** For Porter's "Where is your Drop?" search field. */
+  dropAddress: string;
+  /** For Porter's "House / Apartment / Shop (optional)" field. */
+  buildingDetails: string;
+  /** For Porter's "Receiver's Name" field. */
+  receiverName: string;
+  /** For Porter's "Receiver's Mobile number" field — plain 10 digits. */
+  receiverPhone: string;
+  /** Formatted multi-line block for a single "copy all" paste. */
+  allDetails: string;
+}
+
+/** Placeholder used in the UI when a field genuinely has no data. */
+const NOT_SPECIFIED = "—";
+
+/**
+ * Normalizes an Indian phone to the 10-digit form Porter's Receiver's Mobile
+ * field expects. Orders store phones like "+91 96068 88096"; Porter wants
+ * "9606888096". Delegates to the shared normalizer so the country-code peeling
+ * and validation live in one place. Returns "" (rather than a corrupted,
+ * silently-truncated number) for anything that isn't a valid Indian mobile —
+ * the caller renders the "—" placeholder in that case.
+ */
+export function toPorterPhone(phone: string): string {
+  return toLocal10(phone);
+}
+
+/**
+ * Builds the individual strings the admin pastes into Porter's form.
+ * - Prefers structured `addressComponents` (new orders) and falls back to the
+ *   legacy plain `deliveryAddress` string.
+ * - Appends the landmark to the drop address so Porter's driver sees it in
+ *   the search chip they save.
+ * - Splits building details out of the address into their own field so
+ *   Porter's "House / Apartment / Shop" input can hold them.
+ */
+export function buildPorterClipboardData(order: Order): PorterClipboardData {
+  const ac = order.addressComponents;
+
+  const dropAddress = ac
+    ? [ac.displayAddress, ac.landmark ? `Landmark: ${ac.landmark}` : ""]
+        .filter(Boolean)
+        .join(" · ")
+    : order.deliveryAddress || NOT_SPECIFIED;
+
+  const buildingDetails = ac?.doorAndBuilding?.trim() || NOT_SPECIFIED;
+  const receiverName = order.customerName?.trim() || NOT_SPECIFIED;
+  const receiverPhone = toPorterPhone(order.phone);
+
+  const allDetails = [
+    `Raku's Kitchen — Porter Booking (${order.orderId})`,
+    "",
+    `Drop Address: ${dropAddress}`,
+    `Building: ${buildingDetails}`,
+    `Receiver: ${receiverName}`,
+    `Mobile: ${receiverPhone}`,
+  ].join("\n");
+
+  return { dropAddress, buildingDetails, receiverName, receiverPhone, allDetails };
 }
 
 /**

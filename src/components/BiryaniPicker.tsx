@@ -3,7 +3,10 @@
 import { useState } from "react";
 import Image from "next/image";
 import type { BiryaniMeat, BiryaniWeight } from "@/types";
-import { BIRYANI_PRICING, BIRYANI_RATIO, biryaniVariantLabel, formatINR } from "@/lib/menu";
+import {
+  BIRYANI_PRICING, BIRYANI_RATIO, biryaniVariantLabel, formatINR,
+  EXTRA_MEAT_GRAMS, EXTRA_MEAT_PRICE, EXTRA_MEAT_MAX_UNITS, extraMeatLabel, extraMeatMenuId,
+} from "@/lib/menu";
 import { useCart } from "@/lib/cart-context";
 import { QtyStepper } from "./QtyStepper";
 import { CartIcon } from "./icons";
@@ -19,10 +22,15 @@ export function BiryaniPicker() {
   const [meat, setMeat] = useState<BiryaniMeat>("chicken");
   const [weight, setWeight] = useState<BiryaniWeight>(1);
   const [qty, setQty] = useState(1);
+  const [extraMeatQty, setExtraMeatQty] = useState(0);
 
   const price = BIRYANI_PRICING[weight][meat];
   const ratio = BIRYANI_RATIO[weight];
   const unitLabel = biryaniVariantLabel(weight, meat);
+  const extraPrice = EXTRA_MEAT_PRICE[meat];
+  const extraLabel = extraMeatLabel(meat);
+  const maxExtra = EXTRA_MEAT_MAX_UNITS[weight] * qty;
+  const total = price * qty + extraPrice * extraMeatQty;
 
   const handleAdd = () => {
     add({
@@ -33,6 +41,17 @@ export function BiryaniPicker() {
       quantity: qty,
       variant: unitLabel,
     });
+    if (extraMeatQty > 0) {
+      add({
+        menuId: extraMeatMenuId(meat),
+        name: extraLabel,
+        emoji: meat === "chicken" ? "🍗" : "🥘",
+        price: extraPrice,
+        quantity: extraMeatQty,
+        isAddon: true,
+      });
+      setExtraMeatQty(0);
+    }
   };
 
   return (
@@ -70,7 +89,10 @@ export function BiryaniPicker() {
                 <button
                   key={w}
                   type="button"
-                  onClick={() => setWeight(w)}
+                  onClick={() => {
+                    setWeight(w);
+                    setExtraMeatQty((q) => Math.min(q, EXTRA_MEAT_MAX_UNITS[w]));
+                  }}
                   className={`rounded-xl border-2 py-3 text-sm font-bold transition ${weight === w
                       ? "border-chili bg-chili text-cream"
                       : "border-line bg-paper text-soft hover:border-soft"
@@ -122,19 +144,42 @@ export function BiryaniPicker() {
                 Cooked slow, Nati-style, over a proper flame.
               </p>
             </div>
+
+            {/* Extra meat add-on: e.g. "Add more 250 g chicken for 1 kg biryani" */}
+            <div className="mt-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-paper px-3 py-2.5">
+              <p className="text-sm font-semibold text-ink">
+                Add more {EXTRA_MEAT_GRAMS} g {meat} for {unitLabel.split(" · ")[0]} biryani
+                <span className="ml-1 font-normal text-soft">· {formatINR(extraPrice)} each</span>
+              </p>
+              <QtyStepper
+                value={extraMeatQty}
+                onChange={setExtraMeatQty}
+                min={0}
+                max={maxExtra}
+                labelFor={extraLabel}
+              />
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <QtyStepper value={qty} onChange={setQty} labelFor="biryani parcels" />
+            <QtyStepper
+              value={qty}
+              onChange={(q) => {
+                setQty(q);
+                setExtraMeatQty((eq) => Math.min(eq, EXTRA_MEAT_MAX_UNITS[weight] * q));
+              }}
+              labelFor="biryani parcels"
+            />
             <button
               onClick={handleAdd}
               className="btn btn-chili flex-1"
               aria-label={`Add ${qty} ${meat} biryani ${unitLabel} to cart`}
             >
               <CartIcon className="h-5 w-5" />
-              Add to cart · {formatINR(price * qty)}
+              Add to cart · {formatINR(total)}
             </button>
           </div>
+
           <p className="text-xs text-soft">
             ₹20 packaging fee per item applies. ½ kg chicken from ₹400, mutton from ₹799.
           </p>

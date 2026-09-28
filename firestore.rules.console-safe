@@ -24,16 +24,34 @@ service cloud.firestore {
       allow read: if isSignedIn() && request.auth.uid == uid;
       allow write: if isAdmin();
     }
+    // Orders are now created SERVER-SIDE ONLY, by the admin SDK after a verified
+    // Razorpay payment (see src/lib/server/paymentIntents.ts) — the admin SDK
+    // bypasses these rules, so denying client `create` here just closes the
+    // leftover client-write path.
     match /orders/{orderId} {
       allow read: if isSignedIn() && (
         resource.data.customerId == request.auth.uid
         || isAdmin()
       );
-      allow create: if isSignedIn()
-        && request.resource.data.customerId == request.auth.uid
-        && request.resource.data.status == 'Order Received';
+      allow create: if false;
       allow update: if isAdmin();
       allow delete: if false;
+    }
+
+    // Payment intents — server-only (admin SDK bypasses this).
+    match /paymentIntents/{intentId} {
+      allow read, write: if false;
+    }
+
+    // Razorpay webhook dedupe log — server-only.
+    match /webhookEvents/{eventId} {
+      allow read, write: if false;
+    }
+
+    // Per-customer order-creation rate limit — server-only (admin SDK bypasses
+    // this). Written only by enforceOrderRateLimit in create-order.
+    match /rateLimits/{uid} {
+      allow read, write: if false;
     }
   }
 }

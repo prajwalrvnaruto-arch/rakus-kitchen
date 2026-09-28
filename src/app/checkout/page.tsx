@@ -1,20 +1,91 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import Script from "next/script";
 import { useRouter } from "next/navigation";
+import { getIdToken } from "firebase/auth";
 import { useAuth } from "@/lib/auth-context";
 import { useCart } from "@/lib/cart-context";
+import { auth } from "@/lib/firebase";
 import { formatINR } from "@/lib/menu";
 import { upcomingMeals, validateMeal, type MealOption } from "@/lib/order-dates";
-import { createOrder, type OrderDraft } from "@/lib/db";
-import { buildOrderMessage } from "@/lib/whatsapp";
+import { waLinkToKitchen } from "@/lib/whatsapp";
 import { AddressPicker } from "@/components/AddressPicker";
 import { OrderStatusSteps } from "@/components/OrderStatusSteps";
 import { WhatsAppIcon } from "@/components/icons";
-import type { AddressComponents, Order, OrderLineItem } from "@/types";
+import type { AddressComponents, Order } from "@/types";
 
-type Phase = "form" | "placing" | "done";
+type Phase = "form" | "processing" | "verifying" | "done";
+
+/* ── Razorpay Checkout.js types (the SDK ships no types of its own) ──────── */
+
+interface RazorpayHandlerResponse {
+  razorpay_payment_id: string;
+  razorpay_order_id: string;
+  razorpay_signature: string;
+}
+
+interface RazorpayOptions {
+  key: string;
+  amount: number;
+  currency: string;
+  order_id: string;
+  name: string;
+  description?: string;
+  prefill?: { name?: string; contact?: string; email?: string };
+  theme?: { color?: string };
+  handler: (response: RazorpayHandlerResponse) => void;
+  modal?: { ondismiss?: () => void };
+}
+
+declare global {
+  interface Window {
+    Razorpay?: new (options: RazorpayOptions) => { open: () => void };
+  }
+}
+
+interface CreateOrderResponse {
+  razorpayOrderId: string;
+  amount: number;
+  currency: string;
+  keyId?: string;
+}
+
+class ApiError extends Error {
+  constructor(message: string, public status: number, public code?: string) {
+    super(message);
+  }
+}
+
+/**
+ * Calls one of our /api/payments/* routes with a fresh Firebase ID token.
+ * Always force-refreshes the token first — a stale token is the #1 cause of
+ * a spurious 401 mid-checkout (see the same pattern in src/lib/db.ts).
+ */
+async function postJSON<T>(url: string, body: unknown): Promise<T> {
+  if (!auth?.currentUser) {
+    throw new ApiError("Your session has expired. Please sign in again to continue.", 401);
+  }
+  let token: string;
+  try {
+    token = await getIdToken(auth.currentUser, /* forceRefresh */ true);
+  } catch {
+    throw new ApiError("Your session has expired. Please sign in again to continue.", 401);
+  }
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const err = data as { error?: string; code?: string };
+    throw new ApiError(err?.error || `Request failed (${res.status})`, res.status, err?.code);
+  }
+  return data as T;
+}
 
 export default function CheckoutPage() {
   const { user, loading } = useAuth();
@@ -24,6 +95,20 @@ export default function CheckoutPage() {
   const [phase, setPhase] = useState<Phase>("form");
   const [placedOrder, setPlacedOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sessionExpired, setSessionExpired] = useState(false);
+
+  // Held so the "Retry verification" button can replay the exact same
+  // signed payload — verify is idempotent, so replaying it is always safe.
+  const [pendingVerification, setPendingVerification] = useState<RazorpayHandlerResponse | null>(null);
+
+  // Guards against a double-click / rapid re-submit firing create-order twice.
+  // The disabled button is only a visual guard; this ref makes submit itself a
+  // no-op while one attempt is already in flight, so we never create two
+  // Razorpay orders + payment intents for a single checkout.
+  const submitting = useRef(false);
+
+  const [scriptReady, setScriptReady] = useState(false);
+  const [scriptError, setScriptError] = useState(false);
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -47,6 +132,14 @@ export default function CheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid]);
 
+  // Prefill from the verified login number — still editable, since the
+  // delivery contact may differ from whoever is signed in.
+  useEffect(() => {
+    if (user?.phoneNumber) {
+      setPhone(user.phoneNumber.replace(/^\+91/, ""));
+    }
+  }, [user?.phoneNumber]);
+
   // Default to the first orderable slot (usually tomorrow's lunch).
   useEffect(() => {
     if (!meal) {
@@ -55,7 +148,8 @@ export default function CheckoutPage() {
     }
   }, [mealOptions, meal]);
 
-  // Not signed in → redirect to login, then back here.
+  // Not signed in → redirect to login, then back here. Cart + address stay
+  // intact (both persisted to localStorage), so a re-login loses no work.
   useEffect(() => {
     if (!loading && !user) router.replace("/login?next=%2Fcheckout");
   }, [loading, user, router]);
@@ -64,6 +158,76 @@ export default function CheckoutPage() {
   const handleAddressChange = useCallback((addr: AddressComponents | null) => {
     setAddressComponents(addr);
   }, []);
+
+  /**
+   * Step 2 of payment: hand Razorpay's callback payload to /api/payments/verify.
+   * Kept outside `submit` so the "Retry verification" button can call it again
+   * with the exact same payload — safe because finalizePayment is idempotent.
+   */
+  const verifyPayment = useCallback(async (payload: RazorpayHandlerResponse) => {
+    setPendingVerification(payload);
+    setPhase("verifying");
+    setError(null);
+    setSessionExpired(false);
+    try {
+      const { order } = await postJSON<{ order: Order }>("/api/payments/verify", payload);
+      clear();
+      setPendingVerification(null);
+      setPlacedOrder(order);
+      setPhase("done");
+    } catch (err) {
+      console.error("Payment verification failed:", err);
+      if (err instanceof ApiError && err.status === 401) setSessionExpired(true);
+      setError(
+        `We couldn't confirm your payment: ${(err as Error).message}. If money was deducted, ` +
+        "it will still be picked up automatically — you can safely retry confirming below.",
+      );
+      // Stay on the "verifying" phase — the retry UI renders when error is set.
+    }
+  }, [clear]);
+
+  const openRazorpayCheckout = useCallback(
+    (order: CreateOrderResponse) => {
+      if (!order.keyId) {
+        setError("Payment is not configured on this server. Please contact support.");
+        setPhase("form");
+        return;
+      }
+      if (typeof window.Razorpay !== "function") {
+        setError("Could not load the payment window. Please check your connection and try again.");
+        setPhase("form");
+        return;
+      }
+
+      const rzp = new window.Razorpay({
+        key: order.keyId,
+        amount: order.amount,
+        currency: order.currency,
+        order_id: order.razorpayOrderId,
+        name: "Raku's Kitchen",
+        description: meal ? `${meal.slot} · ${meal.date}` : undefined,
+        prefill: {
+          name: name.trim() || undefined,
+          contact: phone ? `+91${phone}` : undefined,
+          email: user?.email ?? undefined,
+        },
+        theme: { color: "#d94f30" },
+        handler: (response) => {
+          void verifyPayment(response);
+        },
+        modal: {
+          ondismiss: () => {
+            // No order was ever created — the intent just sits inert.
+            submitting.current = false;
+            setPhase("form");
+            setError("Payment was not completed. You can try again when you're ready.");
+          },
+        },
+      });
+      rzp.open();
+    },
+    [meal, name, phone, user?.email, verifyPayment],
+  );
 
   if (loading) {
     return <div className="mx-auto max-w-3xl px-4 py-12 text-center text-soft">Loading…</div>;
@@ -82,18 +246,54 @@ export default function CheckoutPage() {
     );
   }
 
+  /* ── "Confirming payment" screen (between Checkout and materialized order) ── */
+  if (phase === "verifying") {
+    return (
+      <>
+        <div className="mx-auto max-w-md px-4 py-16 text-center">
+          {error ? (
+            <>
+              <span className="text-5xl" aria-hidden>⚠️</span>
+              <h1 className="section-title mt-4">Couldn&apos;t confirm payment yet</h1>
+              <p className="mt-2 text-sm text-soft">{error}</p>
+              <div className="mt-6 flex flex-col gap-2">
+                {sessionExpired ? (
+                  <Link href="/login?next=%2Fcheckout" className="btn btn-chili">Sign in again</Link>
+                ) : (
+                  <button
+                    className="btn btn-chili"
+                    onClick={() => pendingVerification && verifyPayment(pendingVerification)}
+                  >
+                    Retry confirming payment
+                  </button>
+                )}
+                <Link href="/orders" className="btn btn-ghost">Check My Orders</Link>
+              </div>
+            </>
+          ) : (
+            <>
+              <span className="text-5xl" aria-hidden>⏳</span>
+              <h1 className="section-title mt-4">Confirming your payment…</h1>
+              <p className="mt-2 text-sm text-soft">This only takes a moment. Please don&apos;t close this page.</p>
+            </>
+          )}
+        </div>
+      </>
+    );
+  }
+
   /* ── Confirmation screen (order placed) ─────────────────────────────── */
   if (phase === "done" && placedOrder) {
-    const waHref = `https://wa.me/919606888096?text=${encodeURIComponent(buildOrderMessage(placedOrder))}`;
+    const waHref = waLinkToKitchen(placedOrder);
     return (
       <div className="mx-auto max-w-xl px-4 py-12">
         <div className="text-center">
           <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-turmeric/20 text-4xl" aria-hidden>
             ✅
           </span>
-          <h1 className="section-title mt-4">Order placed!</h1>
+          <h1 className="section-title mt-4">Payment successful!</h1>
           <p className="mt-1 text-sm text-soft">
-            Your order <span className="font-bold text-ink">{placedOrder.orderId}</span> is in.
+            Your order <span className="font-bold text-ink">{placedOrder.orderId}</span> is paid and in.
             Send it to Raku&apos;s Kitchen on WhatsApp so they can confirm it.
           </p>
         </div>
@@ -149,7 +349,7 @@ export default function CheckoutPage() {
             <span>Packaging</span><span>{formatINR(placedOrder.packagingFee)}</span>
           </div>
           <div className="flex justify-between px-5 py-3 text-base font-bold">
-            <span>Total</span><span>{formatINR(placedOrder.grandTotal)}</span>
+            <span>Total paid</span><span>{formatINR(placedOrder.grandTotal)}</span>
           </div>
         </div>
 
@@ -164,7 +364,11 @@ export default function CheckoutPage() {
   /* ── Checkout form ───────────────────────────────────────────────────── */
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // No-op if a submission is already in flight (double-click / rapid re-tap),
+    // so we never fire create-order twice for one checkout.
+    if (submitting.current) return;
     setError(null);
+    setSessionExpired(false);
 
     if (!user) return;
     if (!meal || !meal.date) {
@@ -184,36 +388,44 @@ export default function CheckoutPage() {
       return;
     }
 
-    const lines: OrderLineItem[] = items.map((it) => ({
+    if (scriptError) {
+      setError("Could not load the payment window. Please check your connection and reload the page.");
+      return;
+    }
+    if (!scriptReady) {
+      setError("Payment is still loading — please wait a moment and try again.");
+      return;
+    }
+
+    // Send only what the server needs to independently recompute prices —
+    // pricePerUnit/lineTotal are display-only client state and are never sent.
+    const lineInputs = items.map((it) => ({
       menuId: it.menuId,
       name: it.name,
       variant: it.variant,
       qty: it.quantity,
-      pricePerUnit: it.price,
-      lineTotal: it.price * it.quantity,
     }));
 
-    const draft: OrderDraft = {
+    const requestBody = {
       customerName: name.trim(),
       phone: `+91 ${phone}`,
-      // Keep a human-readable plain string for backward compat and WhatsApp messages.
       deliveryAddress: [
         addressComponents.doorAndBuilding,
         addressComponents.displayAddress,
         addressComponents.landmark,
       ].filter(Boolean).join(", "),
-      // The full structured address — used by Porter for precise delivery.
       addressComponents,
       mealSlot: meal.slot,
       mealDate: meal.date,
-      items: lines,
-      itemTotal,
-      packagingFee,
-      grandTotal,
+      items: lineInputs,
       notes: notes.trim() || undefined,
+      // Advisory: the total we showed. The server recomputes prices from scratch
+      // and charges its own total; this only lets it flag a mid-session change.
+      clientGrandTotal: grandTotal,
     };
 
-    setPhase("placing");
+    submitting.current = true;
+    setPhase("processing");
     try {
       // Persist structured address for the next visit.
       try {
@@ -223,27 +435,45 @@ export default function CheckoutPage() {
         );
       } catch { /* ignore storage errors */ }
 
-      const order = await createOrder(user.uid, draft);
-      clear();
-      setPlacedOrder(order);
-      setPhase("done");
+      const created = await postJSON<CreateOrderResponse>("/api/payments/create-order", requestBody);
+      openRazorpayCheckout(created);
+      // Phase stays "processing" while the Razorpay modal is open on top —
+      // it moves to "verifying" from the handler, or back to "form" on dismiss/error.
     } catch (err) {
-      console.error("Order placement failed:", err);
-      const msg = (err as Error)?.message;
-      setError(
-        msg && !msg.includes("Quota")
-          ? `Could not place order: ${msg}`
-          : "We couldn't place your order. Please check your connection and try again.",
-      );
+      console.error("Could not start payment:", err);
+      if (err instanceof ApiError && err.status === 401) setSessionExpired(true);
+      // A price changed mid-session: the shown Total already reflects the live
+      // cart, so ask the customer to review it before charging the new amount.
+      if (err instanceof ApiError && err.code === "price_changed") {
+        setError("Some prices changed since you added items. Please review the updated total above, then pay again.");
+      } else if (err instanceof ApiError && err.status === 429) {
+        // Rate-limited: the server's message already says to wait a moment.
+        setError((err as Error).message);
+      } else {
+        setError((err as Error).message || "We couldn't start payment. Please check your connection and try again.");
+      }
       setPhase("form");
+    } finally {
+      // Release the guard once the attempt settles (create-order failed, or the
+      // Razorpay modal has been handed control). The modal's own handlers move
+      // the flow forward from here; a fresh submit is safe again.
+      submitting.current = false;
     }
   };
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:py-14">
+      <Script
+        src="https://checkout.razorpay.com/v1/checkout.js"
+        strategy="afterInteractive"
+        onLoad={() => setScriptReady(true)}
+        onError={() => setScriptError(true)}
+      />
+
       <h1 className="section-title mb-2">Checkout</h1>
       <p className="mb-6 text-sm text-soft">
-        Orders are made to order — please plan ahead by at least one day.
+        Orders are made to order — please plan ahead by at least one day. Payment is collected
+        upfront via Razorpay to confirm your order.
       </p>
 
       <div className="grid gap-6 lg:grid-cols-[1.15fr_.85fr]">
@@ -338,13 +568,18 @@ export default function CheckoutPage() {
           </fieldset>
 
           {error && (
-            <p className="rounded-xl border border-chili/30 bg-chili/5 px-4 py-3 text-sm font-medium text-chili" role="alert">
-              {error}
-            </p>
+            <div className="rounded-xl border border-chili/30 bg-chili/5 px-4 py-3 text-sm font-medium text-chili" role="alert">
+              <p>{error}</p>
+              {sessionExpired && (
+                <Link href="/login?next=%2Fcheckout" className="mt-2 inline-block font-bold underline">
+                  Sign in again
+                </Link>
+              )}
+            </div>
           )}
 
-          <button type="submit" disabled={phase === "placing"} className="btn btn-chili w-full py-4 text-base">
-            {phase === "placing" ? "Placing your order…" : `Place order · ${formatINR(grandTotal)}`}
+          <button type="submit" disabled={phase === "processing"} className="btn btn-chili w-full py-4 text-base">
+            {phase === "processing" ? "Starting payment…" : `Pay ${formatINR(grandTotal)}`}
           </button>
         </form>
 

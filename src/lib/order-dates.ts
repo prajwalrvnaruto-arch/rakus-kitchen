@@ -6,6 +6,11 @@ import type { MealSlot } from "@/types";
 export const HOLIDAY_WEEKDAYS = [1, 4]; // JS getDay(): 1 = Monday, 4 = Thursday
 export const NO_SUNDAY_DINNER = true;
 
+// How far ahead an order may be placed. The picker only ever offers this many
+// days (upcomingMeals default), so validateMeal rejects anything beyond it —
+// a hand-crafted far-future date must not slip past checkout.
+export const MAX_ADVANCE_DAYS = 7;
+
 export interface MealOption {
   date: string; // YYYY-MM-DD
   label: string;
@@ -61,6 +66,14 @@ export function validateMeal(option: { date: string; slot: MealSlot }): string |
   today.setHours(0, 0, 0, 0);
 
   if (chosen.getTime() <= today.getTime()) return "Orders must be placed at least one day in advance.";
+
+  // Reject dates beyond the ordering window the picker actually offers, so a
+  // hand-crafted far-future date can't slip past checkout.
+  const latest = new Date(today);
+  latest.setDate(latest.getDate() + MAX_ADVANCE_DAYS);
+  if (chosen.getTime() > latest.getTime())
+    return `Orders can only be placed up to ${MAX_ADVANCE_DAYS} days in advance.`;
+
   if (HOLIDAY_WEEKDAYS.includes(chosen.getDay())) return "Raku's Kitchen is closed on Mondays & Thursdays.";
   if (option.slot === "Dinner" && NO_SUNDAY_DINNER && chosen.getDay() === 0)
     return "Sunday dinner is not currently served.";

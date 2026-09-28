@@ -1,0 +1,239 @@
+<title>Raku's Kitchen Abuse Audit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --paper: #faf7f2; --surface: #ffffff; --ink: #22201d; --clay: #8a7d70;
+    --line: #e6ded2; --accent: #d94f30; --accent-soft: #fbe9e3;
+    --ok: #5a8a82; --ok-soft: #e0ece9; --warn: #b8860b; --warn-soft: #f6ecd4;
+    --crit: #c0392b; --crit-soft: #f7e2df; --code-bg: #f2ece2;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #1a1815; --surface: #232019; --ink: #ece5da; --clay: #a89b8c;
+      --line: #362f26; --accent: #ef7256; --accent-soft: #3a251d;
+      --ok: #7bb0a6; --ok-soft: #1f2e2b; --warn: #d9a83a; --warn-soft: #352c17;
+      --crit: #e57368; --crit-soft: #3a211f; --code-bg: #2a251d;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #1a1815; --surface: #232019; --ink: #ece5da; --clay: #a89b8c;
+    --line: #362f26; --accent: #ef7256; --accent-soft: #3a251d;
+    --ok: #7bb0a6; --ok-soft: #1f2e2b; --warn: #d9a83a; --warn-soft: #352c17;
+    --crit: #e57368; --crit-soft: #3a211f; --code-bg: #2a251d;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: "Inter", system-ui, sans-serif; font-size: 16px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 16px; padding-block: 40px 72px; }
+  header.mast { border-bottom: 2px solid var(--ink); padding-bottom: 24px; }
+  .eyebrow {
+    font-family: "JetBrains Mono", monospace; font-size: 12px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 12px;
+  }
+  h1 {
+    font-family: "Fraunces", Georgia, serif; font-weight: 600;
+    font-size: clamp(2rem, 6vw, 3rem); line-height: 1.05; letter-spacing: -0.02em;
+    text-wrap: balance; margin: 0 0 14px;
+  }
+  .lede { font-size: 1.06rem; color: var(--clay); max-width: 62ch; margin: 0; }
+  .meta {
+    display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 20px;
+    font-family: "JetBrains Mono", monospace; font-size: 12.5px; color: var(--clay);
+  }
+  .meta b { color: var(--ink); font-weight: 500; }
+
+  .verdict {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 16px;
+    background: var(--crit-soft); border: 1px solid var(--crit);
+    border-radius: 12px; padding: 20px 22px; margin: 28px 0;
+  }
+  .verdict.resolved { background: var(--ok-soft); border-color: var(--ok); }
+  .verdict .big {
+    font-family: "Fraunces", serif; font-weight: 600; font-size: 1.4rem;
+    color: var(--crit); white-space: nowrap;
+  }
+  .verdict.resolved .big { color: var(--ok); }
+  .verdict p { margin: 0; font-size: 15px; }
+
+  section { margin-top: 44px; }
+  h2 {
+    font-family: "Fraunces", Georgia, serif; font-weight: 600; font-size: 1.55rem;
+    letter-spacing: -0.01em; margin: 0 0 6px; display: flex; align-items: baseline; gap: 12px;
+  }
+  h2 .num { font-family: "JetBrains Mono", monospace; font-size: 0.9rem; color: var(--accent); }
+  .section-note { color: var(--clay); margin: 0 0 20px; max-width: 66ch; }
+  p { max-width: 68ch; }
+  code {
+    font-family: "JetBrains Mono", monospace; font-size: 0.86em;
+    background: var(--code-bg); padding: 1px 5px; border-radius: 4px;
+  }
+
+  .tbl-scroll { overflow-x: auto; margin: 16px 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; min-width: 640px; }
+  th, td { text-align: left; padding: 9px 11px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th {
+    font-family: "JetBrains Mono", monospace; font-size: 10.5px; letter-spacing: 0.05em;
+    text-transform: uppercase; color: var(--clay); font-weight: 500; border-bottom: 1.5px solid var(--ink);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+
+  .chip {
+    display: inline-block; font-family: "JetBrains Mono", monospace; font-size: 10.5px;
+    padding: 2px 7px; border-radius: 999px; white-space: nowrap;
+  }
+  .chip.ok { background: var(--ok-soft); color: var(--ok); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); }
+  .chip.crit { background: var(--crit-soft); color: var(--crit); }
+
+  .find {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 16px 18px; margin: 12px 0; border-left: 4px solid var(--line);
+  }
+  .find.crit { border-left-color: var(--crit); }
+  .find.high { border-left-color: var(--warn); }
+  .find.med { border-left-color: var(--clay); }
+  .find-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+  .find-head .sev {
+    font-family: "JetBrains Mono", monospace; font-size: 10px; letter-spacing: 0.08em;
+    text-transform: uppercase; padding: 2px 7px; border-radius: 4px;
+  }
+  .find.crit .sev { background: var(--crit-soft); color: var(--crit); }
+  .find.high .sev { background: var(--warn-soft); color: var(--warn); }
+  .find.med .sev { background: var(--code-bg); color: var(--clay); }
+  .find-head .title { font-family: "Fraunces", serif; font-weight: 600; font-size: 1.08rem; }
+  .find p { margin: 6px 0 0; font-size: 14px; }
+  .find .fixed {
+    margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line); font-size: 13px;
+  }
+  .find .fixed b {
+    font-family: "JetBrains Mono", monospace; font-size: 10.5px; letter-spacing: 0.04em;
+    text-transform: uppercase; color: var(--ok); margin-right: 6px;
+  }
+
+  .qa { margin: 14px 0; }
+  .qa dt { font-weight: 600; margin-top: 14px; }
+  .qa dd { margin: 4px 0 0; color: var(--clay); max-width: 68ch; }
+  .qa dd b { color: var(--ink); }
+
+  .callout {
+    background: var(--surface); border: 1px solid var(--line);
+    border-left: 4px solid var(--accent); border-radius: 8px; padding: 16px 20px; margin: 18px 0;
+  }
+  .callout p { margin: 0 0 8px; } .callout p:last-child { margin: 0; }
+
+  footer {
+    margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line);
+    font-family: "JetBrains Mono", monospace; font-size: 12px; color: var(--clay);
+  }
+  a { color: var(--accent); }
+</style>
+
+<div class="wrap">
+  <header class="mast">
+    <p class="eyebrow">Security Audit · Abuse & Quota Exhaustion</p>
+    <h1>Can Someone Abuse Raku's Kitchen?</h1>
+    <p class="lede">Whether an attacker, bot, or malicious user can generate excessive requests to slow the app, exhaust its quotas, or run up third-party costs — audited against the real code, treating the server boundary as the only security boundary.</p>
+    <div class="meta">
+      <span><b>Method</b> code + config analysis, no live attack</span>
+      <span><b>Boundary</b> server/API only — UI throttling ignored</span>
+      <span><b>Audited</b> 2026-09-26</span>
+    </div>
+  </header>
+
+  <div class="verdict resolved">
+    <span class="big">🟢 Critical vector closed</span>
+    <p>The one realistic abuse path — the unauthenticated Ola Maps proxy routes an attacker could loop to drain the maps quota — is now fixed: sign-in required, per-user+IP rate limit, and a short cache. Payments and delivery routes were already correctly gated and idempotent. Remaining items are hardening, not open doors.</p>
+  </div>
+
+  <section>
+    <h2><span class="num">01</span> Every reachable endpoint</h2>
+    <p class="section-note">All eight API routes, each judged at the server boundary: does an attacker need to sign in, is it throttled, and how many billable downstream calls does one request trigger?</p>
+    <div class="tbl-scroll">
+      <table>
+        <thead>
+          <tr><th>Endpoint</th><th>Public?</th><th>Auth</th><th>Rate limit</th><th>Ext calls/req</th><th>Cost risk</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>/api/maps/autocomplete</code></td><td>Yes</td><td>User (added)</td><td>UID+IP 40/min (added)</td><td>1 Ola (cached)</td><td>Was High</td><td><span class="chip ok">fixed</span></td></tr>
+          <tr><td><code>/api/maps/reverse-geocode</code></td><td>Yes</td><td>User (added)</td><td>UID+IP 40/min (added)</td><td>1 Ola</td><td>Was High</td><td><span class="chip ok">fixed</span></td></tr>
+          <tr><td><code>/api/payments/create-order</code></td><td>Yes</td><td>Firebase UID</td><td>5/60s per UID</td><td>1 Razorpay + FS</td><td>Low</td><td><span class="chip ok">ok</span></td></tr>
+          <tr><td><code>/api/payments/verify</code></td><td>Yes</td><td>Firebase UID</td><td>none</td><td>1 Razorpay fetch</td><td>Low</td><td><span class="chip warn">idempotent</span></td></tr>
+          <tr><td><code>/api/payments/webhook</code></td><td>Yes</td><td>HMAC sig</td><td>none</td><td>0 (local HMAC)</td><td>Low</td><td><span class="chip ok">ok</span></td></tr>
+          <tr><td><code>/api/delivery/borzo</code></td><td>Yes</td><td>Admin</td><td>none</td><td>1 Borzo</td><td>Low</td><td><span class="chip ok">fixed</span></td></tr>
+          <tr><td><code>/api/delivery/shadowfax</code> (+ quote)</td><td>Yes</td><td>Admin</td><td>none</td><td>1 Shadowfax</td><td>Low</td><td><span class="chip ok">ok</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">02</span> Findings</h2>
+    <p class="section-note">Ranked by realistic impact. Each names the code path that proves it, and its resolution.</p>
+
+    <div class="find crit">
+      <div class="find-head"><span class="sev">Critical</span><span class="title">Unauthenticated, unthrottled Ola proxy routes</span></div>
+      <p>Both <code>maps/*</code> routes had no auth and no rate limit, and each proxies a billable Ola call. The client debounce lives in <code>AddressPicker.tsx</code> — UI, not a boundary. An attacker looping <code>curl</code> at 100 req/s burns ~360k Ola calls/hour: the monthly free tier gone in ~15 minutes, then paid overage or a 429 that breaks address entry for real customers. One anonymous machine, no login.</p>
+      <div class="fixed"><b>Fixed</b>Both routes now require a signed-in user (<code>requireUser</code>), enforce a UID+IP sliding-window limit (40/min), and serve identical recent queries from a 60s cache. The abort signal also now propagates server-side, so cancelled keystrokes stop billing.</div>
+    </div>
+
+    <div class="find high">
+      <div class="find-head"><span class="sev">High</span><span class="title">Rate-limit identifier is UID-only on checkout</span></div>
+      <p><code>create-order</code>'s limit is keyed by Firebase UID. Phone-OTP signup lets an attacker mint new UIDs, so the per-account cap multiplies with account count.</p>
+      <div class="fixed"><b>Mitigated / noted</b>The maps limiter now includes client IP. For checkout, a decision was made to defer edge/global rate limiting; the real fix is a CAPTCHA on OTP signup plus edge limiting, tracked as a later item.</div>
+    </div>
+
+    <div class="find med">
+      <div class="find-head"><span class="sev">Medium</span><span class="title">No cache / body-size limit on maps input</span></div>
+      <p>Repeated identical queries re-billed, and the attacker-controlled <code>q</code> had no size bound.</p>
+      <div class="fixed"><b>Partly fixed</b>Short-TTL cache added. A hard query-length cap is a small follow-up.</div>
+    </div>
+
+    <div class="find med">
+      <div class="find-head"><span class="sev">Medium</span><span class="title">No refund path for cancelled paid orders</span></div>
+      <p>Payment is upfront; cancelling only sets status and sends a WhatsApp note — no money is returned programmatically. Not an abuse vector, but a real operational gap surfaced by the review.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">03</span> The nine questions, answered</h2>
+    <dl class="qa">
+      <dt>1. Can an anonymous attacker generate unlimited expensive requests?</dt>
+      <dd><b>No longer.</b> The Ola routes — the only anonymous vector — now require sign-in.</dd>
+      <dt>2. Can a normal authenticated user generate unlimited expensive requests?</dt>
+      <dd><b>No.</b> Checkout is 5/60s per UID; maps are 40/min per UID+IP.</dd>
+      <dt>3. Can someone bypass the UI and call expensive APIs directly?</dt>
+      <dd><b>They can reach the routes, but not unauthenticated or unthrottled.</b> Auth + rate limits apply server-side regardless of the UI.</dd>
+      <dt>4. Can someone exhaust the Ola Maps quota?</dt>
+      <dd><b>No longer trivially.</b> Was the critical finding; now auth-gated, rate-limited, and cached.</dd>
+      <dt>5. Can someone exhaust the Firestore Spark quota?</dt>
+      <dd><b>Only slowly, via account rotation.</b> Bounded by per-UID limits and OTP friction. See the High finding.</dd>
+      <dt>6. Can someone create unlimited fake orders / payment attempts?</dt>
+      <dd><b>No unlimited.</b> Bounded per UID; no completed payment means no real order. Idempotent finalize prevents duplicates.</dd>
+      <dt>7. Can someone cause unexpected third-party costs?</dt>
+      <dd><b>Largely closed.</b> Ola (the main risk) is fixed; Razorpay order-create is bounded per UID.</dd>
+      <dt>8. Single biggest abuse vulnerability?</dt>
+      <dd><b>Was</b> the unauthenticated Ola proxy routes — now fixed.</dd>
+      <dt>9. Minimum fixes before production?</dt>
+      <dd>Auth + rate limit on the Ola routes (<b>done</b>). Then, as scale grows: CAPTCHA on OTP signup and edge rate limiting for checkout.</dd>
+    </dl>
+  </section>
+
+  <section>
+    <h2><span class="num">04</span> Confidence &amp; caveats</h2>
+    <div class="callout">
+      <p><b>Verified from code:</b> every endpoint's auth posture, rate-limit placement, and per-request downstream call count — read directly from the routes and helpers. High confidence.</p>
+      <p><b>Not verified here:</b> provider limit numbers (Ola 100k/mo &amp; ~500/min, Firestore Spark daily quotas, Vercel autoscaling, Razorpay per-account throughput) are documented/general values, not confirmed against live dashboards in this review. Confirm them in your own provider consoles before a campaign.</p>
+      <p><b>Idempotency</b> of the payment finalize path is verified by code reading (transaction + webhook dedupe + amount/customer checks), not by an executed emulator test.</p>
+    </div>
+  </section>
+
+  <footer>Raku's Kitchen · abuse / DoS / quota-exhaustion audit · prepared for launch-readiness review</footer>
+</div>

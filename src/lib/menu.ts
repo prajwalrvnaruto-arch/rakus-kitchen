@@ -1,4 +1,4 @@
-import type { BiryaniMeat, BiryaniWeight, MenuItem, OrderLineItem } from "@/types";
+import type { BiryaniMeat, BiryaniWeight, CartItem, MenuItem, OrderLineItem } from "@/types";
 
 export const PACKAGING_FEE_PER_UNIT = 20;
 
@@ -11,6 +11,9 @@ export const PACKAGING_FEE_PER_UNIT = 20;
 
 // Confirmed biryani card pricing: Chicken ₹400 (½kg) · ₹799 (1kg),
 // Mutton ₹799 (½kg) · ₹1,599 (1kg). 2kg/3kg extrapolated at the per-kg rate.
+// TODO(business): confirm 2kg/3kg biryani pricing — currently extrapolated at
+// the per-kg rate, not verified against a physical card. If bulk is priced
+// differently, update the 2/3 rows here (this table is the single source of truth).
 export const BIRYANI_PRICING: Record<BiryaniWeight, Record<BiryaniMeat, number>> = {
   0.5: { chicken: 400, mutton: 799 },
   1: { chicken: 799, mutton: 1599 },
@@ -28,6 +31,26 @@ export const BIRYANI_RATIO: Record<BiryaniWeight, { rice: string; meat: string }
 
 export const biryaniKey = (weight: BiryaniWeight, meat: BiryaniMeat) =>
   `biryani-${meat}-${weight}kg`;
+
+// Optional add-on: extra meat on top of a biryani's included ratio, at any
+// weight (½/1/2/3 kg) — chicken biryani can add extra chicken, mutton biryani
+// can add extra mutton. Sold as its own cart line, independent of the
+// biryani's own quantity.
+export const EXTRA_MEAT_GRAMS = 250;
+export const EXTRA_MEAT_PRICE: Record<BiryaniMeat, number> = { chicken: 200, mutton: 350 };
+
+// Max number of extra 250g add-ons per weight tier — capped at 2× the meat
+// already included in that tier's farm-to-pot ratio, so the add-on can never
+// more than double the base order's meat.
+export const EXTRA_MEAT_MAX_UNITS: Record<BiryaniWeight, number> = {
+  0.5: 1,
+  1: 2,
+  2: 4,
+  3: 6,
+};
+export const extraMeatMenuId = (meat: BiryaniMeat) => `extra-${meat}-${EXTRA_MEAT_GRAMS}g`;
+export const extraMeatLabel = (meat: BiryaniMeat) =>
+  `Extra ${meat === "chicken" ? "Chicken" : "Mutton"} (${EXTRA_MEAT_GRAMS} g)`;
 
 export const biryaniVariantLabel = (weight: BiryaniWeight, meat: BiryaniMeat) =>
   `${weight === 0.5 ? "½" : weight} kg · ${meat === "chicken" ? "Chicken" : "Mutton"}`;
@@ -116,6 +139,207 @@ export const MENU_BY_CATEGORY = MENU.reduce<Record<string, MenuItem[]>>((acc, it
 }, {});
 
 export const menuItemById = (id: string) => MENU.find((m) => m.id === id);
+
+/**
+ * ── SERVER-SIDE PRICE RECOMPUTATION ──────────────────────────────────────
+ * Used by /api/payments/create-order to independently re-derive every line's
+ * price from this file alone. The client's submitted pricePerUnit/lineTotal
+ * are display-only and NEVER trusted — a tampered cart total is caught here
+ * because the real price is looked up fresh, not re-validated.
+ */
+
+const BIRYANI_WEIGHT_LABEL: Record<string, BiryaniWeight> = {
+  "½ kg": 0.5, "1 kg": 1, "2 kg": 2, "3 kg": 3,
+};
+
+/**
+ * Parses the weight out of a biryani variant label like "1 kg · Chicken" into
+ * a numeric BiryaniWeight, or null if it can't be resolved. Centralized so the
+ * single fragile place price depends on a display string lives in ONE function
+ * (was duplicated in resolveUnitPrice and allowedExtraMeatUnits). Tolerant of
+ * whitespace, a plain "0.5 kg"/".5 kg" spelling, and the "½" glyph, so a minor
+ * label-formatting change doesn't silently break biryani price resolution.
+ */
+export function parseBiryaniWeight(variant: string | undefined): BiryaniWeight | null {
+  const weightLabel = variant?.split("·")[0]?.trim();
+  if (!weightLabel) return null;
+
+  // Fast path: exact canonical label.
+  const exact = BIRYANI_WEIGHT_LABEL[weightLabel];
+  if (exact !== undefined) return exact;
+
+  // Tolerant path: normalize the glyph and pull the leading number.
+  const normalized = weightLabel.replace(/½/g, "0.5");
+  const num = Number.parseFloat(normalized);
+  if (num === 0.5 || num === 1 || num === 2 || num === 3) return num as BiryaniWeight;
+  return null;
+}
+
+interface ResolvedPrice {
+  pricePerUnit: number;
+  name: string;
+}
+
+/** Resolves a single line's true unit price and canonical name, or null if it can't be verified. */
+export function resolveUnitPrice(menuId: string, variant?: string): ResolvedPrice | null {
+  // Biryani: menuId "biryani-chicken" | "biryani-mutton", variant e.g. "1 kg · Chicken".
+  const biryaniMatch = menuId.match(/^biryani-(chicken|mutton)$/);
+  if (biryaniMatch) {
+    const meat = biryaniMatch[1] as BiryaniMeat;
+    const weight = parseBiryaniWeight(variant);
+    if (weight === null) return null;
+    return {
+      pricePerUnit: BIRYANI_PRICING[weight][meat],
+      name: meat === "chicken" ? "Chicken Biryani" : "Mutton Biryani",
+    };
+  }
+
+  // Extra-meat add-on: menuId "extra-chicken-250g" | "extra-mutton-250g".
+  const extraMatch = menuId.match(/^extra-(chicken|mutton)-(\d+)g$/);
+  if (extraMatch) {
+    const meat = extraMatch[1] as BiryaniMeat;
+    const grams = Number(extraMatch[2]);
+    if (grams !== EXTRA_MEAT_GRAMS) return null;
+    return { pricePerUnit: EXTRA_MEAT_PRICE[meat], name: extraMeatLabel(meat) };
+  }
+
+  // Regular daily-menu item — either flat-priced or variant-priced.
+  const item = menuItemById(menuId);
+  if (!item) return null;
+
+  if (item.variants) {
+    const v = item.variants.find((candidate) => candidate.label === variant);
+    return v ? { pricePerUnit: v.price, name: item.name } : null;
+  }
+
+  if (typeof item.price === "number" && item.price > 0) {
+    return { pricePerUnit: item.price, name: item.name };
+  }
+
+  return null;
+}
+
+/** True meat for an extra-meat cart line's menuId, or null if it doesn't match that shape. */
+export function extraMeatMeatFromMenuId(menuId: string): BiryaniMeat | null {
+  const m = menuId.match(/^extra-(chicken|mutton)-(\d+)g$/);
+  if (!m || Number(m[2]) !== EXTRA_MEAT_GRAMS) return null;
+  return m[1] as BiryaniMeat;
+}
+
+/**
+ * Sums the allowed extra-meat units per meat from a set of biryani lines
+ * (weight-tier cap × each line's quantity). An extra-meat add-on is a
+ * separate cart line with no structural pointer back to a biryani line, so
+ * this pooled sum is the only source of truth for how much extra meat is
+ * allowed — shared by order-total recomputation (below) and live cart
+ * reconciliation (reconcileExtraMeatLines) so the rule lives in one place.
+ */
+export function allowedExtraMeatUnits(
+  lines: { menuId: string; variant?: string; qty: number }[],
+): Record<BiryaniMeat, number> {
+  const allowed: Record<BiryaniMeat, number> = { chicken: 0, mutton: 0 };
+  for (const line of lines) {
+    const biryaniMatch = line.menuId.match(/^biryani-(chicken|mutton)$/);
+    if (!biryaniMatch) continue;
+    const meat = biryaniMatch[1] as BiryaniMeat;
+    const weight = parseBiryaniWeight(line.variant);
+    if (weight !== null) allowed[meat] += EXTRA_MEAT_MAX_UNITS[weight] * line.qty;
+  }
+  return allowed;
+}
+
+/**
+ * Clamps (or drops) extra-meat add-on lines in a cart so none exceeds the
+ * pooled allowance from that meat's biryani line(s). Called after every cart
+ * mutation so an add-on can never outlive or outgrow the biryani(s) it rides
+ * on — e.g. removing the biryani, or shrinking its quantity, immediately
+ * shrinks or drops any extra-meat line instead of leaving it behind as an
+ * orphaned, independently-purchasable line.
+ */
+export function reconcileExtraMeatLines(items: CartItem[]): CartItem[] {
+  const remaining = allowedExtraMeatUnits(
+    items.map((i) => ({ menuId: i.menuId, variant: i.variant, qty: i.quantity })),
+  );
+  return items.flatMap((item) => {
+    const meat = extraMeatMeatFromMenuId(item.menuId);
+    if (!meat) return [item];
+    if (remaining[meat] <= 0) return [];
+    if (item.quantity > remaining[meat]) {
+      const clamped = remaining[meat];
+      remaining[meat] = 0;
+      return [{ ...item, quantity: clamped }];
+    }
+    remaining[meat] -= item.quantity;
+    return [item];
+  });
+}
+
+/** A line as submitted by the client — only menuId/variant/qty are used; any price fields are ignored. */
+interface UnpricedLine {
+  menuId: string;
+  name?: string;
+  variant?: string;
+  qty: number;
+}
+
+export interface RecomputedOrder {
+  items: OrderLineItem[];
+  itemTotal: number;
+  packagingFee: number;
+  grandTotal: number;
+}
+
+/**
+ * Recomputes an order's full pricing from scratch given only (menuId, variant, qty)
+ * per line. Returns `{ error }` rather than a best-effort guess when any line can't
+ * be resolved — the caller must reject the order rather than charge an unverified price.
+ */
+export function recomputeOrderTotals(
+  lines: UnpricedLine[],
+): RecomputedOrder | { error: string } {
+  if (lines.length === 0) return { error: "Cart is empty" };
+
+  const items: OrderLineItem[] = [];
+  for (const line of lines) {
+    if (!Number.isInteger(line.qty) || line.qty <= 0) {
+      return { error: `Invalid quantity for ${line.name ?? line.menuId}` };
+    }
+    const resolved = resolveUnitPrice(line.menuId, line.variant);
+    if (!resolved) {
+      return {
+        error: `Could not verify price for ${line.name ?? line.menuId}${line.variant ? ` (${line.variant})` : ""}`,
+      };
+    }
+    items.push({
+      menuId: line.menuId,
+      name: resolved.name,
+      variant: line.variant,
+      qty: line.qty,
+      pricePerUnit: resolved.pricePerUnit,
+      lineTotal: resolved.pricePerUnit * line.qty,
+    });
+  }
+
+  // Extra-meat add-ons are a separate cart line with no structural link to a
+  // biryani line, so enforce the weight-tier cap here: total extra 250g units
+  // per meat can't exceed what's allowed by that meat's biryani line(s).
+  // Same pooled-budget rule the live cart enforces via reconcileExtraMeatLines.
+  const allowedExtraUnits = allowedExtraMeatUnits(lines);
+  const requestedExtraUnits: Record<BiryaniMeat, number> = { chicken: 0, mutton: 0 };
+  for (const line of lines) {
+    const meat = extraMeatMeatFromMenuId(line.menuId);
+    if (meat) requestedExtraUnits[meat] += line.qty;
+  }
+  for (const meat of ["chicken", "mutton"] as BiryaniMeat[]) {
+    if (requestedExtraUnits[meat] > allowedExtraUnits[meat]) {
+      return { error: `Too much extra ${meat} for the selected biryani weight` };
+    }
+  }
+
+  const itemTotal = items.reduce((sum, it) => sum + it.lineTotal, 0);
+  const packagingFee = packagingFeeForOrder(items);
+  return { items, itemTotal, packagingFee, grandTotal: itemTotal + packagingFee };
+}
 
 // ₹ prices formatted consistently across the app.
 export const formatINR = (n: number) =>

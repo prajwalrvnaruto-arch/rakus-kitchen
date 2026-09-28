@@ -1,4 +1,5 @@
 import { BUSINESS } from "./config";
+import { toLocal10 } from "./phone";
 
 export interface BorzoPoint {
   address: string;
@@ -77,7 +78,9 @@ export async function createBorzoOrder(params: {
         address: params.dropAddress,
         contact_person: {
           name: params.customerName,
-          phone: params.customerPhone,
+          // Normalize to a bare 10-digit mobile; falls back to the raw string
+          // only if it can't be resolved to a valid Indian mobile.
+          phone: toLocal10(params.customerPhone) || params.customerPhone,
         },
         client_order_id: params.orderId,
       },

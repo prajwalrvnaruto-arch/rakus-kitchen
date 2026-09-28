@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { EmailPasswordForm } from "@/components/EmailPasswordForm";
+import { PhoneOtpForm } from "@/components/PhoneOtpForm";
 
 export const metadata = { title: "Log in" };
 
@@ -12,11 +12,11 @@ export default function LoginPage() {
         </span>
         <h1 className="section-title">Sign in to order</h1>
         <p className="mt-2 text-sm text-soft">
-          Sign in to place an order and track it live.
+          Sign in with your phone number to place an order and track it live.
         </p>
       </div>
       <Suspense fallback={<div className="card p-8 text-center text-sm text-soft">Loading…</div>}>
-        <EmailPasswordForm />
+        <PhoneOtpForm />
       </Suspense>
     </div>
   );

@@ -7,9 +7,16 @@ import {
 } from "firebase/firestore";
 import { getIdToken, getIdTokenResult } from "firebase/auth";
 import { auth, db } from "./firebase";
+import { sanitizeFirestoreData } from "./sanitize";
 import type { AddressComponents, DeliveryMeta, Order, OrderLineItem, OrderStatus, StatusEvent } from "@/types";
 
 /* ── Order creation ────────────────────────────────────────────────────── */
+//
+// Order documents are now created SERVER-SIDE ONLY, after a verified Razorpay
+// payment — see src/lib/server/paymentIntents.ts and the /api/payments/*
+// routes. This keeps the OrderDraft shape (still used to build the payment
+// request from the checkout form) but there is no client-side createOrder
+// anymore; firestore.rules denies client `create` on /orders outright.
 
 export interface OrderDraft {
   customerName: string;
@@ -24,66 +31,6 @@ export interface OrderDraft {
   packagingFee: number;
   grandTotal: number;
   notes?: string;
-}
-
-/**
- * Recursively strips keys with `undefined` values from an object or array.
- * Firestore strictly rejects documents containing `undefined` property values.
- */
-function sanitizeFirestoreData<T>(obj: T): T {
-  if (obj === null || typeof obj !== "object") return obj;
-  if (Array.isArray(obj)) return obj.map(sanitizeFirestoreData) as unknown as T;
-  const cleaned: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(obj as Record<string, unknown>)) {
-    if (value !== undefined) {
-      cleaned[key] = sanitizeFirestoreData(value);
-    }
-  }
-  return cleaned as T;
-}
-
-/**
- * Writes a new order with a unique, human-friendly ID (RK-00001).
- * The ID comes from a transactional counter so two orders can never collide.
- */
-export async function createOrder(customerId: string, draft: OrderDraft): Promise<Order> {
-  if (!db) throw new Error("Firebase not configured");
-
-  const ordersRef = collection(db, "orders");
-  const counterRef = doc(db, "meta", "counters");
-
-  let orderId = "";
-
-  await runTransaction(db, async (tx) => {
-    const counterSnap = await tx.get(counterRef);
-    const next = (counterSnap.data()?.nextOrder as number ?? 0) + 1;
-    orderId = `RK-${String(next).padStart(5, "0")}`;
-    tx.set(counterRef, { nextOrder: next }, { merge: true });
-  });
-
-  // Firestore rejects `undefined` values — strip every optional field that is unset.
-  const payload = sanitizeFirestoreData({
-    ...draft,
-    orderId,
-    customerId,
-    status: "Order Received" as OrderStatus,
-    statusHistory: [{ status: "Order Received" as OrderStatus, at: Date.now() }],
-    createdAt: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  });
-
-  const docRef = await addDoc(ordersRef, payload);
-
-  return {
-    id: docRef.id,
-    ...draft,
-    orderId,
-    customerId,
-    status: "Order Received",
-    statusHistory: [{ status: "Order Received", at: Date.now() }],
-    createdAt: Date.now(),
-    updatedAt: Date.now(),
-  };
 }
 
 /* ── Reads (live) ──────────────────────────────────────────────────────── */
@@ -111,15 +58,38 @@ export function subscribeMyOrders(
 export function subscribeAllOrders(
   onOrders: (orders: Order[]) => void,
   onError?: (message: string) => void,
+  /** Fired with orders that arrived live AFTER the initial load — used to alert
+   *  the kitchen. Never fired for the first snapshot (the existing backlog), so
+   *  opening the dashboard doesn't blast an alert for every order already there. */
+  onNewOrders?: (orders: Order[]) => void,
 ): Unsubscribe {
   if (!db) return () => {};
   const firestore = db;
+  // Skip alerting on the first snapshot: it delivers the whole existing
+  // collection as "added" changes, which are not genuinely new orders.
+  // Re-created on each retry via the closure below.
+  let seededFirstSnapshot = false;
   return retryingListener("subscribeAllOrders", (onSnapshotError) =>
     onSnapshot(
       collection(firestore, "orders"),
       (snap) => {
         const orders = snap.docs.map(mapOrder).sort((a, b) => b.createdAt - a.createdAt);
         onOrders(orders);
+
+        if (!seededFirstSnapshot) {
+          // First snapshot = the existing backlog. Mark seeded and don't alert.
+          seededFirstSnapshot = true;
+          return;
+        }
+        if (!onNewOrders) return;
+
+        // Only genuinely-added docs, and skip local pending writes (an admin's
+        // own status change echoes back as a modify, not an add, but guard anyway).
+        const added = snap
+          .docChanges()
+          .filter((c) => c.type === "added" && !c.doc.metadata.hasPendingWrites)
+          .map((c) => mapOrder(c.doc));
+        if (added.length > 0) onNewOrders(added);
       },
       onSnapshotError,
     ),
@@ -277,7 +247,7 @@ function mapOrder(doc: { id: string; data: () => Record<string, unknown> }): Ord
     itemTotal: (d.itemTotal as number) ?? 0,
     packagingFee: (d.packagingFee as number) ?? 0,
     grandTotal: (d.grandTotal as number) ?? 0,
-    status: (d.status as OrderStatus) ?? "Order Received",
+    status: (d.status as OrderStatus) ?? "Confirmed",
     statusHistory: (d.statusHistory as StatusEvent[]) ?? [],
     notes: (d.notes as string) ?? undefined,
     createdAt: toEpoch(createdAt),

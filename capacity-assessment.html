@@ -1,0 +1,280 @@
+<title>Raku's Kitchen Capacity</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --paper: #faf7f2;
+    --surface: #ffffff;
+    --ink: #22201d;
+    --clay: #8a7d70;
+    --line: #e6ded2;
+    --accent: #d94f30;
+    --accent-soft: #fbe9e3;
+    --ok: #5a8a82;
+    --ok-soft: #e0ece9;
+    --warn: #b8860b;
+    --warn-soft: #f6ecd4;
+    --crit: #c0392b;
+    --crit-soft: #f7e2df;
+    --code-bg: #f2ece2;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #1a1815; --surface: #232019; --ink: #ece5da; --clay: #a89b8c;
+      --line: #362f26; --accent: #ef7256; --accent-soft: #3a251d;
+      --ok: #7bb0a6; --ok-soft: #1f2e2b; --warn: #d9a83a; --warn-soft: #352c17;
+      --crit: #e57368; --crit-soft: #3a211f; --code-bg: #2a251d;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #1a1815; --surface: #232019; --ink: #ece5da; --clay: #a89b8c;
+    --line: #362f26; --accent: #ef7256; --accent-soft: #3a251d;
+    --ok: #7bb0a6; --ok-soft: #1f2e2b; --warn: #d9a83a; --warn-soft: #352c17;
+    --crit: #e57368; --crit-soft: #3a211f; --code-bg: #2a251d;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: "Inter", system-ui, sans-serif; font-size: 16px; line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 940px; margin: 0 auto; padding: 16px; padding-block: 40px 72px; }
+
+  header.mast { border-bottom: 2px solid var(--ink); padding-bottom: 24px; }
+  .eyebrow {
+    font-family: "JetBrains Mono", monospace; font-size: 12px; letter-spacing: 0.14em;
+    text-transform: uppercase; color: var(--accent); margin: 0 0 12px;
+  }
+  h1 {
+    font-family: "Fraunces", Georgia, serif; font-weight: 600;
+    font-size: clamp(2rem, 6vw, 3rem); line-height: 1.05; letter-spacing: -0.02em;
+    text-wrap: balance; margin: 0 0 14px;
+  }
+  .lede { font-size: 1.06rem; color: var(--clay); max-width: 62ch; margin: 0; }
+  .meta {
+    display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: 20px;
+    font-family: "JetBrains Mono", monospace; font-size: 12.5px; color: var(--clay);
+  }
+  .meta b { color: var(--ink); font-weight: 500; }
+
+  /* Verdict banner */
+  .verdict {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 16px;
+    background: var(--ok-soft); border: 1px solid var(--ok);
+    border-radius: 12px; padding: 20px 22px; margin: 28px 0;
+  }
+  .verdict .big {
+    font-family: "Fraunces", serif; font-weight: 600; font-size: 1.5rem; color: var(--ok);
+    white-space: nowrap;
+  }
+  .verdict p { margin: 0; font-size: 15px; }
+
+  section { margin-top: 44px; scroll-margin-top: 20px; }
+  h2 {
+    font-family: "Fraunces", Georgia, serif; font-weight: 600; font-size: 1.55rem;
+    letter-spacing: -0.01em; margin: 0 0 6px; display: flex; align-items: baseline; gap: 12px;
+  }
+  h2 .num { font-family: "JetBrains Mono", monospace; font-size: 0.9rem; color: var(--accent); }
+  .section-note { color: var(--clay); margin: 0 0 20px; max-width: 66ch; }
+  p { max-width: 68ch; }
+  code {
+    font-family: "JetBrains Mono", monospace; font-size: 0.86em;
+    background: var(--code-bg); padding: 1px 5px; border-radius: 4px;
+  }
+
+  .tbl-scroll { overflow-x: auto; margin: 16px 0; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; min-width: 560px; }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  th {
+    font-family: "JetBrains Mono", monospace; font-size: 11px; letter-spacing: 0.05em;
+    text-transform: uppercase; color: var(--clay); font-weight: 500; border-bottom: 1.5px solid var(--ink);
+  }
+  tbody tr:last-child td { border-bottom: none; }
+
+  .chip {
+    display: inline-block; font-family: "JetBrains Mono", monospace; font-size: 11px;
+    padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+  }
+  .chip.ok { background: var(--ok-soft); color: var(--ok); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); }
+  .chip.crit { background: var(--crit-soft); color: var(--crit); }
+
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin: 16px 0; }
+  .comp {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 16px 18px; border-left: 4px solid var(--ok);
+  }
+  .comp.warn { border-left-color: var(--warn); }
+  .comp h3 {
+    font-family: "Fraunces", serif; font-size: 1.05rem; margin: 0 0 4px;
+    display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+  }
+  .comp .headroom { font-family: "JetBrains Mono", monospace; font-size: 12px; color: var(--clay); }
+  .comp p { margin: 6px 0 0; font-size: 13.5px; }
+
+  .callout {
+    background: var(--surface); border: 1px solid var(--line);
+    border-left: 4px solid var(--accent); border-radius: 8px; padding: 16px 20px; margin: 18px 0;
+  }
+  .callout p { margin: 0 0 8px; } .callout p:last-child { margin: 0; }
+
+  .find {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 16px 18px; margin: 12px 0; border-left: 4px solid var(--warn);
+  }
+  .find.crit { border-left-color: var(--crit); }
+  .find h3 { font-family: "Fraunces", serif; font-size: 1.05rem; margin: 0 0 6px; }
+  .find p { margin: 6px 0 0; font-size: 14px; }
+
+  ul.tight { max-width: 68ch; padding-left: 22px; } ul.tight li { margin: 5px 0; }
+  footer {
+    margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--line);
+    font-family: "JetBrains Mono", monospace; font-size: 12px; color: var(--clay);
+  }
+  a { color: var(--accent); }
+</style>
+
+<div class="wrap">
+  <header class="mast">
+    <p class="eyebrow">Production Capacity Assessment</p>
+    <h1>Raku's Kitchen — What It Can Handle Today</h1>
+    <p class="lede">A grounded read of real-world traffic and transaction volume the app reliably serves as built, from the actual code and current architecture — not theoretical peak numbers.</p>
+    <div class="meta">
+      <span><b>Architecture</b> Next 14 · Vercel serverless · Firestore (Spark) · Razorpay</span>
+      <span><b>Baseline</b> ~1,000 orders/month</span>
+      <span><b>Assessed</b> 2026-09-26</span>
+    </div>
+  </header>
+
+  <div class="verdict">
+    <span class="big">🟢 Handles it comfortably</span>
+    <p>At its ~1,000-orders/month target the app runs at <b>single-digit-to-~12% of every service limit</b>. The realistic ceiling before anything needs re-architecting is roughly <b>10,000–15,000 orders/month</b> — a 10–15× runway. The limits that bite first are operational (manual refunds, admin read volume), not compute.</p>
+  </div>
+
+  <section>
+    <h2><span class="num">01</span> The architecture, as built</h2>
+    <p class="section-note">Confirmed from the repo — env keys, configs, and code paths. No assumptions about infrastructure that isn't there.</p>
+    <ul class="tight">
+      <li><b>Frontend + API:</b> Next.js 14 App Router. No <code>vercel.json</code> or <code>Dockerfile</code>; a plain <code>next.config.mjs</code> → standard Vercel serverless deploy, which autoscales horizontally.</li>
+      <li><b>Data:</b> Firestore, Spark (free) tier signals — single database, empty <code>firestore.indexes.json</code>.</li>
+      <li><b>Payments:</b> Razorpay (order + verify + webhook), server-side keys.</li>
+      <li><b>Auth:</b> Firebase Auth (phone OTP), token-verified on every protected route.</li>
+      <li><b>Address:</b> Ola Maps (autocomplete + reverse-geocode) via server proxy.</li>
+      <li><b>Delivery:</b> Borzo (API) + Shadowfax (API) + Porter (manual clipboard/deep-link), admin-triggered.</li>
+      <li><b>Menu/cart:</b> fully static + <code>localStorage</code> — zero backend cost.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2><span class="num">02</span> The limiting component</h2>
+    <p class="section-note">Load is wildly uneven across flows. Browsing is free; order completion is the only path that touches shared, stateful services. Here is where each ceiling actually sits.</p>
+    <div class="grid2">
+      <div class="comp">
+        <h3>Browsing / cart <span class="headroom">∞</span></h3>
+        <p>Static assets + localStorage. Thousands of concurrent visitors cost the backend nothing. Never the limit.</p>
+      </div>
+      <div class="comp">
+        <h3>Firestore writes <span class="headroom">~5% used</span></h3>
+        <p>~12 writes/order. A 100-order peak day ≈ 1,200 / 20,000 daily Spark quota.</p>
+      </div>
+      <div class="comp warn">
+        <h3>Firestore reads <span class="headroom">~10–12%</span></h3>
+        <p>Admin dashboard uses a live <code>onSnapshot</code> listener — incremental, not a re-read per view. Still the largest read consumer; watch it as order count grows.</p>
+      </div>
+      <div class="comp">
+        <h3>Razorpay <span class="headroom">~2 calls/order</span></h3>
+        <p><code>orders.create</code> + <code>payments.fetch</code>. Webhooks cost zero API calls (local HMAC). Trivial at this volume.</p>
+      </div>
+      <div class="comp">
+        <h3>Ola Maps <span class="headroom">~7% used</span></h3>
+        <p>Autocomplete + reverse-geocode only. ~6 calls per address; the abort signal now propagates server-side, so cancelled keystrokes no longer bill. First external tier to fill, but only near ~10k orders/mo.</p>
+      </div>
+      <div class="comp warn">
+        <h3><code>meta/counters</code> <span class="headroom">hotspot</span></h3>
+        <p>One shared doc read+written on every order to mint <code>RK-#####</code>. Not a hard limit — a contention point <em>if</em> sustained order rate ever gets high. Fine at 1,000/mo.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">03</span> Load model by scenario</h2>
+    <p class="section-note">Per-order call counts are exact (read from code). Service limits are documented figures — confirm the Razorpay per-account throughput and Ola quota against your own dashboards before a big campaign.</p>
+    <div class="tbl-scroll">
+      <table>
+        <thead>
+          <tr><th>Scenario</th><th class="num">Orders</th><th class="num">FS writes</th><th class="num">FS reads</th><th class="num">Razorpay calls</th><th>Assessment</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Normal month</td><td class="num">1,000</td><td class="num">~12k</td><td class="num">~14k+</td><td class="num">~2,000</td><td><span class="chip ok">easy</span></td></tr>
+          <tr><td>Busy day</td><td class="num">100</td><td class="num">~1,200</td><td class="num">~5–6k</td><td class="num">~200</td><td><span class="chip ok">~5–12% of daily quota</span></td></tr>
+          <tr><td>Busy hour</td><td class="num">30</td><td class="num">~360</td><td class="num">~1k</td><td class="num">~60</td><td><span class="chip ok">easy</span></td></tr>
+          <tr><td>Promo burst</td><td class="num">100 at once</td><td class="num">burst</td><td class="num">burst</td><td class="num">~200</td><td><span class="chip ok">absorbed over seconds</span></td></tr>
+          <tr><td>Extreme burst</td><td class="num">500 at once</td><td class="num">burst</td><td class="num">burst</td><td class="num">~500 creates</td><td><span class="chip warn">counter contention; clean 429 fallback</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Even the extreme 500-simultaneous burst degrades gracefully: <code>meta/counters</code> transactions retry under contention and, at worst, a customer sees "couldn't start payment, try again" — never a lost or double charge. The <code>rateLimits</code> throttle (5 attempts / 60s per user) and idempotent <code>finalizePayment</code> hold the line.</p>
+  </section>
+
+  <section>
+    <h2><span class="num">04</span> Ola Maps — the first external tier to fill</h2>
+    <p class="section-note">Only two Ola products are used: Autocomplete and Reverse Geocode. Address entry — not orders — is the billing unit, and abandoned checkouts still cost the autocomplete calls made while typing. ~5 autocomplete + ~1 reverse-geo ≈ 6 calls/address; with abandonment, ~9 calls per order-equivalent. Free tier is 100k calls per product per month.</p>
+    <div class="tbl-scroll">
+      <table>
+        <thead>
+          <tr><th>Orders/mo</th><th class="num">Autocomplete/mo</th><th class="num">% of 100k free</th><th class="num">Reverse-geo</th><th>Cost</th><th>Risk</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>1,000</td><td class="num">~7,500</td><td class="num">~7.5%</td><td class="num">~1,500</td><td>₹0</td><td><span class="chip ok">easy</span></td></tr>
+          <tr><td>5,000</td><td class="num">~37,000</td><td class="num">~37%</td><td class="num">~7,500</td><td>₹0</td><td><span class="chip ok">fine</span></td></tr>
+          <tr><td>10,000</td><td class="num">~75,000</td><td class="num">~75%</td><td class="num">~15,000</td><td>₹0</td><td><span class="chip warn">nearing AC ceiling</span></td></tr>
+          <tr><td>25,000</td><td class="num">~187,000</td><td class="num">~187%</td><td class="num">~37,000</td><td>paid overage</td><td><span class="chip crit">over free tier</span></td></tr>
+          <tr><td>50,000</td><td class="num">~375,000</td><td class="num">~375%</td><td class="num">~75,000</td><td>paid</td><td><span class="chip crit">over</span></td></tr>
+          <tr><td>100,000</td><td class="num">~750,000</td><td class="num">~750%</td><td class="num">~150,000</td><td>paid</td><td><span class="chip crit">over</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Autocomplete (the ~5×-per-address product) hits its 100k free wall first, around <b>10,000–13,000 orders/month</b>; reverse-geocode has vast headroom. On per-minute burst: ~500 people entering addresses in the same minute could brush the ~500 req/min autocomplete rate limit and see HTTP 429 — a promo-spike concern, not a daily one. The recent fix propagating the browser's abort signal server-side means cancelled keystrokes no longer bill, which stretches this headroom further.</p>
+    <div class="callout">
+      <p><b>Quota capacity</b> ~13k orders/mo · <b>per-minute burst capacity</b> ~a few hundred concurrent typers before 429 · <b>production-safe</b> ~7–8k orders/mo with headroom under both.</p>
+      <p><b>Cost:</b> ₹0 through ~10k orders/mo (inside free tier). Beyond, cost = (autocomplete − 100k) × Ola's per-call overage rate — confirm that rate in your dashboard; the figure isn't publicly verifiable here.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">05</span> What actually breaks first</h2>
+    <p class="section-note">At this scale the real risks are operational, not capacity. These bite before any compute limit does.</p>
+
+    <div class="find crit">
+      <h3>No automated refund path</h3>
+      <p>Payment is collected upfront, but cancelling a paid order only sets status <code>Cancelled</code> + sends a WhatsApp note — <b>no money is returned programmatically</b>. Every cancelled paid order needs a manual refund in the Razorpay dashboard. At 1,000 orders/month with any cancellation rate, this is a recurring manual burden and a customer-trust risk.</p>
+    </div>
+
+    <div class="find warn">
+      <h3>Admin dashboard read volume scales with order count</h3>
+      <p>The live listener is efficient, but a growing <code>orders</code> collection means each dashboard attach reads more docs. Toward ~10k orders/month, watch the 50k/day read quota — the fix is archiving/paginating old orders, not re-architecting.</p>
+    </div>
+
+    <div class="find warn">
+      <h3>Ola Maps calls aren't cancelled server-side</h3>
+      <p>Cancelled autocomplete requests still cost an Ola API call. A cost/quota consideration under heavy concurrent address entry; one-line fix is to propagate the request's abort signal into the route.</p>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="num">06</span> The honest ceiling</h2>
+    <div class="callout">
+      <p><b>Today, reliably:</b> the app comfortably serves its 1,000-orders/month target with a 10–15× headroom before any service limit forces a change. Thousands can browse concurrently at no backend cost; dozens can check out in the same minute without trouble.</p>
+      <p><b>First thing to change if you grow ~10×:</b> archive old orders (protects the admin read quota) and, only if sustained order rate climbs, replace the single <code>meta/counters</code> doc with a sharded counter or Firestore auto-id. Neither is needed now.</p>
+      <p><b>Confidence:</b> per-order call counts and the architecture are read directly from the code. Service <em>limit</em> figures (Firestore quotas, Razorpay throughput, Ola quota) are documented/general values — verify against your own dashboards before relying on them for a campaign.</p>
+    </div>
+  </section>
+
+  <footer>Raku's Kitchen · production capacity assessment · prepared for launch-readiness review</footer>
+</div>

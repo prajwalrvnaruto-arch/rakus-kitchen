@@ -63,3 +63,16 @@
 .animate-cart-pop {
   animation: cart-pop .25s ease;
 }
+
+/* Kitchen new-order alert: a slow, insistent pulse — hard to miss but not
+   frantic. Applied to the alert banner while unacknowledged orders are queued. */
+@keyframes pulse-alert {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(217, 79, 48, 0.55); transform: scale(1); }
+  50%      { box-shadow: 0 0 0 12px rgba(217, 79, 48, 0);   transform: scale(1.01); }
+}
+.animate-pulse-alert {
+  animation: pulse-alert 1.6s ease-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .animate-pulse-alert { animation: none; }
+}

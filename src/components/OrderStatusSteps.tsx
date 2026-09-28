@@ -4,7 +4,6 @@ import type { OrderStatus } from "@/types";
 import { ORDER_STATUSES, ORDER_STATUS_FLOW } from "@/types";
 
 const STATUS_ICONS: Record<Exclude<OrderStatus, "Cancelled">, string> = {
-  "Order Received": "📥",
   Confirmed: "✅",
   Preparing: "🍳",
   "Out for Delivery": "🛵",
@@ -12,7 +11,6 @@ const STATUS_ICONS: Record<Exclude<OrderStatus, "Cancelled">, string> = {
 };
 
 const SHORT_LABELS: Record<string, string> = {
-  "Order Received": "Received",
   "Out for Delivery": "Out for delivery",
 };
 

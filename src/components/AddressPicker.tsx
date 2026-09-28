@@ -1,81 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { AddressComponents } from "@/types";
-
-/* ── Google Maps SDK loader ─────────────────────────────────────────────── */
-
-/**
- * Injects the Google Maps JS SDK (with Places library) once and resolves
- * when window.google.maps.places is available. Safe for React fast-refresh
- * (the script element is id-guarded to prevent double injection).
- */
-function useGoogleMapsLoaded(): boolean {
-  const [loaded, setLoaded] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const key = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-    if (!key) return;
-
-    // Already available (e.g. from fast-refresh re-mount).
-    if ((window as any).google?.maps?.places) {
-      setLoaded(true);
-      return;
-    }
-
-    const SCRIPT_ID = "rk-google-maps";
-
-    if (document.getElementById(SCRIPT_ID)) {
-      // Script tag exists but hasn't resolved yet — poll until ready.
-      const timer = setInterval(() => {
-        if ((window as any).google?.maps?.places) {
-          setLoaded(true);
-          clearInterval(timer);
-        }
-      }, 100);
-      return () => clearInterval(timer);
-    }
-
-    const script = document.createElement("script");
-    script.id = SCRIPT_ID;
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => setLoaded(true);
-    script.onerror = () =>
-      console.error("[AddressPicker] Failed to load Google Maps SDK. Check your API key.");
-    document.head.appendChild(script);
-  }, []);
-
-  return loaded;
-}
-
-/* ── Geocoding helpers ──────────────────────────────────────────────────── */
-
-interface CityPincode {
-  city: string;
-  pincode: string;
-}
-
-/**
- * Extracts city name and pincode from a Google Geocoder result's
- * address_components array. City falls back through locality →
- * administrative_area_level_2 → administrative_area_level_1.
- */
-function extractCityPincode(components: any[]): CityPincode {
-  let city = "";
-  let pincode = "";
-  for (const c of components) {
-    const types: string[] = c.types ?? [];
-    if (types.includes("locality") && !city) city = c.long_name;
-    if (types.includes("administrative_area_level_2") && !city) city = c.long_name;
-    if (types.includes("administrative_area_level_1") && !city) city = c.long_name;
-    if (types.includes("postal_code")) pincode = c.long_name;
-  }
-  return { city, pincode };
-}
+import { autocomplete, reverseGeocode, type PlaceSuggestion } from "@/lib/placesClient";
+import { BUSINESS } from "@/lib/config";
 
 /* ── Component ──────────────────────────────────────────────────────────── */
 
@@ -90,24 +18,25 @@ interface AddressPickerProps {
  * A structured, delivery-optimised address collection widget.
  *
  * Flow:
- *  Step 1 — Main address: Google Places Autocomplete text input OR
+ *  Step 1 — Main address: Ola Maps search-as-you-type OR
  *            "📍 My location" button (GPS + reverse geocode).
  *  Step 2 — Drop-off details: mandatory Flat/Building field + optional Landmark.
  *
  * Emits a complete `AddressComponents` object containing coordinates,
  * verified address string, door/building, landmark, city, and pincode.
  *
- * Gracefully degrades to a plain textarea when
- * `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` is not configured.
+ * Uses Ola Maps (https://maps.olakrutrim.com) for address search and reverse
+ * geocoding, proxied server-side through /api/maps/* so the API key never
+ * reaches the browser.
  */
 export function AddressPicker({ value, onChange }: AddressPickerProps) {
-  const hasKey = !!process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-  const mapsLoaded = useGoogleMapsLoaded();
-
   const inputRef = useRef<HTMLInputElement>(null);
-  const autocompleteRef = useRef<any>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Internal state — each piece can change independently.
+  const [query, setQuery] = useState(value?.displayAddress ?? "");
   const [mainAddress, setMainAddress] = useState(value?.displayAddress ?? "");
   const [doorAndBuilding, setDoorAndBuilding] = useState(value?.doorAndBuilding ?? "");
   const [landmark, setLandmark] = useState(value?.landmark ?? "");
@@ -115,44 +44,53 @@ export function AddressPicker({ value, onChange }: AddressPickerProps) {
     lat: number;
     lng: number;
     placeId?: string;
-  } | null>(
-    value ? { lat: value.lat, lng: value.lng, placeId: value.googlePlaceId } : null,
-  );
-  const [cityPincode, setCityPincode] = useState<CityPincode>({
+  } | null>(value ? { lat: value.lat, lng: value.lng, placeId: value.placeId } : null);
+  const [cityPincode, setCityPincode] = useState<{ city: string; pincode: string }>({
     city: value?.city ?? "",
     pincode: value?.pincode ?? "",
   });
 
+  const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
+
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
 
-  /* ── Bind Google Places Autocomplete once SDK is ready ──────────────── */
+  /* ── Debounced search-as-you-type ───────────────────────────────────── */
   useEffect(() => {
-    if (!mapsLoaded || !inputRef.current || autocompleteRef.current) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
 
-    const gm = (window as any).google.maps;
-    autocompleteRef.current = new gm.places.Autocomplete(inputRef.current, {
-      // Bias suggestions to India — kitchen & customers are all Bangalore.
-      componentRestrictions: { country: "in" },
-      fields: ["formatted_address", "geometry", "place_id", "address_components"],
-    });
+    // Don't re-search right after picking a suggestion (query === mainAddress).
+    if (!query.trim() || query === mainAddress) {
+      setSuggestions([]);
+      return;
+    }
 
-    autocompleteRef.current.addListener("place_changed", () => {
-      const place = autocompleteRef.current!.getPlace();
-      if (!place?.geometry?.location) return;
-
-      const lat: number = place.geometry.location.lat();
-      const lng: number = place.geometry.location.lng();
-      const displayAddress: string = place.formatted_address ?? "";
-      const placeId: string | undefined = place.place_id;
-
-      setMainAddress(displayAddress);
-      setCoords({ lat, lng, placeId });
-      if (place.address_components) {
-        setCityPincode(extractCityPincode(place.address_components));
+    debounceRef.current = setTimeout(async () => {
+      abortRef.current?.abort();
+      const controller = new AbortController();
+      abortRef.current = controller;
+      setSearchLoading(true);
+      try {
+        const results = await autocomplete(query, controller.signal, BUSINESS.lat, BUSINESS.lng);
+        setSuggestions(results);
+        setShowSuggestions(true);
+        setActiveIndex(-1);
+      } catch (err) {
+        if ((err as Error).name !== "AbortError") {
+          console.error("[AddressPicker] Ola Maps search failed:", err);
+        }
+      } finally {
+        setSearchLoading(false);
       }
-    });
-  }, [mapsLoaded]);
+    }, 300);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [query, mainAddress]);
 
   /* ── Emit updated AddressComponents whenever any piece changes ──────── */
   useEffect(() => {
@@ -163,7 +101,7 @@ export function AddressPicker({ value, onChange }: AddressPickerProps) {
     onChange({
       lat: coords.lat,
       lng: coords.lng,
-      googlePlaceId: coords.placeId,
+      placeId: coords.placeId,
       displayAddress: mainAddress,
       doorAndBuilding,
       landmark: landmark.trim() || undefined,
@@ -175,6 +113,45 @@ export function AddressPicker({ value, onChange }: AddressPickerProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [coords, mainAddress, doorAndBuilding, landmark, cityPincode.city, cityPincode.pincode]);
 
+  const pickSuggestion = useCallback((s: PlaceSuggestion) => {
+    setQuery(s.label);
+    setMainAddress(s.label);
+    setCoords({ lat: s.lat, lng: s.lng, placeId: s.placeId });
+    setCityPincode({ city: s.city, pincode: s.pincode });
+    setSuggestions([]);
+    setShowSuggestions(false);
+    setActiveIndex(-1);
+
+    // Ola's autocomplete predictions don't include city/pincode — fill them
+    // in with a reverse geocode against the picked point.
+    if (!s.city && !s.pincode) {
+      reverseGeocode(s.lat, s.lng)
+        .then((result) => {
+          if (result) setCityPincode({ city: result.city, pincode: result.pincode });
+        })
+        .catch((err) => console.error("[AddressPicker] reverse geocode after pick failed:", err));
+    }
+  }, []);
+
+  /* ── Keyboard navigation for the suggestions list ───────────────────── */
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (!showSuggestions || suggestions.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIndex((i) => Math.min(i + 1, suggestions.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIndex((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter") {
+      if (activeIndex >= 0) {
+        e.preventDefault();
+        pickSuggestion(suggestions[activeIndex]);
+      }
+    } else if (e.key === "Escape") {
+      setShowSuggestions(false);
+    }
+  };
+
   /* ── GPS location handler ───────────────────────────────────────────── */
   const handleUseLocation = () => {
     if (!navigator.geolocation) {
@@ -185,40 +162,33 @@ export function AddressPicker({ value, onChange }: AddressPickerProps) {
     setGpsError(null);
 
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
-
-        if (!mapsLoaded) {
-          // SDK not ready yet — save coordinates without reverse geocoding.
-          setCoords({ lat, lng });
+        try {
+          const result = await reverseGeocode(lat, lng);
           setGpsLoading(false);
-          return;
+          if (result) {
+            setMainAddress(result.label);
+            setQuery(result.label);
+            setCoords({ lat, lng, placeId: result.placeId });
+            setCityPincode({ city: result.city, pincode: result.pincode });
+          } else {
+            setCoords({ lat, lng });
+            setGpsError(
+              "Got your location but couldn't look up the address. " +
+                "Please type your area in the box above.",
+            );
+          }
+        } catch (err) {
+          console.error("[AddressPicker] reverse geocode failed:", err);
+          setGpsLoading(false);
+          setCoords({ lat, lng });
+          setGpsError(
+            "Got your location but couldn't look up the address. " +
+              "Please type your area in the box above.",
+          );
         }
-
-        const gm = (window as any).google.maps;
-        new gm.Geocoder().geocode(
-          { location: { lat, lng } },
-          (results: any[], status: string) => {
-            setGpsLoading(false);
-            if (status === "OK" && results?.[0]) {
-              const r = results[0];
-              const display: string = r.formatted_address ?? "";
-              setMainAddress(display);
-              setCoords({ lat, lng, placeId: r.place_id });
-              setCityPincode(extractCityPincode(r.address_components ?? []));
-              // Sync the visible input value with the reverse-geocoded string.
-              if (inputRef.current) inputRef.current.value = display;
-            } else {
-              // Reverse geocode failed — keep raw coordinates, show a warning.
-              setCoords({ lat, lng });
-              setGpsError(
-                "Got your location but couldn't look up the address. " +
-                  "Please type your area in the box above.",
-              );
-            }
-          },
-        );
       },
       (err) => {
         setGpsLoading(false);
@@ -236,36 +206,6 @@ export function AddressPicker({ value, onChange }: AddressPickerProps) {
 
   const addressConfirmed = !!coords && !!mainAddress;
 
-  /* ── Fallback: no Google Maps key configured ────────────────────────── */
-  if (!hasKey) {
-    return (
-      <div className="space-y-3">
-        <p className="rounded-lg bg-turmeric/10 px-3 py-2 text-xs text-turmerick">
-          ℹ️ Add <code className="rounded bg-turmeric/20 px-1">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code>{" "}
-          to <code className="rounded bg-turmeric/20 px-1">.env.local</code> for smart address
-          search and GPS detection.
-        </p>
-        <textarea
-          rows={3}
-          className="field resize-none"
-          placeholder="House / flat, street, area, landmark…"
-          value={value?.displayAddress ?? ""}
-          onChange={(e) =>
-            onChange({
-              lat: 0,
-              lng: 0,
-              displayAddress: e.target.value,
-              doorAndBuilding: value?.doorAndBuilding ?? e.target.value,
-              city: "",
-              pincode: "",
-            })
-          }
-          required
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-3">
       {/* ── Step 1: Main address input ─────────────────────────────────── */}
@@ -275,23 +215,27 @@ export function AddressPicker({ value, onChange }: AddressPickerProps) {
           id="address-search"
           type="text"
           className="field pr-32"
-          placeholder={
-            mapsLoaded
-              ? "Search your street, area or building…"
-              : "Loading maps…"
-          }
-          defaultValue={value?.displayAddress ?? ""}
+          placeholder="Search your street, area or building…"
+          value={query}
           onChange={(e) => {
-            // If the user clears the field manually, reset the confirmed state.
-            if (!e.target.value) {
+            const v = e.target.value;
+            setQuery(v);
+            if (!v) {
               setMainAddress("");
               setCoords(null);
               onChange(null);
+              setSuggestions([]);
             }
           }}
+          onKeyDown={handleKeyDown}
+          onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+          onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
           autoComplete="off"
           spellCheck={false}
           aria-label="Delivery address search"
+          aria-expanded={showSuggestions && suggestions.length > 0}
+          aria-autocomplete="list"
+          role="combobox"
         />
         <button
           type="button"
@@ -302,6 +246,35 @@ export function AddressPicker({ value, onChange }: AddressPickerProps) {
         >
           {gpsLoading ? "Locating…" : "📍 My location"}
         </button>
+
+        {/* Suggestions dropdown */}
+        {showSuggestions && suggestions.length > 0 && (
+          <ul
+            ref={listRef}
+            role="listbox"
+            className="absolute z-20 mt-1 w-full overflow-hidden rounded-xl border border-line bg-paper shadow-lift"
+          >
+            {suggestions.map((s, i) => (
+              <li key={`${s.placeId ?? `${s.lat}-${s.lng}`}-${i}`} role="option" aria-selected={i === activeIndex}>
+                <button
+                  type="button"
+                  className={`w-full px-3 py-2 text-left text-sm hover:bg-cream/60 ${
+                    i === activeIndex ? "bg-cream/60" : ""
+                  }`}
+                  onMouseDown={(e) => e.preventDefault()} // keep focus so onBlur doesn't fire first
+                  onClick={() => pickSuggestion(s)}
+                >
+                  {s.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        {searchLoading && (
+          <p className="mt-1 text-xs text-soft" aria-live="polite">
+            Searching…
+          </p>
+        )}
       </div>
 
       {gpsError && (
@@ -310,23 +283,13 @@ export function AddressPicker({ value, onChange }: AddressPickerProps) {
         </p>
       )}
 
-      {/* Confirmed address badge + "View on Google Maps" link */}
+      {/* Confirmed address badge */}
       {addressConfirmed && (
         <div className="flex items-start gap-2 rounded-xl border border-ok/30 bg-ok/5 px-3 py-2.5 text-xs">
           <span className="mt-0.5 shrink-0 text-ok" aria-hidden>
             ✓
           </span>
-          <div>
-            <p className="font-semibold text-ink">{mainAddress}</p>
-            <a
-              href={`https://maps.google.com/?q=${coords.lat},${coords.lng}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-0.5 inline-block text-chilidark underline underline-offset-2 hover:text-ink"
-            >
-              Verify on Google Maps ↗
-            </a>
-          </div>
+          <p className="font-semibold text-ink">{mainAddress}</p>
         </div>
       )}
 

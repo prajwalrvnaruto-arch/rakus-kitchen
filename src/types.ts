@@ -1,5 +1,4 @@
 export type OrderStatus =
-  | "Order Received"
   | "Confirmed"
   | "Preparing"
   | "Out for Delivery"
@@ -7,7 +6,6 @@ export type OrderStatus =
   | "Cancelled";
 
 export const ORDER_STATUSES: OrderStatus[] = [
-  "Order Received",
   "Confirmed",
   "Preparing",
   "Out for Delivery",
@@ -15,11 +13,10 @@ export const ORDER_STATUSES: OrderStatus[] = [
 ];
 
 export const ORDER_STATUS_FLOW: Record<OrderStatus, number> = {
-  "Order Received": 0,
-  Confirmed: 1,
-  Preparing: 2,
-  "Out for Delivery": 3,
-  Delivered: 4,
+  Confirmed: 0,
+  Preparing: 1,
+  "Out for Delivery": 2,
+  Delivered: 3,
   Cancelled: -1,
 };
 
@@ -27,6 +24,21 @@ export type MealSlot = "Lunch" | "Dinner";
 
 export type BiryaniMeat = "chicken" | "mutton";
 export type BiryaniWeight = 0.5 | 1 | 2 | 3;
+
+export type PaymentStatus = "created" | "paid" | "failed";
+
+/** Razorpay payment metadata attached to an order once payment is verified. */
+export interface PaymentMeta {
+  provider: "razorpay";
+  razorpayOrderId: string;
+  razorpayPaymentId?: string;
+  amount: number; // in paise
+  currency: string; // "INR"
+  status: PaymentStatus;
+  createdAt: number; // epoch ms
+  paidAt?: number; // epoch ms
+  failureReason?: string;
+}
 
 /** A pickable size/weight for a dish, e.g. { label: "½ kg", price: 400 }. */
 export interface MenuVariant {
@@ -64,6 +76,12 @@ export interface CartItem {
   quantity: number;
   /** Label for the variant (e.g. "½ kg · Chicken"). */
   variant?: string;
+  /** True for an add-on line that only makes sense alongside another line
+   *  (e.g. extra 250g chicken bought with a chicken biryani). Add-on lines
+   *  are auto-clamped/dropped by reconcileExtraMeatLines whenever the cart
+   *  changes, rather than sticking around as an orphaned, independently
+   *  removable line once the item they depend on is gone. */
+  isAddon?: boolean;
 }
 
 export interface OrderLineItem {
@@ -88,9 +106,9 @@ export interface StatusEvent {
 export interface AddressComponents {
   lat: number;
   lng: number;
-  /** Google Places place_id — enables linking back to the exact POI. */
-  googlePlaceId?: string;
-  /** Full verified address string sourced from Google Places / Geocoding API. */
+  /** Ola Maps place_id — enables linking back to the exact POI. */
+  placeId?: string;
+  /** Full verified address string sourced from Ola Maps Places / Geocoding API. */
   displayAddress: string;
   /** Customer-entered details: e.g. "Flat 4B, 3rd Floor, Prestige Tower". */
   doorAndBuilding: string;
@@ -107,7 +125,7 @@ export interface AddressComponents {
 export interface DeliveryMeta {
   /** Fare estimate in ₹ fetched from the carrier API at checkout time. */
   fareEstimate?: number;
-  /** Carrier identifier: "porter" | "borzo". */
+  /** Carrier identifier: "porter" | "borzo" | "shadowfax". */
   carrierId?: string;
   /** Order ID returned by the carrier after a successful booking. */
   carrierOrderId?: string;
@@ -138,6 +156,9 @@ export interface Order {
   status: OrderStatus;
   statusHistory: StatusEvent[];
   notes?: string;
+  /** Razorpay payment record — present on every order once payment is mandatory;
+   *  optional only so pre-Razorpay historical orders still type-check. */
+  payment?: PaymentMeta;
   createdAt: number; // epoch ms
   updatedAt: number; // epoch ms
 }

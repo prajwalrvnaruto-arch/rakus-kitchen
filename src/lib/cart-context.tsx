@@ -4,7 +4,7 @@ import {
   createContext, useContext, useEffect, useMemo, useState, type ReactNode,
 } from "react";
 import type { CartItem } from "@/types";
-import { packagingFeeForUnits } from "./menu";
+import { packagingFeeForUnits, reconcileExtraMeatLines } from "./menu";
 
 const STORAGE_KEY = "rakus-kitchen-cart-v1";
 
@@ -60,14 +60,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const add = (item: CartItem) =>
     setItems((prev) => {
       const existing = prev.find((i) => i.menuId === item.menuId && i.variant === item.variant);
-      if (existing) {
-        return prev.map((i) =>
-          i.menuId === item.menuId && i.variant === item.variant
-            ? { ...i, quantity: i.quantity + item.quantity }
-            : i,
-        );
-      }
-      return [...prev, item];
+      const next = existing
+        ? prev.map((i) =>
+            i.menuId === item.menuId && i.variant === item.variant
+              ? { ...i, quantity: i.quantity + item.quantity }
+              : i,
+          )
+        : [...prev, item];
+      // Re-clamp any addon lines (e.g. extra meat) against their parent
+      // biryani line(s) whenever the cart changes.
+      return reconcileExtraMeatLines(next);
     });
 
   // A cart line is keyed by (menuId, variant) so the same dish at different
@@ -76,14 +78,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
     item.menuId === menuId && (item.variant ?? undefined) === variant;
 
   const setQuantity = (menuId: string, variant: string | undefined, quantity: number) =>
-    setItems((prev) =>
-      quantity <= 0
-        ? prev.filter((i) => !lineMatches(i, menuId, variant))
-        : prev.map((i) => (lineMatches(i, menuId, variant) ? { ...i, quantity } : i)),
-    );
+    setItems((prev) => {
+      const next =
+        quantity <= 0
+          ? prev.filter((i) => !lineMatches(i, menuId, variant))
+          : prev.map((i) => (lineMatches(i, menuId, variant) ? { ...i, quantity } : i));
+      // Shrinking or removing a biryani line must shrink or drop any addon
+      // line riding on it, instead of leaving an orphaned extra-meat line.
+      return reconcileExtraMeatLines(next);
+    });
 
   const remove = (menuId: string, variant: string | undefined) =>
-    setItems((prev) => prev.filter((i) => !lineMatches(i, menuId, variant)));
+    setItems((prev) => reconcileExtraMeatLines(prev.filter((i) => !lineMatches(i, menuId, variant))));
 
   const clear = () => setItems([]);
 

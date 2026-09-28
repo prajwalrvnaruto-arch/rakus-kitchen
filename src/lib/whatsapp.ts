@@ -1,4 +1,5 @@
 import { BUSINESS } from "./config";
+import { toWaIntl } from "./phone";
 import type { Order, OrderStatus } from "@/types";
 
 export const waMeLink = (message?: string) =>
@@ -46,17 +47,23 @@ export const buildOrderMessage = (order: Order): string => {
   return lines.join("\n");
 };
 
+/** Full wa.me link addressed to the *kitchen* (shop) for a placed order.
+ *  Sources the shop number from BUSINESS.phoneIntl via waMeLink — never hardcode it. */
+export const waLinkToKitchen = (order: Order): string =>
+  waMeLink(buildOrderMessage(order));
+
 
 const rupees = (n: number) => `₹${n.toLocaleString("en-IN")}`;
 
 /* ── Order-status notifications (admin → customer) ─────────────────────── */
 
-/** Turn a stored phone ("+91 96068 88096") into an international wa.me number ("919606888096"). */
-export const phoneToIntl = (phone: string): string => {
-  const digits = phone.replace(/\D/g, "");
-  if (digits.startsWith("91")) return digits;
-  return digits.length === 10 ? `91${digits}` : digits;
-};
+/**
+ * Turn a stored phone ("+91 96068 88096") into an international wa.me number
+ * ("919606888096"). Delegates to the shared normalizer, which returns "" for
+ * anything that isn't a valid Indian mobile — so a malformed number yields an
+ * empty (obviously-broken) link the caller can guard, never a wrong one.
+ */
+export const phoneToIntl = (phone: string): string => toWaIntl(phone);
 
 /** Compact one-line list of items, e.g. "1× Chicken Biryani, 2× Fish Fry". */
 const lineItems = (order: Order): string =>
@@ -74,19 +81,6 @@ const refCard = (order: Order, includeItems = true) => {
 
 /** Per-status templates — premium, warm, and easy to scan. */
 export const STATUS_MESSAGES: Record<OrderStatus, (order: Order) => string> = {
-  "Order Received": (order) =>
-    [
-      "🟡 *Raku's Kitchen — Order Received*",
-      "",
-      `Hi ${order.customerName}, your order has reached our kitchen! 🧡`,
-      "",
-      refCard(order),
-      "",
-      "We'll confirm it shortly and keep you updated at every step.",
-      "",
-      signOff,
-    ].join("\n"),
-
   Confirmed: (order) =>
     [
       "✅ *Raku's Kitchen — Order Confirmed*",

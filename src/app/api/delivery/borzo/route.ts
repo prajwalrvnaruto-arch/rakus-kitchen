@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/server/requireAdmin";
 import { createBorzoOrder } from "@/lib/borzo";
 
 export async function POST(request: Request) {
+  // Only a signed-in admin may book a delivery — same guard as the Shadowfax
+  // routes. Without this, any caller could trigger a (billable) Borzo booking.
+  const auth = await requireAdmin(request);
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const body = (await request.json()) as {
       orderId?: string;

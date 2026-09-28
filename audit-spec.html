@@ -1,0 +1,467 @@
+<title>Raku's Kitchen Backend Audit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --paper: #faf7f2;
+    --surface: #ffffff;
+    --ink: #22201d;
+    --clay: #8a7d70;
+    --line: #e6ded2;
+    --accent: #d94f30;
+    --accent-soft: #fbe9e3;
+    --crit: #c0392b;
+    --crit-soft: #f7e2df;
+    --high: #b8860b;
+    --high-soft: #f6ecd4;
+    --med: #5a8a82;
+    --med-soft: #e0ece9;
+    --code-bg: #f2ece2;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #1a1815;
+      --surface: #232019;
+      --ink: #ece5da;
+      --clay: #a89b8c;
+      --line: #362f26;
+      --accent: #ef7256;
+      --accent-soft: #3a251d;
+      --crit: #e57368;
+      --crit-soft: #3a211f;
+      --high: #d9a83a;
+      --high-soft: #352c17;
+      --med: #7bb0a6;
+      --med-soft: #1f2e2b;
+      --code-bg: #2a251d;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #1a1815;
+    --surface: #232019;
+    --ink: #ece5da;
+    --clay: #a89b8c;
+    --line: #362f26;
+    --accent: #ef7256;
+    --accent-soft: #3a251d;
+    --crit: #e57368;
+    --crit-soft: #3a211f;
+    --high: #d9a83a;
+    --high-soft: #352c17;
+    --med: #7bb0a6;
+    --med-soft: #1f2e2b;
+    --code-bg: #2a251d;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Inter", system-ui, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 940px;
+    margin: 0 auto;
+    padding: 16px;
+    padding-block: 40px 72px;
+  }
+
+  /* ── Masthead ─────────────────────────────────────── */
+  header.mast {
+    border-bottom: 2px solid var(--ink);
+    padding-bottom: 24px;
+    margin-bottom: 8px;
+  }
+  .eyebrow {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 12px;
+  }
+  h1 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600;
+    font-size: clamp(2rem, 6vw, 3.1rem);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+    margin: 0 0 14px;
+  }
+  .lede {
+    font-size: 1.06rem;
+    color: var(--clay);
+    max-width: 62ch;
+    margin: 0;
+  }
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 20px;
+    margin-top: 20px;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12.5px;
+    color: var(--clay);
+  }
+  .meta b { color: var(--ink); font-weight: 500; }
+
+  /* ── Section nav ──────────────────────────────────── */
+  nav.toc {
+    position: sticky;
+    top: env(safe-area-inset-top, 0px);
+    background: var(--paper);
+    padding: 14px 0;
+    margin: 8px 0 8px;
+    border-bottom: 1px solid var(--line);
+    z-index: 5;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 8px;
+  }
+  nav.toc a {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    text-decoration: none;
+    color: var(--clay);
+    padding: 4px 10px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    transition: color .15s, border-color .15s;
+  }
+  nav.toc a:hover { color: var(--accent); border-color: var(--accent); }
+
+  section { margin-top: 46px; scroll-margin-top: 64px; }
+  h2 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600;
+    font-size: 1.7rem;
+    letter-spacing: -0.01em;
+    margin: 0 0 6px;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+  }
+  h2 .num {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.95rem;
+    color: var(--accent);
+    font-weight: 500;
+  }
+  .section-note { color: var(--clay); margin: 0 0 22px; max-width: 64ch; }
+  h3 {
+    font-family: "Fraunces", Georgia, serif;
+    font-weight: 600;
+    font-size: 1.18rem;
+    margin: 30px 0 10px;
+  }
+  p { max-width: 68ch; }
+  code {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 0.86em;
+    background: var(--code-bg);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
+  /* ── Callout (the correction) ─────────────────────── */
+  .callout {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--accent);
+    border-radius: 8px;
+    padding: 18px 20px;
+    margin: 20px 0;
+  }
+  .callout p { margin: 0 0 10px; }
+  .callout p:last-child { margin: 0; }
+  .callout strong { color: var(--accent); }
+
+  /* ── Tables ───────────────────────────────────────── */
+  .tbl-scroll { overflow-x: auto; margin: 16px 0; }
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 14.5px;
+    min-width: 520px;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  th {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11.5px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--clay);
+    font-weight: 500;
+    border-bottom: 1.5px solid var(--ink);
+  }
+  td .id {
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 500;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+
+  /* ── Chips ────────────────────────────────────────── */
+  .chip {
+    display: inline-block;
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.03em;
+    padding: 2px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .chip.explicit { background: var(--accent-soft); color: var(--accent); }
+  .chip.implicit { background: var(--code-bg); color: var(--clay); }
+  .chip.done { background: var(--med-soft); color: var(--med); }
+  .chip.partial { background: var(--high-soft); color: var(--high); }
+  .chip.deferred { background: var(--code-bg); color: var(--clay); }
+
+  /* ── Gap cards ────────────────────────────────────── */
+  .gap {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin: 14px 0;
+    border-left: 4px solid var(--line);
+  }
+  .gap.crit { border-left-color: var(--crit); }
+  .gap.high { border-left-color: var(--high); }
+  .gap.med { border-left-color: var(--med); }
+  .gap-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .gap-head .id {
+    font-family: "JetBrains Mono", monospace;
+    font-weight: 500;
+  }
+  .gap.crit .id { color: var(--crit); }
+  .gap.high .id { color: var(--high); }
+  .gap.med .id { color: var(--med); }
+  .gap-head .title { font-weight: 600; font-family: "Fraunces", serif; font-size: 1.1rem; }
+  .sev {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 10.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 4px;
+  }
+  .gap.crit .sev { background: var(--crit-soft); color: var(--crit); }
+  .gap.high .sev { background: var(--high-soft); color: var(--high); }
+  .gap.med .sev { background: var(--med-soft); color: var(--med); }
+  .gap p { margin: 8px 0 0; font-size: 14.5px; }
+  .gap .fix {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--line);
+    font-size: 13.5px;
+  }
+  .gap .fix b {
+    font-family: "JetBrains Mono", monospace;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--clay);
+    display: block;
+    margin-bottom: 3px;
+  }
+
+  ul.tight { max-width: 68ch; padding-left: 22px; }
+  ul.tight li { margin: 5px 0; }
+
+  footer {
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+    font-family: "JetBrains Mono", monospace;
+    font-size: 12px;
+    color: var(--clay);
+  }
+  a { color: var(--accent); }
+</style>
+
+<div class="wrap">
+  <header class="mast">
+    <p class="eyebrow">Technical Specification · QA Audit</p>
+    <h1>Raku's Kitchen — Backend Logic Audit</h1>
+    <p class="lede">A reverse-engineered map of every functional feature, the hidden business rules that hold the ordering flow together, and where those rules bend under Zomato-scale traffic.</p>
+    <div class="meta">
+      <span><b>Scope</b> src/lib · payment flow · checkout</span>
+      <span><b>Stack</b> Next 14 · Firestore · Razorpay</span>
+      <span><b>Reviewed</b> 2026-09-26</span>
+    </div>
+  </header>
+
+  <nav class="toc">
+    <a href="#features">1 · Features</a>
+    <a href="#epics">2 · Epics</a>
+    <a href="#rules">3 · Hidden rules</a>
+    <a href="#gaps">4 · Gap analysis</a>
+    <a href="#status">5 · Resolution</a>
+  </nav>
+
+  <div class="callout">
+    <p><strong>One correction worth stating up front.</strong> The first pass of the gap analysis was written before reading the live payment flow. That flow is more robust than the audit first assumed: <code>finalizePayment</code> runs in a Firestore transaction, is idempotent, and materializes an order only from a <em>paid</em> intent, while <code>claimWebhookEvent</code> dedupes Razorpay retries. Duplicate orders cannot be created. The gaps below are the ones that survived that closer read.</p>
+  </div>
+
+  <section id="features">
+    <h2><span class="num">01</span> Feature inventory</h2>
+    <p class="section-note">Every functional feature reverse-engineered from the backend, tagged explicit (a stated feature) or implicit (behavior that emerges from how the code is written).</p>
+
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>Feature</th><th>Kind</th><th>Where</th></tr></thead>
+        <tbody>
+          <tr><td>Weight-tiered biryani pricing (½/1/2/3 kg × chicken/mutton)</td><td><span class="chip explicit">explicit</span></td><td><code>BIRYANI_PRICING</code></td></tr>
+          <tr><td>2 kg / 3 kg prices extrapolated at the per-kg rate</td><td><span class="chip implicit">implicit</span></td><td><code>menu.ts</code></td></tr>
+          <tr><td>Variant-priced dishes vs flat-priced dishes</td><td><span class="chip explicit">explicit</span></td><td><code>MenuItem.variants</code></td></tr>
+          <tr><td>Extra-meat add-on as an independent cart line</td><td><span class="chip explicit">explicit</span></td><td><code>EXTRA_MEAT_*</code></td></tr>
+          <tr><td>Server-side authoritative price recomputation</td><td><span class="chip explicit">explicit</span></td><td><code>recomputeOrderTotals</code></td></tr>
+          <tr><td>Client-submitted prices never trusted</td><td><span class="chip implicit">implicit</span></td><td><code>UnpricedLine</code></td></tr>
+          <tr><td>Per-unit packaging fee (₹20 × total units)</td><td><span class="chip explicit">explicit</span></td><td><code>packagingFeeForUnits</code></td></tr>
+          <tr><td>Catering menu is display-only, structurally cart-proof</td><td><span class="chip implicit">implicit</span></td><td><code>CATERING_MENU</code></td></tr>
+          <tr><td>Closed Mon &amp; Thu; no Sunday dinner; one-day-advance</td><td><span class="chip explicit">explicit</span></td><td><code>order-dates.ts</code></td></tr>
+          <tr><td>Blocked slots rendered with a reason, not hidden</td><td><span class="chip implicit">implicit</span></td><td><code>upcomingMeals</code></td></tr>
+          <tr><td>Porter clipboard fields mapped to the app's form</td><td><span class="chip explicit">explicit</span></td><td><code>buildPorterClipboardData</code></td></tr>
+          <tr><td>Per-status WhatsApp customer templates (5 states)</td><td><span class="chip explicit">explicit</span></td><td><code>STATUS_MESSAGES</code></td></tr>
+          <tr><td>Idempotent payment finalization + webhook dedupe</td><td><span class="chip explicit">explicit</span></td><td><code>paymentIntents.ts</code></td></tr>
+          <tr><td>Recursive <code>undefined</code>-strip for Firestore writes</td><td><span class="chip explicit">explicit</span></td><td><code>sanitizeFirestoreData</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="epics">
+    <h2><span class="num">02</span> Business epics</h2>
+    <p class="section-note">The features above cluster into six coherent areas of responsibility.</p>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>Epic</th><th>Owns</th></tr></thead>
+        <tbody>
+          <tr><td><b>Menu &amp; Pricing</b></td><td>Catalog, weight tiers, variant/flat resolution, packaging fee, INR formatting</td></tr>
+          <tr><td><b>Extra-Meat Cap</b></td><td>Pooled per-tier add-on budget, live cart reconciliation, server re-enforcement</td></tr>
+          <tr><td><b>Order Date &amp; Slot Gating</b></td><td>Holidays, no-Sunday-dinner, advance window, checkout re-validation</td></tr>
+          <tr><td><b>Logistics Payload Assembly</b></td><td>Porter clipboard + deep link, phone normalization, address structuring</td></tr>
+          <tr><td><b>Customer Communications</b></td><td>WhatsApp order + status messages, wa.me links, business identity from config</td></tr>
+          <tr><td><b>Payments &amp; Fulfilment</b></td><td>Intent creation, Razorpay verify + webhook, idempotent finalize, order counter</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="rules">
+    <h2><span class="num">03</span> Hidden business rules</h2>
+    <p class="section-note">The non-obvious logic — the rules a new engineer would miss reading the types alone.</p>
+
+    <h3>The extra-meat cap is a pooled dynamic budget</h3>
+    <p>An extra-meat line has no structural pointer back to any biryani. <code>allowedExtraMeatUnits</code> sums <code>cap × qty</code> across every biryani line of a given meat, so two ½ kg chicken biryanis (cap 1 each) pool to a budget of 2, spendable by a single add-on. The pooled sum is the <em>only</em> source of truth; <code>reconcileExtraMeatLines</code> spends it greedily on every cart change, and the server re-runs the same check at checkout.</p>
+
+    <h3>Phone normalization is target-partner-driven</h3>
+    <p>The same stored number takes different shapes per consumer: WhatsApp wants international <code>919606888096</code>; Porter's receiver field and the carrier payloads want the bare 10 digits <code>9606888096</code>. Both now resolve through one canonical 10-digit form and fail loudly rather than emitting a silently-truncated number.</p>
+
+    <h3>The server never trusts client prices</h3>
+    <p><code>recomputeOrderTotals</code> takes only <code>(menuId, variant, qty)</code>; any submitted price is ignored. A line that can't be resolved returns a hard error instead of a best-effort charge — a tampered total is caught because price is looked up fresh.</p>
+
+    <h3>Sentinels and structural safety</h3>
+    <p>A biryani's <code>price: 0</code> is a sentinel meaning "look it up in the tier table," not "free." Catering items live in a separate array that <code>menuItemById</code> never searches, so a catering id can never resolve a price — checkout rejects it by omission rather than by an explicit guard.</p>
+  </section>
+
+  <section id="gaps">
+    <h2><span class="num">04</span> Gap analysis</h2>
+    <p class="section-note">Where the rules bend under sustained, concurrent, Zomato-shaped traffic. Ranked by production risk.</p>
+
+    <div class="gap crit">
+      <div class="gap-head"><span class="id">C1</span><span class="title">Duplicate create-order submissions</span><span class="sev">Critical</span></div>
+      <p>Orders can't double-create, but a double-click fires <code>create-order</code> twice, each spawning a Razorpay order and an inert payment intent — operational clutter at scale.</p>
+      <div class="fix"><b>Fix</b>An in-flight ref makes <code>submit</code> a no-op while an attempt is pending; the visual disabled state was only a partial guard.</div>
+    </div>
+
+    <div class="gap crit">
+      <div class="gap-head"><span class="id">C2</span><span class="title">Silent mid-session reprice</span><span class="sev">Critical</span></div>
+      <p>If a price changes while the customer browses, the server reprices at submit and the amount charged differs from the total they confirmed — silently, because the server total wins.</p>
+      <div class="fix"><b>Fix</b>The client sends its displayed total as advisory <code>clientGrandTotal</code>; on mismatch the server returns <code>409 price_changed</code> and checkout asks the customer to review before paying.</div>
+    </div>
+
+    <div class="gap high">
+      <div class="gap-head"><span class="id">H1</span><span class="title">Far-future dates accepted</span><span class="sev">High</span></div>
+      <p><code>validateMeal</code> checked advance/holiday/Sunday rules but not that a date fell inside the offered window — a hand-crafted date months out passed.</p>
+      <div class="fix"><b>Fix</b>A <code>MAX_ADVANCE_DAYS</code> bound rejects anything past the ordering window.</div>
+    </div>
+
+    <div class="gap high">
+      <div class="gap-head"><span class="id">H2</span><span class="title">String-coupled price resolution</span><span class="sev">High</span></div>
+      <p>Price lookup parsed the display label <code>"1 kg · Chicken"</code>. A label refactor or a stray glyph would silently break biryani checkout for every order.</p>
+      <div class="fix"><b>Fix</b>Parsing is centralized in one <code>parseBiryaniWeight</code> helper, tolerant of spacing, the <code>½</code> glyph and a plain <code>0.5</code> spelling, reused by both call sites.</div>
+    </div>
+
+    <div class="gap high">
+      <div class="gap-head"><span class="id">H3</span><span class="title">No automated tests</span><span class="sev">High</span></div>
+      <p>The pooled-cap math, phone normalizers, date gating and price recompute — exactly where a regression means wrong charges — had no regression net.</p>
+      <div class="fix"><b>Fix</b>A Vitest suite covers all four areas (cap pooling, recompute error paths, date boundaries, phone formats). Written; pending a working local install to run.</div>
+    </div>
+
+    <div class="gap med">
+      <div class="gap-head"><span class="id">M1</span><span class="title">Phone normalizers corrupt silently</span><span class="sev">Medium</span></div>
+      <p>Short input echoed back a broken wa.me link; an 11-digit string lost its leading digit via <code>slice(-10)</code>.</p>
+      <div class="fix"><b>Fix</b>A shared <code>normalizeIndianMobile</code> validates against the 6–9 leading-digit rule and returns null for anything invalid; all four consumers (WhatsApp, Porter, Borzo, Shadowfax) route through it.</div>
+    </div>
+
+    <div class="gap med">
+      <div class="gap-head"><span class="id">M2</span><span class="title">Extrapolated bulk pricing</span><span class="sev">Medium</span></div>
+      <p>2 kg / 3 kg biryani prices are extrapolated, not confirmed against a physical card. A data question, not a code bug.</p>
+      <div class="fix"><b>Fix</b>A <code>TODO(business)</code> marker flags the rows for confirmation; no logic change.</div>
+    </div>
+
+    <div class="gap med">
+      <div class="gap-head"><span class="id">M3</span><span class="title">No order-creation rate limit</span><span class="sev">Medium</span></div>
+      <p>Genuine, but infra-dependent — needs a shared store (Firestore counter, Upstash). Out of code scope.</p>
+      <div class="fix"><b>Status</b>Deferred by decision; client guard + existing idempotency hold the line meanwhile.</div>
+    </div>
+  </section>
+
+  <section id="status">
+    <h2><span class="num">05</span> Resolution status</h2>
+    <p class="section-note">Every gap has been addressed in source. Verification is pending a working local dependency install.</p>
+    <div class="tbl-scroll">
+      <table>
+        <thead><tr><th>Item</th><th>Status</th><th>Touches</th></tr></thead>
+        <tbody>
+          <tr><td><span class="id">C1</span> double-submit guard</td><td><span class="chip done">done</span></td><td><code>checkout/page.tsx</code></td></tr>
+          <tr><td><span class="id">C2</span> mid-session reprice</td><td><span class="chip done">done</span></td><td><code>create-order</code>, <code>checkout</code></td></tr>
+          <tr><td><span class="id">H1</span> far-future date bound</td><td><span class="chip done">done</span></td><td><code>order-dates.ts</code></td></tr>
+          <tr><td><span class="id">H2</span> label parsing</td><td><span class="chip done">done</span></td><td><code>menu.ts</code></td></tr>
+          <tr><td><span class="id">H3</span> test suite</td><td><span class="chip partial">written · unrun</span></td><td>3 <code>*.test.ts</code>, <code>vitest.config</code></td></tr>
+          <tr><td><span class="id">M1</span> phone normalization</td><td><span class="chip done">done</span></td><td><code>phone.ts</code> + 4 consumers</td></tr>
+          <tr><td><span class="id">M2</span> bulk-price marker</td><td><span class="chip done">done</span></td><td><code>menu.ts</code></td></tr>
+          <tr><td><span class="id">M3</span> rate limiting</td><td><span class="chip deferred">deferred</span></td><td>follow-up</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:20px;">One honest caveat: the code edits are hand-reviewed and consistent with the existing types, but nothing was compiled or run. The project's <code>node_modules</code> is in a broken state — installs report success while writing nothing to disk, leaving both <code>vitest</code> and <code>typescript</code> unresolvable. A clean reinstall unblocks verification.</p>
+  </section>
+
+  <footer>
+    Raku's Kitchen · backend audit · prepared for the engineering team
+  </footer>
+</div>
