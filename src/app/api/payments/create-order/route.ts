@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { verifyIdToken } from "@/lib/server/firebaseAdmin";
 import { createRazorpayOrder } from "@/lib/server/razorpay";
 import { createIntent, enforceOrderRateLimit, RateLimitError } from "@/lib/server/paymentIntents";
+import { checkQuantityLimits } from "@/lib/server/menuConfig";
 import { recomputeOrderTotals } from "@/lib/menu";
 import { validateMeal } from "@/lib/order-dates";
 import type { OrderDraft } from "@/lib/db";
-import type { AddressComponents, MealSlot, OrderLineItem } from "@/types";
+import type { AddressComponents, FulfillmentType, MealSlot, OrderLineItem } from "@/types";
 
 export const runtime = "nodejs";
 
@@ -14,6 +15,7 @@ interface CreateOrderBody {
   phone?: string;
   deliveryAddress?: string;
   addressComponents?: AddressComponents;
+  fulfillmentType?: FulfillmentType;
   mealSlot?: MealSlot;
   mealDate?: string;
   items?: OrderLineItem[];
@@ -40,8 +42,11 @@ export async function POST(request: Request) {
 
     const body = (await request.json()) as CreateOrderBody;
 
+    const fulfillmentType = body.fulfillmentType ?? "delivery";
+
     if (
-      !body.customerName?.trim() || !body.phone?.trim() || !body.deliveryAddress?.trim()
+      !body.customerName?.trim() || !body.phone?.trim()
+      || (fulfillmentType === "delivery" && !body.deliveryAddress?.trim())
       || !body.mealSlot || !body.mealDate || !Array.isArray(body.items) || body.items.length === 0
     ) {
       return NextResponse.json({ error: "Missing required order fields" }, { status: 400 });
@@ -59,6 +64,17 @@ export async function POST(request: Request) {
     );
     if ("error" in recomputed) {
       return NextResponse.json({ error: recomputed.error }, { status: 400 });
+    }
+
+    // Block order if any requested quantity would exceed that item's configured
+    // limit. This is the authoritative gate — finalizePayment also increments
+    // counters, but can't reject (payment already captured, no refund path).
+    const limitCheck = await checkQuantityLimits(recomputed.items);
+    if (!limitCheck.ok) {
+      return NextResponse.json(
+        { error: limitCheck.error, code: "quantity_limit_exceeded" },
+        { status: 409 },
+      );
     }
 
     // Catch a price that changed while the customer was browsing: if the total
@@ -83,8 +99,9 @@ export async function POST(request: Request) {
     const draft: OrderDraft = {
       customerName: body.customerName.trim(),
       phone: body.phone.trim(),
-      deliveryAddress: body.deliveryAddress.trim(),
-      addressComponents: body.addressComponents,
+      deliveryAddress: fulfillmentType === "pickup" ? "" : body.deliveryAddress!.trim(),
+      addressComponents: fulfillmentType === "pickup" ? undefined : body.addressComponents,
+      fulfillmentType,
       mealSlot: body.mealSlot,
       mealDate: body.mealDate,
       items: recomputed.items,

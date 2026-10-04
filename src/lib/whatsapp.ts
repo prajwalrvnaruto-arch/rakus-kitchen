@@ -10,14 +10,21 @@ export const buildOrderMessage = (order: Order): string => {
   // Build address block — use structured components if available (new orders),
   // fall back to the legacy plain string for backward compat.
   const addressLines: string[] = [];
-  if (order.addressComponents) {
-    addressLines.push(`📍 Address: ${order.addressComponents.displayAddress}`);
-    addressLines.push(`   Flat/Building: ${order.addressComponents.doorAndBuilding}`);
-    if (order.addressComponents.landmark) {
-      addressLines.push(`   Landmark: ${order.addressComponents.landmark}`);
-    }
+  if (order.fulfillmentType === "pickup") {
+    addressLines.push(`🏠 *Self-Pickup*`);
+    addressLines.push(`   Customer will collect from: ${BUSINESS.kitchenAddress}`);
+    const readyTime = order.mealSlot === "Lunch" ? BUSINESS.readyLunch : BUSINESS.readyDinner;
+    addressLines.push(`   Ready by: ${readyTime}`);
   } else {
-    addressLines.push(`📍 Address: ${order.deliveryAddress}`);
+    if (order.addressComponents) {
+      addressLines.push(`📍 Address: ${order.addressComponents.displayAddress}`);
+      addressLines.push(`   Flat/Building: ${order.addressComponents.doorAndBuilding}`);
+      if (order.addressComponents.landmark) {
+        addressLines.push(`   Landmark: ${order.addressComponents.landmark}`);
+      }
+    } else {
+      addressLines.push(`📍 Address: ${order.deliveryAddress}`);
+    }
   }
 
   const lines: string[] = [
@@ -41,8 +48,12 @@ export const buildOrderMessage = (order: Order): string => {
     `Packaging (per item): ${rupees(order.packagingFee)}`,
     `*GRAND TOTAL: ${rupees(order.grandTotal)}*`,
     "",
-    "Delivery charges are paid by the customer to the delivery partner.",
-    "Please call the customer to confirm this order and delivery. Thank you! 🙏",
+    order.fulfillmentType === "pickup"
+      ? "Customer will collect this order from the kitchen."
+      : "Delivery charges are paid by the customer to the delivery partner.",
+    order.fulfillmentType === "pickup"
+      ? "Please call the customer to confirm the pickup time. Thank you! 🙏"
+      : "Please call the customer to confirm this order and delivery. Thank you! 🙏",
   ];
   return lines.join("\n");
 };

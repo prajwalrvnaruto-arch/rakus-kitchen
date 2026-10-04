@@ -6,15 +6,17 @@ interface QtyStepperProps {
   min?: number;
   max?: number;
   labelFor: string;
+  /** Disables both +/- buttons — used when the item is unavailable (quantity limit reached). */
+  disabled?: boolean;
 }
 
-export function QtyStepper({ value, onChange, min = 1, max = 20, labelFor }: QtyStepperProps) {
+export function QtyStepper({ value, onChange, min = 1, max = 20, labelFor, disabled = false }: QtyStepperProps) {
   return (
     <div className="inline-flex items-center gap-1 rounded-full border border-line bg-paper">
       <button
         type="button"
         onClick={() => onChange(Math.max(min, value - 1))}
-        disabled={value <= min}
+        disabled={disabled || value <= min}
         className="grid h-9 w-9 place-items-center rounded-full text-lg font-semibold text-soft transition hover:bg-creamdark disabled:opacity-30"
         aria-label={`Decrease ${labelFor}`}
       >
@@ -26,7 +28,7 @@ export function QtyStepper({ value, onChange, min = 1, max = 20, labelFor }: Qty
       <button
         type="button"
         onClick={() => onChange(Math.min(max, value + 1))}
-        disabled={value >= max}
+        disabled={disabled || value >= max}
         className="grid h-9 w-9 place-items-center rounded-full text-lg font-semibold text-soft transition hover:bg-creamdark disabled:opacity-30"
         aria-label={`Increase ${labelFor}`}
       >

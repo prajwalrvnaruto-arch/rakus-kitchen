@@ -53,5 +53,15 @@ service cloud.firestore {
     match /rateLimits/{uid} {
       allow read, write: if false;
     }
+
+    // Per-item order-quantity tracking + availability config, one doc per
+    // menu item (menuConfig/{menuId}). Public read so customers see
+    // availability without signing in; only admins can edit limits/overrides
+    // or reset counters. Increments happen server-side (admin SDK, bypasses
+    // rules) inside finalizePayment's transaction.
+    match /menuConfig/{menuId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
   }
 }

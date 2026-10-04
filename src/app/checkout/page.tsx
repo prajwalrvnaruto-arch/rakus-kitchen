@@ -11,10 +11,11 @@ import { auth } from "@/lib/firebase";
 import { formatINR } from "@/lib/menu";
 import { upcomingMeals, validateMeal, type MealOption } from "@/lib/order-dates";
 import { waLinkToKitchen } from "@/lib/whatsapp";
+import { BUSINESS } from "@/lib/config";
 import { AddressPicker } from "@/components/AddressPicker";
 import { OrderStatusSteps } from "@/components/OrderStatusSteps";
 import { WhatsAppIcon } from "@/components/icons";
-import type { AddressComponents, Order } from "@/types";
+import type { AddressComponents, FulfillmentType, Order } from "@/types";
 
 type Phase = "form" | "processing" | "verifying" | "done";
 
@@ -112,6 +113,7 @@ export default function CheckoutPage() {
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [fulfillmentType, setFulfillmentType] = useState<FulfillmentType>("delivery");
   // Structured address — replaces the old plain-text `address` string.
   const [addressComponents, setAddressComponents] = useState<AddressComponents | null>(null);
   const [meal, setMeal] = useState<MealOption | null>(null);
@@ -325,7 +327,15 @@ export default function CheckoutPage() {
             <span className="text-soft">Meal</span>
             <span className="font-semibold">{placedOrder.mealSlot} · {placedOrder.mealDate}</span>
           </div>
-          {placedOrder.addressComponents && (
+          {placedOrder.fulfillmentType === "pickup" ? (
+            <div className="px-5 py-3 text-soft">
+              <span className="block text-xs font-semibold text-soft">Self-Pickup</span>
+              <span className="block font-semibold text-ink">{BUSINESS.kitchenAddress}</span>
+              <span className="block text-xs">
+                Ready by {placedOrder.mealSlot === "Lunch" ? BUSINESS.readyLunch : BUSINESS.readyDinner}
+              </span>
+            </div>
+          ) : placedOrder.addressComponents ? (
             <div className="px-5 py-3 text-soft">
               <span className="block text-xs font-semibold text-soft">Delivery to</span>
               <span className="block font-semibold text-ink">
@@ -333,7 +343,7 @@ export default function CheckoutPage() {
               </span>
               <span className="block text-xs">{placedOrder.addressComponents.displayAddress}</span>
             </div>
-          )}
+          ) : null}
           {placedOrder.items.map((it) => (
             <div key={`${it.menuId}-${it.variant}`} className="flex justify-between px-5 py-3">
               <span className="text-soft">
@@ -378,14 +388,16 @@ export default function CheckoutPage() {
     const problem = validateMeal({ date: meal.date, slot: meal.slot });
     if (problem) { setError(problem); return; }
 
-    // Require a confirmed structured address (at minimum the doorAndBuilding field).
-    if (!addressComponents) {
-      setError("Please search for your delivery address above.");
-      return;
-    }
-    if (addressComponents.doorAndBuilding.trim().length < 3) {
-      setError("Please enter your flat / floor / building details.");
-      return;
+    // Require a confirmed structured address for delivery orders only.
+    if (fulfillmentType === "delivery") {
+      if (!addressComponents) {
+        setError("Please search for your delivery address above.");
+        return;
+      }
+      if (addressComponents.doorAndBuilding.trim().length < 3) {
+        setError("Please enter your flat / floor / building details.");
+        return;
+      }
     }
 
     if (scriptError) {
@@ -409,12 +421,15 @@ export default function CheckoutPage() {
     const requestBody = {
       customerName: name.trim(),
       phone: `+91 ${phone}`,
-      deliveryAddress: [
-        addressComponents.doorAndBuilding,
-        addressComponents.displayAddress,
-        addressComponents.landmark,
-      ].filter(Boolean).join(", "),
-      addressComponents,
+      fulfillmentType,
+      deliveryAddress: fulfillmentType === "delivery" && addressComponents
+        ? [
+            addressComponents.doorAndBuilding,
+            addressComponents.displayAddress,
+            addressComponents.landmark,
+          ].filter(Boolean).join(", ")
+        : "",
+      addressComponents: fulfillmentType === "delivery" ? addressComponents : undefined,
       mealSlot: meal.slot,
       mealDate: meal.date,
       items: lineInputs,
@@ -543,17 +558,72 @@ export default function CheckoutPage() {
             </div>
           </fieldset>
 
-          {/* Delivery address — structured picker */}
+          {/* Fulfillment type toggle */}
           <fieldset className="card p-5">
-            <legend className="mb-1 text-sm font-semibold text-ink">Delivery address</legend>
-            <p className="mb-3 text-xs text-soft">
-              Delivery across Bangalore · Delivery charges are paid by the customer to the delivery partner.
-            </p>
-            <AddressPicker
-              value={addressComponents}
-              onChange={handleAddressChange}
-            />
+            <legend className="mb-3 text-sm font-semibold text-ink">How would you like to receive your order?</legend>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setFulfillmentType("delivery")}
+                className={`rounded-xl border-2 px-4 py-3 text-left text-sm transition ${
+                  fulfillmentType === "delivery"
+                    ? "border-chili bg-chili/5 font-semibold text-chilidark"
+                    : "border-line bg-paper text-ink hover:border-soft"
+                }`}
+              >
+                <span className="block text-lg" aria-hidden>🛵</span>
+                <span className="block font-semibold">Delivery</span>
+                <span className="text-xs opacity-80">We'll deliver to your address</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setFulfillmentType("pickup")}
+                className={`rounded-xl border-2 px-4 py-3 text-left text-sm transition ${
+                  fulfillmentType === "pickup"
+                    ? "border-chili bg-chili/5 font-semibold text-chilidark"
+                    : "border-line bg-paper text-ink hover:border-soft"
+                }`}
+              >
+                <span className="block text-lg" aria-hidden>🏠</span>
+                <span className="block font-semibold">Self-Pickup</span>
+                <span className="text-xs opacity-80">Collect from the kitchen</span>
+              </button>
+            </div>
           </fieldset>
+
+          {/* Delivery address — shown only for delivery */}
+          {fulfillmentType === "delivery" ? (
+            <fieldset className="card p-5">
+              <legend className="mb-1 text-sm font-semibold text-ink">Delivery address</legend>
+              <p className="mb-3 text-xs text-soft">
+                Delivery across Bangalore · Delivery charges are paid by the customer to the delivery partner.
+              </p>
+              <AddressPicker
+                value={addressComponents}
+                onChange={handleAddressChange}
+              />
+            </fieldset>
+          ) : (
+            <div className="card p-5">
+              <h3 className="mb-2 text-sm font-semibold text-ink">Pickup location</h3>
+              <div className="rounded-lg bg-cream/60 p-4">
+                <p className="font-semibold text-ink">{BUSINESS.name}</p>
+                <p className="mt-1 text-sm text-soft">{BUSINESS.kitchenAddress}</p>
+                <a
+                  href={`https://maps.google.com/?q=${BUSINESS.lat},${BUSINESS.lng}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-block text-sm font-semibold text-chilidark hover:underline"
+                >
+                  Open in Google Maps →
+                </a>
+                <div className="mt-3 border-t border-line/60 pt-3 text-sm">
+                  <p className="font-semibold text-ink">Ready times</p>
+                  <p className="text-soft">Lunch: {BUSINESS.readyLunch} · Dinner: {BUSINESS.readyDinner}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Order note */}
           <fieldset className="card p-5">
@@ -609,9 +679,11 @@ export default function CheckoutPage() {
             <div className="flex justify-between text-soft"><span>Packaging (₹20/item)</span><span>{formatINR(packagingFee)}</span></div>
             <div className="flex justify-between text-base font-bold"><span>Total</span><span>{formatINR(grandTotal)}</span></div>
           </div>
-          <p className="mt-3 rounded-lg bg-cream px-3 py-2 text-xs text-soft">
-            🛵 Delivery charge is paid to the partner at your door and isn&apos;t included above.
-          </p>
+          {fulfillmentType === "delivery" && (
+            <p className="mt-3 rounded-lg bg-cream px-3 py-2 text-xs text-soft">
+              🛵 Delivery charge is paid to the partner at your door and isn&apos;t included above.
+            </p>
+          )}
         </aside>
       </div>
     </div>

@@ -3,12 +3,13 @@
 import {
   addDoc, collection, doc, getDoc, getDocs,
   onSnapshot, query, runTransaction, serverTimestamp, setDoc,
-  updateDoc, where, type Unsubscribe,
+  updateDoc, where, writeBatch, type Unsubscribe,
 } from "firebase/firestore";
 import { getIdToken, getIdTokenResult } from "firebase/auth";
 import { auth, db } from "./firebase";
 import { sanitizeFirestoreData } from "./sanitize";
-import type { AddressComponents, DeliveryMeta, Order, OrderLineItem, OrderStatus, StatusEvent } from "@/types";
+import type { MenuItemConfig } from "./menuLimits";
+import type { AddressComponents, DeliveryMeta, FulfillmentType, Order, OrderLineItem, OrderStatus, StatusEvent } from "@/types";
 
 /* ── Order creation ────────────────────────────────────────────────────── */
 //
@@ -24,6 +25,8 @@ export interface OrderDraft {
   deliveryAddress: string;
   /** Structured geo-coded address — collected by AddressPicker. */
   addressComponents?: AddressComponents;
+  /** "delivery" (default) or "pickup" — pickup orders carry no delivery address. */
+  fulfillmentType: FulfillmentType;
   mealSlot: "Lunch" | "Dinner";
   mealDate: string; // YYYY-MM-DD
   items: OrderLineItem[];
@@ -241,6 +244,9 @@ function mapOrder(doc: { id: string; data: () => Record<string, unknown> }): Ord
     deliveryMeta: d.deliveryMeta
       ? (d.deliveryMeta as DeliveryMeta)
       : undefined,
+    // Backward compat: orders placed before this feature shipped had no
+    // fulfillmentType field at all — they were all deliveries.
+    fulfillmentType: (d.fulfillmentType as FulfillmentType) ?? "delivery",
     mealSlot: (d.mealSlot as "Lunch" | "Dinner") ?? "Lunch",
     mealDate: (d.mealDate as string) ?? "",
     items: (d.items as OrderLineItem[]) ?? [],
@@ -280,6 +286,84 @@ export async function getOrder(orderId: string): Promise<Order | null> {
   if (!db) return null;
   const snap = await getDoc(doc(db, "orders", orderId));
   return snap.exists() ? mapOrder(snap) : null;
+}
+
+/* ── Menu item quantity limits / availability (admin inventory) ──────────── */
+//
+// One doc per menu item at menuConfig/{menuId}: { limitEnabled, limit,
+// orderedQty, manualOverride, updatedAt }. orderedQty is incremented
+// server-side only (inside finalizePayment's transaction, see
+// src/lib/server/menuConfig.ts) — never decremented, per the business
+// decision that cancellations don't release quantity. These functions cover
+// everything the admin inventory page needs: live read, per-item limit/
+// override edits, and manual reset (no automatic/scheduled reset exists).
+
+export interface MenuConfigWithId extends MenuItemConfig {
+  menuId: string;
+}
+
+export function subscribeMenuConfig(
+  onData: (configs: MenuConfigWithId[]) => void,
+  onError?: (message: string) => void,
+): Unsubscribe {
+  if (!db) return () => {};
+  const firestore = db;
+  return retryingListener("subscribeMenuConfig", (onSnapshotError) =>
+    onSnapshot(
+      collection(firestore, "menuConfig"),
+      (snap) => {
+        const configs = snap.docs.map((d) => ({ menuId: d.id, ...(d.data() as MenuItemConfig) }));
+        onData(configs);
+      },
+      onSnapshotError,
+    ),
+    onError,
+  );
+}
+
+export async function setMenuItemLimit(menuId: string, limit: number): Promise<void> {
+  if (!db) return;
+  await setDoc(
+    doc(db, "menuConfig", menuId),
+    { limit, updatedAt: serverTimestamp() },
+    { merge: true },
+  );
+}
+
+export async function setMenuItemAvailabilityOverride(
+  menuId: string,
+  override: "available" | "unavailable" | null,
+): Promise<void> {
+  if (!db) return;
+  await setDoc(
+    doc(db, "menuConfig", menuId),
+    { manualOverride: override, updatedAt: serverTimestamp() },
+    { merge: true },
+  );
+}
+
+/** Zeroes one item's running ordered-quantity counter. Manual admin action only. */
+export async function resetMenuItemOrderedQty(menuId: string): Promise<void> {
+  if (!db) return;
+  await setDoc(
+    doc(db, "menuConfig", menuId),
+    { orderedQty: 0, updatedAt: serverTimestamp() },
+    { merge: true },
+  );
+}
+
+/** Zeroes every listed item's counter in one batch. Manual admin action only. */
+export async function resetAllMenuItemOrderedQty(menuIds: string[]): Promise<void> {
+  if (!db) return;
+  const batch = writeBatch(db);
+  for (const menuId of menuIds) {
+    batch.set(
+      doc(db, "menuConfig", menuId),
+      { orderedQty: 0, updatedAt: serverTimestamp() },
+      { merge: true },
+    );
+  }
+  await batch.commit();
 }
 
 /* ── Admin access diagnostic ───────────────────────────────────────────── */

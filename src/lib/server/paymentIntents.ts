@@ -3,8 +3,9 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "./firebaseAdmin";
 import { sanitizeFirestoreData } from "@/lib/sanitize";
 import { decideRateLimit } from "@/lib/rate-limit-policy";
+import { incrementMenuQuantities } from "./menuConfig";
 import type { OrderDraft } from "@/lib/db";
-import type { Order, OrderStatus, PaymentMeta, StatusEvent } from "@/types";
+import type { FulfillmentType, Order, OrderStatus, PaymentMeta, StatusEvent } from "@/types";
 
 /**
  * A payment intent is created before the customer ever sees the Razorpay
@@ -157,6 +158,12 @@ export async function finalizePayment(params: {
       paidAt: Date.now(),
     };
 
+    // Increment each ordered item's running quantity total. Unconditional —
+    // payment is already captured by this point and there's no refund path,
+    // so this only ever records for reporting; the hard reject happens
+    // earlier, at create-order time, via checkQuantityLimits().
+    await incrementMenuQuantities(tx, intent.draft.items);
+
     const ordersRef = db.collection("orders").doc();
     const orderPayload = sanitizeFirestoreData({
       ...intent.draft,
@@ -199,6 +206,7 @@ function mapOrderDoc(id: string, d: Record<string, unknown>): Order {
     deliveryAddress: (d.deliveryAddress as string) ?? "",
     addressComponents: d.addressComponents as Order["addressComponents"],
     deliveryMeta: d.deliveryMeta as Order["deliveryMeta"],
+    fulfillmentType: (d.fulfillmentType as FulfillmentType) ?? "delivery",
     mealSlot: (d.mealSlot as "Lunch" | "Dinner") ?? "Lunch",
     mealDate: (d.mealDate as string) ?? "",
     items: (d.items as Order["items"]) ?? [],

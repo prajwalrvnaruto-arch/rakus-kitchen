@@ -6,12 +6,15 @@ import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "@/lib/cart-context";
 import { useAuth } from "@/lib/auth-context";
+import { useMenuAvailability } from "@/lib/menu-availability-context";
+import { canAddToCart, itemHasQuantityLimit, DEFAULT_ITEM_LIMIT } from "@/lib/menuLimits";
 import { formatINR, menuItemById } from "@/lib/menu";
 import { CartIcon, EmptyPlateIcon, DishPlaceholderIcon } from "./icons";
 
 export function CartDrawer() {
   const { items, itemTotal, packagingFee, grandTotal, cartOpen, setCartOpen, setQuantity, remove } = useCart();
   const { user } = useAuth();
+  const { configs } = useMenuAvailability();
   const router = useRouter();
 
   // Close on Escape; lock body scroll while open.
@@ -67,7 +70,27 @@ export function CartDrawer() {
           <>
             <ul className="flex-1 divide-y divide-line/60 overflow-y-auto px-5">
               {items.map((item) => {
-                const photo = menuItemById(item.menuId)?.photo;
+                const menuItem = menuItemById(item.menuId);
+                const photo = menuItem?.photo;
+
+                // Can this line's "+" go one more unit without exceeding what's
+                // actually left (global remaining minus what the whole cart holds)?
+                const cfg = configs[item.menuId];
+                const canIncrement =
+                  !menuItem || !itemHasQuantityLimit(menuItem)
+                    ? true
+                    : canAddToCart({
+                        item: menuItem,
+                        cfg: {
+                          orderedQty: cfg?.orderedQty ?? 0,
+                          limit: cfg?.limit ?? DEFAULT_ITEM_LIMIT,
+                          manualOverride: cfg?.manualOverride ?? null,
+                        },
+                        cartItems: items,
+                        requestedVariant: item.variant,
+                        requestedQty: 1,
+                      }).canAdd;
+
                 return (
                   <li key={`${item.menuId}-${item.variant ?? ""}`} className="flex items-start gap-3 py-4">
                     {photo ? (
@@ -104,8 +127,10 @@ export function CartDrawer() {
                       <span className="w-5 text-center text-sm font-bold">{item.quantity}</span>
                       <button
                         onClick={() => setQuantity(item.menuId, item.variant, item.quantity + 1)}
-                        className="grid h-7 w-7 place-items-center rounded-full text-soft hover:bg-creamdark"
+                        disabled={!canIncrement}
+                        className="grid h-7 w-7 place-items-center rounded-full text-soft hover:bg-creamdark disabled:cursor-not-allowed disabled:opacity-30"
                         aria-label={`Increase ${item.name}`}
+                        title={!canIncrement ? `No more ${item.name} left today` : undefined}
                       >
                         +
                       </button>

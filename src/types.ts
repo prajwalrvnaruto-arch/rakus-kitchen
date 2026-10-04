@@ -22,6 +22,10 @@ export const ORDER_STATUS_FLOW: Record<OrderStatus, number> = {
 
 export type MealSlot = "Lunch" | "Dinner";
 
+/** How the customer will receive the order — delivered to their address, or
+ *  collected in person from the kitchen. */
+export type FulfillmentType = "delivery" | "pickup";
+
 export type BiryaniMeat = "chicken" | "mutton";
 export type BiryaniWeight = 0.5 | 1 | 2 | 3;
 
@@ -147,6 +151,9 @@ export interface Order {
   addressComponents?: AddressComponents;
   /** Carrier booking metadata — populated when the admin books a delivery ride. */
   deliveryMeta?: DeliveryMeta;
+  /** "delivery" (default) or "pickup" — pickup orders carry no delivery address.
+   *  Defaults to "delivery" for orders placed before this field existed. */
+  fulfillmentType: FulfillmentType;
   mealSlot: MealSlot;
   mealDate: string; // YYYY-MM-DD
   items: OrderLineItem[];

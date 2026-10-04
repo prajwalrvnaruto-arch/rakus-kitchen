@@ -8,8 +8,12 @@ import {
   EXTRA_MEAT_GRAMS, EXTRA_MEAT_PRICE, EXTRA_MEAT_MAX_UNITS, extraMeatLabel, extraMeatMenuId,
 } from "@/lib/menu";
 import { useCart } from "@/lib/cart-context";
+import { useMenuAvailability } from "@/lib/menu-availability-context";
+import { canAddToCart, deriveAvailability, itemHasQuantityLimit, maxAddableQty, DEFAULT_ITEM_LIMIT } from "@/lib/menuLimits";
+import { menuItemById } from "@/lib/menu";
 import { QtyStepper } from "./QtyStepper";
 import { CartIcon } from "./icons";
+import { BiryaniExtraMeatModal } from "./BiryaniExtraMeatModal";
 
 const WEIGHTS: BiryaniWeight[] = [0.5, 1, 2, 3];
 const MEATS: { key: BiryaniMeat; label: string; photo: string }[] = [
@@ -18,11 +22,22 @@ const MEATS: { key: BiryaniMeat; label: string; photo: string }[] = [
 ];
 
 export function BiryaniPicker() {
-  const { add } = useCart();
+  const { add, items: cartItems } = useCart();
+  const { configs } = useMenuAvailability();
   const [meat, setMeat] = useState<BiryaniMeat>("chicken");
   const [weight, setWeight] = useState<BiryaniWeight>(1);
   const [qty, setQty] = useState(1);
   const [extraMeatQty, setExtraMeatQty] = useState(0);
+  const [showExtraModal, setShowExtraModal] = useState(false);
+
+  const menuId = `biryani-${meat}`;
+  const cfg = configs[menuId];
+  const availabilityCfg = {
+    orderedQty: cfg?.orderedQty ?? 0,
+    limit: cfg?.limit ?? DEFAULT_ITEM_LIMIT,
+    manualOverride: cfg?.manualOverride ?? null,
+  };
+  const unavailable = deriveAvailability(availabilityCfg) === "unavailable";
 
   const price = BIRYANI_PRICING[weight][meat];
   const ratio = BIRYANI_RATIO[weight];
@@ -32,7 +47,32 @@ export function BiryaniPicker() {
   const maxExtra = EXTRA_MEAT_MAX_UNITS[weight] * qty;
   const total = price * qty + extraPrice * extraMeatQty;
 
-  const handleAdd = () => {
+  // Cart-level gate: same rule as DishCard — even while "available" globally,
+  // this qty might push the customer's cart past what's actually left.
+  const menuItem = menuItemById(menuId);
+  const addResult = menuItem
+    ? canAddToCart({
+        item: menuItem,
+        cfg: availabilityCfg,
+        cartItems,
+        requestedVariant: unitLabel,
+        requestedQty: qty,
+      })
+    : { canAdd: true as const };
+  const disabled = unavailable || !addResult.canAdd;
+  const disabledReason = unavailable ? "Unavailable" : !addResult.canAdd ? addResult.reason : undefined;
+
+  // Proactive ceiling for the qty stepper — caps how high "+" can go instead
+  // of reactively disabling both buttons once qty overshoots. This is what
+  // lets "−" always work: it's never touched by the cart-limit check.
+  const maxQty = menuItem
+    ? Math.min(20, maxAddableQty({ item: menuItem, cfg: availabilityCfg, cartItems, requestedVariant: unitLabel }))
+    : 20;
+
+  // Adds the biryani line and, when extraQty > 0, the linked extra-meat add-on
+  // line. The add-on carries isAddon and is bound to this biryani by
+  // reconcileExtraMeatLines, so it clamps/drops with its parent.
+  const addToCart = (extraQty: number) => {
     add({
       menuId: `biryani-${meat}`,
       name: meat === "chicken" ? "Chicken Biryani" : "Mutton Biryani",
@@ -41,17 +81,26 @@ export function BiryaniPicker() {
       quantity: qty,
       variant: unitLabel,
     });
-    if (extraMeatQty > 0) {
+    if (extraQty > 0) {
       add({
         menuId: extraMeatMenuId(meat),
         name: extraLabel,
         emoji: meat === "chicken" ? "🍗" : "🥘",
         price: extraPrice,
-        quantity: extraMeatQty,
+        quantity: extraQty,
         isAddon: true,
       });
-      setExtraMeatQty(0);
     }
+    setExtraMeatQty(0);
+  };
+
+  // "Add to cart" opens the extra-meat popup for the biryani being added; the
+  // popup is pre-seeded with any inline selection and does the actual add.
+  const handleAdd = () => setShowExtraModal(true);
+
+  const handleConfirmExtra = (extraQty: number) => {
+    setShowExtraModal(false);
+    addToCart(extraQty);
   };
 
   return (
@@ -66,7 +115,30 @@ export function BiryaniPicker() {
                 <button
                   key={m.key}
                   type="button"
-                  onClick={() => setMeat(m.key)}
+                  onClick={() => {
+                    setMeat(m.key);
+                    // Switching meat changes menuId/config entirely — clamp
+                    // qty to the new item's own headroom.
+                    const newMenuItem = menuItemById(`biryani-${m.key}`);
+                    const newCfg = configs[`biryani-${m.key}`];
+                    const newAvailabilityCfg = {
+                      orderedQty: newCfg?.orderedQty ?? 0,
+                      limit: newCfg?.limit ?? DEFAULT_ITEM_LIMIT,
+                      manualOverride: newCfg?.manualOverride ?? null,
+                    };
+                    const newMax = newMenuItem
+                      ? Math.min(
+                          20,
+                          maxAddableQty({
+                            item: newMenuItem,
+                            cfg: newAvailabilityCfg,
+                            cartItems,
+                            requestedVariant: biryaniVariantLabel(weight, m.key),
+                          }),
+                        )
+                      : 20;
+                    setQty((q) => Math.max(1, Math.min(q, newMax)));
+                  }}
                   className={`flex items-center gap-2 rounded-xl border-2 px-3 py-2.5 text-sm font-semibold transition ${meat === m.key
                       ? "border-chili bg-chili/5 text-chilidark"
                       : "border-line bg-paper text-soft hover:border-soft"
@@ -91,6 +163,23 @@ export function BiryaniPicker() {
                   type="button"
                   onClick={() => {
                     setWeight(w);
+                    // Headroom depends on per-unit weight, which just changed —
+                    // clamp qty down immediately rather than leaving a stale
+                    // over-limit number on screen (the render-time `max` on
+                    // the stepper would also catch this, but proactively
+                    // snapping down avoids several extra "−" clicks).
+                    const newMax = menuItem
+                      ? Math.min(
+                          20,
+                          maxAddableQty({
+                            item: menuItem,
+                            cfg: availabilityCfg,
+                            cartItems,
+                            requestedVariant: biryaniVariantLabel(w, meat),
+                          }),
+                        )
+                      : 20;
+                    setQty((q) => Math.max(1, Math.min(q, newMax)));
                     setExtraMeatQty((q) => Math.min(q, EXTRA_MEAT_MAX_UNITS[w]));
                   }}
                   className={`rounded-xl border-2 py-3 text-sm font-bold transition ${weight === w
@@ -168,15 +257,23 @@ export function BiryaniPicker() {
                 setQty(q);
                 setExtraMeatQty((eq) => Math.min(eq, EXTRA_MEAT_MAX_UNITS[weight] * q));
               }}
+              max={maxQty}
               labelFor="biryani parcels"
+              // Only a genuinely non-interactive state (globally unavailable)
+              // fully disables the stepper. Cart-limit headroom is expressed
+              // via `max` above, so it can only ever stop "+" — "−" stays
+              // clickable all the way down to `min`, never trapping the user.
+              disabled={unavailable}
             />
             <button
               onClick={handleAdd}
-              className="btn btn-chili flex-1"
+              disabled={disabled}
+              className="btn btn-chili flex-1 disabled:cursor-not-allowed disabled:opacity-40"
               aria-label={`Add ${qty} ${meat} biryani ${unitLabel} to cart`}
+              title={disabledReason}
             >
               <CartIcon className="h-5 w-5" />
-              Add to cart · {formatINR(total)}
+              {unavailable ? "Unavailable" : !addResult.canAdd ? addResult.reason : `Add to cart · ${formatINR(total)}`}
             </button>
           </div>
 
@@ -185,6 +282,17 @@ export function BiryaniPicker() {
           </p>
         </div>
       </div>
+
+      {showExtraModal && (
+        <BiryaniExtraMeatModal
+          meat={meat}
+          weight={weight}
+          biryaniQty={qty}
+          initialExtraQty={extraMeatQty}
+          onConfirm={handleConfirmExtra}
+          onClose={() => setShowExtraModal(false)}
+        />
+      )}
     </div>
   );
 }

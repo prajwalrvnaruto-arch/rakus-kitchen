@@ -213,6 +213,9 @@ export default function AdminPage() {
           <button onClick={reloadOrders} className="btn btn-ghost px-4 py-2 text-xs">
             ⟳ Refresh orders
           </button>
+          <Link href="/admin/inventory" className="btn btn-ghost px-4 py-2 text-xs">
+            📊 Item Sales & Limits
+          </Link>
           {/* Access check moved off the main flow — it's a debug lifeline that
               only matters when orders are missing. */}
           <button
@@ -834,10 +837,12 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
     }
   };
 
-  /** Show delivery options only when cooking is done or preparing and ride not yet booked. */
+  /** Show delivery options only when cooking is done or preparing, ride not yet booked,
+   *  and the order is actually being delivered (self-pickup orders never need a carrier). */
   const canBookDelivery =
     (order.status === "Confirmed" || order.status === "Preparing") &&
-    !order.deliveryMeta?.carrierOrderId;
+    !order.deliveryMeta?.carrierOrderId &&
+    order.fulfillmentType !== "pickup";
 
   return (
     <article className={`card overflow-hidden ${archived ? "opacity-75" : ""}`}>
@@ -868,8 +873,13 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
             <span className="font-bold text-ink">{order.mealSlot}</span> · {order.mealDate}
           </p>
 
-          {/* Address — structured (new orders) or plain string (legacy) */}
-          {order.addressComponents ? (
+          {/* Fulfillment — pickup badge or delivery address */}
+          {order.fulfillmentType === "pickup" ? (
+            <div className="rounded-xl border border-ok/30 bg-ok/5 px-3 py-2.5 text-xs">
+              <p className="font-semibold text-ok">🏠 Self-Pickup</p>
+              <p className="mt-1 text-soft">Customer will collect from the kitchen</p>
+            </div>
+          ) : order.addressComponents ? (
             <div className="rounded-xl border border-line bg-paper p-3 text-xs">
               <p className="font-semibold text-ink">{order.addressComponents.doorAndBuilding}</p>
               <p className="mt-0.5 text-soft">{order.addressComponents.displayAddress}</p>

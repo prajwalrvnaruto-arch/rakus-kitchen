@@ -6,11 +6,14 @@ import Image from "next/image";
 import type { MenuItem } from "@/types";
 import { formatINR } from "@/lib/menu";
 import { useCart } from "@/lib/cart-context";
+import { useMenuAvailability } from "@/lib/menu-availability-context";
+import { canAddToCart, deriveAvailability, itemHasQuantityLimit, maxAddableQty, DEFAULT_ITEM_LIMIT } from "@/lib/menuLimits";
 import { QtyStepper } from "./QtyStepper";
 import { CartIcon, NonVegBadge, VegBadge, BiryaniPotIcon, ChickenCategoryIcon, MuttonCategoryIcon, OtherCategoryIcon } from "./icons";
 
 export function DishCard({ item }: { item: MenuItem }) {
-  const { add } = useCart();
+  const { add, items: cartItems } = useCart();
+  const { configs } = useMenuAvailability();
   const [qty, setQty] = useState(1);
   // Default to the first (lightest/cheapest) variant when the dish has portions.
   const [variant, setVariant] = useState(item.variants?.[0]?.label ?? "");
@@ -18,6 +21,36 @@ export function DishCard({ item }: { item: MenuItem }) {
 
   const isBiryani = item.category === "Biryani";
   const hasVariants = !!item.variants?.length;
+
+  const cfg = configs[item.id];
+  const availabilityCfg = {
+    orderedQty: cfg?.orderedQty ?? 0,
+    limit: cfg?.limit ?? DEFAULT_ITEM_LIMIT,
+    manualOverride: cfg?.manualOverride ?? null,
+  };
+  const unavailable = itemHasQuantityLimit(item) && deriveAvailability(availabilityCfg) === "unavailable";
+
+  // Cart-level gate: even while still globally "available", adding this qty
+  // might push the customer's cart past what's actually left for them.
+  const addResult = canAddToCart({
+    item,
+    cfg: availabilityCfg,
+    cartItems,
+    requestedVariant: hasVariants ? variant : undefined,
+    requestedQty: qty,
+  });
+  const disabled = unavailable || !addResult.canAdd;
+  const disabledReason = unavailable ? "Unavailable" : !addResult.canAdd ? addResult.reason : undefined;
+
+  // Proactive ceiling for the qty stepper — caps how high "+" can go instead
+  // of reactively disabling both buttons once qty overshoots (the bug this
+  // guards against: a stale over-limit qty trapping the customer unable to
+  // decrement). "−" is never touched by the cart-limit check.
+  const maxQty = Math.min(
+    20,
+    maxAddableQty({ item, cfg: availabilityCfg, cartItems, requestedVariant: hasVariants ? variant : undefined }),
+  );
+
   // When portions are enabled the selected variant's price overrides `item.price`.
   // All non-variant items define a price; the ?? fallback only guards an authoring slip.
   const unitPrice = hasVariants ? variantPrice : item.price ?? 0;
@@ -80,7 +113,17 @@ export function DishCard({ item }: { item: MenuItem }) {
             <p className="font-semibold leading-snug">{item.name}</p>
             {item.unit && <p className="text-xs text-soft">{item.unit}</p>}
           </div>
-          {item.veg ? <VegBadge /> : <NonVegBadge />}
+          <div className="flex items-center gap-1.5">
+            {disabled && (
+              <span
+                className="rounded-full bg-ink/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-soft"
+                title={disabledReason}
+              >
+                {unavailable ? "Unavailable" : "Cart limit"}
+              </span>
+            )}
+            {item.veg ? <VegBadge /> : <NonVegBadge />}
+          </div>
         </div>
 
         <p className="mt-0.5 line-clamp-2 text-xs leading-relaxed text-soft">{item.description}</p>
@@ -104,6 +147,14 @@ export function DishCard({ item }: { item: MenuItem }) {
                       onClick={() => {
                         setVariant(v.label);
                         setVariantPrice(v.price);
+                        // Headroom depends on the variant's own weight —
+                        // clamp qty down immediately rather than leaving a
+                        // stale over-limit number on screen.
+                        const newMax = Math.min(
+                          20,
+                          maxAddableQty({ item, cfg: availabilityCfg, cartItems, requestedVariant: v.label }),
+                        );
+                        setQty((q) => Math.max(1, Math.min(q, newMax)));
                       }}
                       className={`rounded-full border px-2.5 py-0.5 text-xs font-medium transition ${
                         variant === v.label
@@ -118,13 +169,15 @@ export function DishCard({ item }: { item: MenuItem }) {
                 </div>
               </div>
               <div className="flex items-center gap-1.5">
-                <QtyStepper value={qty} onChange={setQty} labelFor={item.name} />
+                <QtyStepper value={qty} onChange={setQty} max={maxQty} labelFor={item.name} disabled={unavailable} />
                 <button
                   onClick={handleAdd}
-                  className="btn btn-chili px-3.5 py-2 text-xs"
+                  disabled={disabled}
+                  className="btn btn-chili px-3.5 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-40"
                   aria-label={`Add ${qty} ${variant} ${item.name} to cart`}
+                  title={disabledReason}
                 >
-                  <CartIcon className="h-4 w-4" /> Add
+                  <CartIcon className="h-4 w-4" /> {unavailable ? "Unavailable" : !addResult.canAdd ? "Cart limit" : "Add"}
                 </button>
               </div>
             </>
@@ -132,13 +185,14 @@ export function DishCard({ item }: { item: MenuItem }) {
             <>
               <p className="text-sm font-bold">{formatINR(item.price ?? 0)}</p>
               <div className="flex items-center gap-1.5">
-                <QtyStepper value={qty} onChange={setQty} labelFor={item.name} />
+                <QtyStepper value={qty} onChange={setQty} max={maxQty} labelFor={item.name} disabled={unavailable} />
                 <button
                   onClick={handleAdd}
-                  className="btn btn-chili px-3.5 py-2 text-xs"
+                  disabled={unavailable}
+                  className="btn btn-chili px-3.5 py-2 text-xs disabled:cursor-not-allowed disabled:opacity-40"
                   aria-label={`Add ${qty} ${item.name} to cart`}
                 >
-                  <CartIcon className="h-4 w-4" /> Add
+                  <CartIcon className="h-4 w-4" /> {unavailable ? "Unavailable" : "Add"}
                 </button>
               </div>
             </>
