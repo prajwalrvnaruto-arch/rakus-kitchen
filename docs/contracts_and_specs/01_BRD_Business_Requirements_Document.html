@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Business Requirements Document (BRD) — Raku's Kitchen | Nexus Development</title>
+  <style>
+    :root {
+      --primary: #0F172A;
+      --accent: #9EFF00;
+      --accent-dark: #7ac700;
+      --text: #1E293B;
+      --muted: #64748B;
+      --border: #E2E8F0;
+      --bg-light: #F8FAFC;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: var(--text);
+      background-color: #F1F5F9;
+      line-height: 1.6;
+      padding: 40px 20px;
+    }
+    .page {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #FFFFFF;
+      padding: 60px 70px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+    .top-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--border);
+    }
+    .top-nav a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .top-nav a:hover { color: var(--primary); }
+    .print-btn {
+      background: var(--primary);
+      color: #FFFFFF;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 40px;
+      padding-bottom: 25px;
+      border-bottom: 2px solid var(--border);
+    }
+    .company-info {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+    .company-details h2 {
+      font-size: 20px;
+      color: var(--primary);
+      font-weight: 700;
+    }
+    .company-details p {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .doc-meta {
+      text-align: right;
+    }
+    .badge {
+      display: inline-block;
+      background: #F1F5F9;
+      color: var(--primary);
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .doc-meta p {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    h1 {
+      font-size: 28px;
+      color: var(--primary);
+      margin-bottom: 12px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .lead {
+      font-size: 16px;
+      color: var(--muted);
+      margin-bottom: 30px;
+    }
+    h2.section-title {
+      font-size: 18px;
+      color: var(--primary);
+      margin-top: 36px;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1.5px solid var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    h3 {
+      font-size: 15px;
+      color: var(--primary);
+      margin: 18px 0 8px 0;
+    }
+    p, ul, ol {
+      margin-bottom: 14px;
+      font-size: 14px;
+      color: #334155;
+    }
+    ul, ol {
+      padding-left: 20px;
+    }
+    li {
+      margin-bottom: 6px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0 24px 0;
+      font-size: 13.5px;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      text-align: left;
+    }
+    th {
+      background: var(--bg-light);
+      color: var(--primary);
+      font-weight: 600;
+    }
+    .callout {
+      background: #F8FAFC;
+      border-left: 4px solid var(--accent);
+      padding: 14px 18px;
+      border-radius: 0 8px 8px 0;
+      margin: 20px 0;
+      font-size: 13.5px;
+    }
+    .callout strong {
+      color: var(--primary);
+    }
+    .sign-off-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+    .sign-block {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      background: var(--bg-light);
+    }
+    .sign-line {
+      margin-top: 40px;
+      border-bottom: 1px dashed var(--muted);
+      padding-bottom: 4px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    @media print {
+      body { background: #FFFFFF; padding: 0; }
+      .page { box-shadow: none; padding: 30px; max-width: 100%; border-radius: 0; }
+      .top-nav { display: none; }
+      .page-break { page-break-before: always; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="top-nav">
+      <a href="index.html">&larr; Back to Documentation Hub</a>
+      <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+    </div>
+
+    <header>
+      <div class="company-info">
+        <svg width="42" height="42" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="40" height="40" rx="6" fill="#9EFF00"/>
+          <path d="M7.22998 12.4749L19.9999 20V34.3662L7.22998 27.0691L7.22998 12.4749Z" fill="#1A1A1A"/>
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M21.1267 19.9899V32.4246L31.6431 26.4152V13.7927L21.1267 19.9899ZM32.77 27.0691L19.9999 34.3662V20L7.22998 12.4748L19.9999 5.63379L32.77 12.4748V27.0691ZM31.0524 12.833L19.9999 6.91205L9.52874 12.5216L20.5547 19.0191L31.0524 12.833Z" fill="#1A1A1A"/>
+        </svg>
+        <div class="company-details">
+          <h2>Nexus Development</h2>
+          <p>Custom Software Solutions | Bengaluru & Global</p>
+          <p style="font-size:11px;">https://nexusdevelopment.in | contactus@nexusdevelopment.in</p>
+        </div>
+      </div>
+      <div class="doc-meta">
+        <span class="badge">BUSINESS REQUIREMENTS DOCUMENT</span>
+        <p><strong>Doc Ref:</strong> NX-BRD-RK-2026-01</p>
+        <p><strong>Baseline Version:</strong> 1.0 (Final Delivered)</p>
+        <p><strong>Date:</strong> October 2026</p>
+      </div>
+    </header>
+
+    <h1>Business Requirements Document (BRD)</h1>
+    <p class="lead">Project: Direct-to-Consumer Cloud Kitchen & Catering Digital Platform for Raku's Kitchen</p>
+
+    <h2 class="section-title">1. Executive Summary & Problem Statement</h2>
+    <p>
+      <strong>Raku's Kitchen</strong> is a premier home-cooked, authentic Nati-style food kitchen and catering service based out of Jambusavari Dinne, JP Nagar 8th Phase, Bengaluru. Operating primarily via an Instagram-driven audience (<strong>@rakus.kitchen</strong>), the kitchen experienced substantial operational friction handling orders manually over WhatsApp messages and direct phone calls (9606888096).
+    </p>
+    <p>
+      <strong>Core Challenges Identified:</strong>
+    </p>
+    <ul>
+      <li><strong>Order Leakage & Miscommunication:</strong> Weight options (½ kg vs 1 kg vs multi-kg) and meat ratios (250g meat per ½ kg rice) were frequently misunderstood during chat conversations.</li>
+      <li><strong>Cash Collection Inefficiencies:</strong> Cash-on-delivery resulted in high cancellation risks and delivery disputes; manual UPI screenshot verification took up to 15 minutes per customer.</li>
+      <li><strong>Logistics Bottleneck:</strong> Copying customer addresses manually into Borzo or Porter created delivery dispatch errors and missed delivery cut-offs.</li>
+      <li><strong>Slot & Capacity Overselling:</strong> With fixed batch preparations (ready at 12:30 PM for Lunch, 7:30 PM for Dinner, closed Mon/Thu, no Sunday dinner), manual tracking led to kitchen order overwhelm.</li>
+    </ul>
+
+    <h2 class="section-title">2. Strategic Business Objectives & ROI</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Strategic Objective</th>
+          <th>Baseline (Manual Process)</th>
+          <th>Delivered Target (Digital Platform)</th>
+          <th>Business Impact</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>100% Pre-Paid Conversion</strong></td>
+          <td>Manual UPI screenshot verification; 12% unpaid order cancellations</td>
+          <td>Mandatory online prepay via Razorpay gateway integration</td>
+          <td>Zero unpaid food wastage; guaranteed revenue prior to food preparation</td>
+        </tr>
+        <tr>
+          <td><strong>Order Placement Velocity</strong></td>
+          <td>8–12 minutes back-and-forth WhatsApp conversation per customer</td>
+          <td>Self-service checkout in under 90 seconds</td>
+          <td>Capacity to process 10x order volume without additional administrative staff</td>
+        </tr>
+        <tr>
+          <td><strong>Logistics Automation</strong></td>
+          <td>Manual address re-typing and courier negotiation</td>
+          <td>Ola Maps verified lat/lng coordinates + Borzo 1-Click API dispatch</td>
+          <td>Instant courier assignment; delivery address disputes reduced to 0%</td>
+        </tr>
+        <tr>
+          <td><strong>Inventory & Weight Integrity</strong></td>
+          <td>Frequent confusion over extra meat add-on portions</td>
+          <td>Strict weight picker engine with automated meat ratio enforcement</td>
+          <td>Zero customer disputes regarding meat portions and packaging fees</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2 class="section-title">3. Business Process Transformation: AS-IS vs. TO-BE</h2>
+    <div class="callout">
+      <strong>AS-IS Process (Manual):</strong> Customer finds Instagram Reel &rarr; Sends WhatsApp message &rarr; Kitchen owner replies with menu text &rarr; Customer chooses items &rarr; Kitchen owner calculates price + packaging fee &rarr; Kitchen sends UPI QR &rarr; Customer transfers and uploads screenshot &rarr; Kitchen verifies bank balance &rarr; Kitchen copies address into delivery app &rarr; Frequent delivery and portion errors.
+    </div>
+    <div class="callout" style="border-left-color: var(--primary);">
+      <strong>TO-BE Process (Automated via Nexus Solution):</strong> Customer clicks bio link &rarr; Selects Lunch/Dinner slot &rarr; Customizes Biryani weight & add-ons with automated constraints &rarr; Enters verified address via Ola Maps &rarr; Completes Razorpay digital transaction &rarr; System auto-syncs order to kitchen admin & WhatsApp &rarr; 1-Click Borzo courier dispatch from admin console &rarr; Real-time status tracker for customer.
+    </div>
+
+    <div class="page-break"></div>
+
+    <h2 class="section-title">4. Business Rules & Operational Constraints</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Domain</th>
+          <th>Enforced Business Rule</th>
+          <th>System Enforcement Logic</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Service Schedule</strong></td>
+          <td>Lunch (ready 12:30 PM) and Dinner (ready 7:30 PM).<br>Kitchen is <strong>Closed on Mondays and Thursdays</strong>.<br><strong>No Sunday dinner</strong> service.</td>
+          <td>Slot selector algorithm auto-disables invalid days and hides Sunday dinner slots. Orders enforce 1-day advance notice cutoff.</td>
+        </tr>
+        <tr>
+          <td><strong>Portion & Weight Ratios</strong></td>
+          <td>Biryani sold by weight:<br>½ kg (250g meat)<br>1 kg (500g meat)<br>2 kg (1000g meat)<br>3 kg (1500g meat)</td>
+          <td>Weight-based picker calculates exact ingredient limits. Extra meat add-ons (250g increments) are strictly capped per weight tier.</td>
+        </tr>
+        <tr>
+          <td><strong>Add-On Dependency</strong></td>
+          <td>Extra meat add-ons can never exist without a corresponding base Biryani container.</td>
+          <td>Cart auto-reconciliation engine clamps or purges orphan extra meat add-ons when the parent dish quantity changes.</td>
+        </tr>
+        <tr>
+          <td><strong>Packaging Charges</strong></td>
+          <td>₹20 packaging fee per ordered food unit parcel.</td>
+          <td>Server-side calculation charges ₹20 multiplied by total item quantity (not order line count).</td>
+        </tr>
+        <tr>
+          <td><strong>Delivery Commercials</strong></td>
+          <td>Customer pays delivery charges directly to the courier partner at the doorstep.</td>
+          <td>Checkout disclaims delivery pricing and integrates Borzo API / Porter deep-links with zero delivery cost baked into food invoice.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2 class="section-title">5. Key Stakeholder Roles & Responsibilities</h2>
+    <ul>
+      <li><strong>Kitchen Owner / Admin (Raku):</strong> Reviews live incoming orders, advances state (Confirmed &rarr; Preparing &rarr; Out for Delivery &rarr; Delivered), triggers Borzo couriers, and triggers automated WhatsApp customer notifications.</li>
+      <li><strong>End Customer:</strong> Discovers dishes, customizes portions, enters verified delivery address via Ola Maps, prepays securely, and tracks live order status.</li>
+      <li><strong>Nexus Development (Technology Partner):</strong> Full system engineering, infrastructure configuration, API integrations, ongoing bug-free warranty, and continuous menu/pricing maintenance under the ₹80,000 project agreement.</li>
+    </ul>
+
+    <div class="sign-off-grid">
+      <div class="sign-block">
+        <strong>For Nexus Development:</strong>
+        <p style="font-size:12px; color:var(--muted); margin-top:4px;">Lead Business Analyst & Delivery Partner</p>
+        <div class="sign-line">Authorized Signatory & Date</div>
+      </div>
+      <div class="sign-block">
+        <strong>For Raku's Kitchen:</strong>
+        <p style="font-size:12px; color:var(--muted); margin-top:4px;">Business Owner / Proprietor</p>
+        <div class="sign-line">Client Sign-off & Date</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

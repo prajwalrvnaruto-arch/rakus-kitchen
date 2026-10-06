@@ -1,20 +1,35 @@
 "use client";
 
-import type { OrderStatus } from "@/types";
-import { ORDER_STATUSES, ORDER_STATUS_FLOW } from "@/types";
+import type { FulfillmentType, OrderStatus } from "@/types";
+import { ORDER_STATUS_FLOW } from "@/types";
 
-const STATUS_ICONS: Record<Exclude<OrderStatus, "Cancelled">, string> = {
-  Confirmed: "✅",
-  Preparing: "🍳",
-  "Out for Delivery": "🛵",
-  Delivered: "🏡",
-};
+interface StepConfig {
+  key: OrderStatus;
+  label: string;
+  icon: string;
+}
 
-const SHORT_LABELS: Record<string, string> = {
-  "Out for Delivery": "Out for delivery",
-};
+const DELIVERY_STEPS: StepConfig[] = [
+  { key: "Confirmed", label: "Confirmed", icon: "✅" },
+  { key: "Preparing", label: "Preparing", icon: "🍳" },
+  { key: "Out for Delivery", label: "Out for delivery", icon: "🛵" },
+  { key: "Delivered", label: "Delivered", icon: "🏡" },
+];
 
-export function OrderStatusSteps({ status }: { status: OrderStatus }) {
+const PICKUP_STEPS: StepConfig[] = [
+  { key: "Confirmed", label: "Confirmed", icon: "✅" },
+  { key: "Preparing", label: "Preparing", icon: "🍳" },
+  { key: "Ready for Pickup", label: "Ready for pickup", icon: "🛍️" },
+  { key: "Delivered", label: "Picked up", icon: "🏡" },
+];
+
+export function OrderStatusSteps({
+  status,
+  fulfillmentType = "delivery",
+}: {
+  status: OrderStatus;
+  fulfillmentType?: FulfillmentType;
+}) {
   if (status === "Cancelled") {
     return (
       <div className="rounded-xl border border-chili/30 bg-chili/5 p-3 text-center text-sm font-semibold text-chili">
@@ -23,8 +38,9 @@ export function OrderStatusSteps({ status }: { status: OrderStatus }) {
     );
   }
 
-  const currentStep = ORDER_STATUS_FLOW[status];
-  const pct = ORDER_STATUSES.length > 1 ? (currentStep / (ORDER_STATUSES.length - 1)) * 100 : 100;
+  const steps = fulfillmentType === "pickup" ? PICKUP_STEPS : DELIVERY_STEPS;
+  const currentStep = ORDER_STATUS_FLOW[status] ?? 0;
+  const pct = steps.length > 1 ? (currentStep / (steps.length - 1)) * 100 : 100;
 
   return (
     <div className="relative pt-1">
@@ -37,24 +53,24 @@ export function OrderStatusSteps({ status }: { status: OrderStatus }) {
       />
 
       <ol className="relative flex justify-between">
-        {ORDER_STATUSES.map((s, i) => {
+        {steps.map((step, i) => {
           const reached = i <= currentStep;
           const isCurrent = i === currentStep;
           return (
-            <li key={s} className="flex flex-1 flex-col items-center text-center">
+            <li key={step.key} className="flex flex-1 flex-col items-center text-center">
               <div
                 className={`grid h-9 w-9 place-items-center rounded-full border-2 bg-paper text-base transition ${
                   reached ? "border-chili text-chili" : "border-line text-soft/50"
                 } ${isCurrent ? "bg-chili text-cream ring-4 ring-chili/15" : ""}`}
               >
-                <span aria-hidden>{STATUS_ICONS[s as keyof typeof STATUS_ICONS]}</span>
+                <span aria-hidden>{step.icon}</span>
               </div>
               <span
                 className={`mt-1.5 max-w-[4.5rem] text-[10px] font-semibold leading-tight ${
                   reached ? "text-chilidark" : "text-soft/60"
                 }`}
               >
-                {SHORT_LABELS[s] ?? s}
+                {step.label}
               </span>
             </li>
           );

@@ -63,8 +63,20 @@ export async function POST(request: Request) {
       const status = err.code === "customer_mismatch" ? 403 : 400;
       return NextResponse.json({ error: err.message }, { status });
     }
-    const msg = (err as Error).message || "Could not verify payment";
-    const status = msg.startsWith("Missing Authorization") ? 401 : 500;
-    return NextResponse.json({ error: msg }, { status });
+    const rawMsg = (err as Error).message || "";
+    if (rawMsg.startsWith("Missing Authorization")) {
+      return NextResponse.json(
+        { error: "Your session has expired. Please sign in again to confirm your order." },
+        { status: 401 }
+      );
+    }
+    // Never expose raw database or internal exception text to the client
+    return NextResponse.json(
+      {
+        error:
+          "We're taking a moment to finalize your order. If your money was deducted, your payment is safe and will be confirmed shortly. Please tap 'Retry confirming payment' below.",
+      },
+      { status: 500 }
+    );
   }
 }

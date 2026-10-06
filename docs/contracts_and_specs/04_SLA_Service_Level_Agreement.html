@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Service Level Agreement (SLA) — Raku's Kitchen | Nexus Development</title>
+  <style>
+    :root {
+      --primary: #0F172A;
+      --accent: #9EFF00;
+      --accent-dark: #7ac700;
+      --text: #1E293B;
+      --muted: #64748B;
+      --border: #CBD5E1;
+      --bg-light: #F8FAFC;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: var(--text);
+      background-color: #F1F5F9;
+      line-height: 1.6;
+      padding: 40px 20px;
+    }
+    .page {
+      max-width: 920px;
+      margin: 0 auto;
+      background: #FFFFFF;
+      padding: 60px 70px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+    .top-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--border);
+    }
+    .top-nav a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .top-nav a:hover { color: var(--primary); }
+    .print-btn {
+      background: var(--primary);
+      color: #FFFFFF;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 40px;
+      padding-bottom: 25px;
+      border-bottom: 2px solid var(--border);
+    }
+    .company-info {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+    .company-details h2 {
+      font-size: 20px;
+      color: var(--primary);
+      font-weight: 700;
+    }
+    .company-details p {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .doc-meta { text-align: right; }
+    .badge {
+      display: inline-block;
+      background: #F1F5F9;
+      color: var(--primary);
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .doc-meta p { font-size: 13px; color: var(--muted); }
+    h1 {
+      font-size: 28px;
+      color: var(--primary);
+      margin-bottom: 12px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .lead { font-size: 16px; color: var(--muted); margin-bottom: 30px; }
+    h2.section-title {
+      font-size: 18px;
+      color: var(--primary);
+      margin-top: 36px;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1.5px solid var(--primary);
+    }
+    h3 { font-size: 15px; color: var(--primary); margin: 20px 0 8px 0; }
+    p, ul, ol { margin-bottom: 14px; font-size: 14px; color: #334155; }
+    ul, ol { padding-left: 20px; }
+    li { margin-bottom: 6px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0 24px 0;
+      font-size: 13px;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      text-align: left;
+    }
+    th { background: var(--bg-light); color: var(--primary); font-weight: 600; }
+    .badge-p1 { background: #FEE2E2; color: #991B1B; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; }
+    .badge-p2 { background: #FFEDD5; color: #9A3412; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; }
+    .badge-p3 { background: #FEF3C7; color: #854D0E; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; }
+    .badge-p4 { background: #ECFCCB; color: #3F6212; padding: 2px 8px; border-radius: 4px; font-weight: 700; font-size: 11px; }
+    .highlight-card {
+      background: #F8FAFC;
+      border: 1px solid var(--border);
+      border-left: 5px solid var(--accent);
+      border-radius: 6px;
+      padding: 18px 24px;
+      margin: 20px 0;
+    }
+    .sign-off-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+    .sign-block {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      background: var(--bg-light);
+    }
+    .sign-line {
+      margin-top: 40px;
+      border-bottom: 1px dashed var(--muted);
+      padding-bottom: 4px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    @media print {
+      body { background: #FFFFFF; padding: 0; }
+      .page { box-shadow: none; padding: 30px; max-width: 100%; border-radius: 0; }
+      .top-nav { display: none; }
+      .page-break { page-break-before: always; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="top-nav">
+      <a href="index.html">&larr; Back to Documentation Hub</a>
+      <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+    </div>
+
+    <header>
+      <div class="company-info">
+        <svg width="42" height="42" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="40" height="40" rx="6" fill="#9EFF00"/>
+          <path d="M7.22998 12.4749L19.9999 20V34.3662L7.22998 27.0691L7.22998 12.4749Z" fill="#1A1A1A"/>
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M21.1267 19.9899V32.4246L31.6431 26.4152V13.7927L21.1267 19.9899ZM32.77 27.0691L19.9999 34.3662V20L7.22998 12.4748L19.9999 5.63379L32.77 12.4748V27.0691ZM31.0524 12.833L19.9999 6.91205L9.52874 12.5216L20.5547 19.0191L31.0524 12.833Z" fill="#1A1A1A"/>
+        </svg>
+        <div class="company-details">
+          <h2>Nexus Development</h2>
+          <p>Custom Software Solutions | Bengaluru & Global</p>
+          <p style="font-size:11px;">https://nexusdevelopment.in | contactus@nexusdevelopment.in</p>
+        </div>
+      </div>
+      <div class="doc-meta">
+        <span class="badge">SERVICE LEVEL AGREEMENT (SLA)</span>
+        <p><strong>Agreement Ref:</strong> NX-SLA-RK-2026-04</p>
+        <p><strong>Contract Term:</strong> Ongoing (Included in Project Scope)</p>
+        <p><strong>Date:</strong> October 2026</p>
+      </div>
+    </header>
+
+    <h1>Service Level Agreement (SLA)</h1>
+    <p class="lead">Operational Governance, Maintenance Policy & Incident Response Framework</p>
+
+    <div class="highlight-card">
+      <strong>Comprehensive Maintenance Coverage:</strong> This Service Level Agreement ("SLA") guarantees that all code, APIs, and workflows delivered under the <strong>₹80,000 project agreement</strong> are fully supported by <strong>Nexus Development</strong>. All technical bug resolutions and minor routine maintenance (menu updates, price tweaks, operational schedule modifications) are permanently included at <strong>zero additional expense</strong>.
+    </div>
+
+    <h2 class="section-title">1. Support Scope & Maintenance Tiering</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Category</th>
+          <th>Covered Scope & Inclusions</th>
+          <th>Commercial Model</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Delivered Software Bug Support</strong></td>
+          <td>Diagnosis, troubleshooting, and bug remediation for all existing codebase components (Next.js frontend, Firestore backend, Firebase OTP Auth, Razorpay checkout, Ola Maps, Borzo API, Admin order engine).</td>
+          <td><strong>100% Free</strong><br>(Included in ₹80,000 contract value)</td>
+        </tr>
+        <tr>
+          <td><strong>Routine Operational Maintenance</strong></td>
+          <td>
+            • Adding or removing dishes from the menu.<br>
+            • Updating dish prices, portion weights, and description copy.<br>
+            • Modifying packaging fees (e.g., ₹20 per unit).<br>
+            • Toggling holiday closures (e.g., festival dates).<br>
+            • Updating WhatsApp notification message templates.
+          </td>
+          <td><strong>Zero Additional Expense</strong><br>(Fully covered under ongoing support)</td>
+        </tr>
+        <tr>
+          <td><strong>New Feature Enhancements</strong></td>
+          <td>Any brand-new capability outside the signed PRD (e.g., loyalty reward points engine, multi-outlet kitchen expansion, native iOS/Android store apps, automated bulk SMS marketing).</td>
+          <td><strong>Hourly Basis</strong><br>₹1,500/hour (Time & Materials) with advance estimation</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2 class="section-title">2. Incident Severity Classification & Response Matrix</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Severity Level</th>
+          <th>Definition & Real-World Examples</th>
+          <th>Initial Response (MTTA)</th>
+          <th>Target Resolution (MTTR)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="badge-p1">P1 - CRITICAL</span></td>
+          <td><strong>Platform Down / Revenue Impact:</strong><br>Customers cannot checkout; Razorpay payment verification failure; Admin portal completely inaccessible during lunch/dinner order hours.</td>
+          <td>&lt; 1 Hour</td>
+          <td>&lt; 4 Hours</td>
+        </tr>
+        <tr>
+          <td><span class="badge-p2">P2 - MAJOR</span></td>
+          <td><strong>Core Degradation / Workaround Available:</strong><br>Borzo courier API automated booking returns errors (couriers can still be booked manually via Porter deep-link helper); Ola Maps geocoding latency.</td>
+          <td>&lt; 2 Hours</td>
+          <td>&lt; 8 Hours</td>
+        </tr>
+        <tr>
+          <td><span class="badge-p3">P3 - MODERATE</span></td>
+          <td><strong>Non-Critical Functional Glitch:</strong><br>Minor visual layout defect on specific mobile screen sizes; customer order history pagination lag; WhatsApp pre-filled text styling typo.</td>
+          <td>&lt; 4 Hours</td>
+          <td>&lt; 24 Hours</td>
+        </tr>
+        <tr>
+          <td><span class="badge-p4">P4 - MINOR</span></td>
+          <td><strong>Routine Maintenance / Requests:</strong><br>Menu additions/removals; price adjustments; holiday calendar toggles; minor banner copy adjustments.</td>
+          <td>&lt; 6 Hours</td>
+          <td>&lt; 48 Hours</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="page-break"></div>
+
+    <h2 class="section-title">3. Cloud Infrastructure & Third-Party Dependencies</h2>
+    <p>
+      Nexus Development builds on world-class high-availability cloud providers. As established in the SOW, the Client owns the underlying accounts:
+    </p>
+    <ul>
+      <li><strong>Google Cloud Firestore & Firebase Auth:</strong> Guaranteed 99.95% uptime under Google SLA.</li>
+      <li><strong>Razorpay Payment Gateway:</strong> Uptime managed under Razorpay merchant terms.</li>
+      <li><strong>Ola Maps Platform:</strong> Map autocomplete and reverse geocoding API availability managed under Ola SLA.</li>
+      <li><strong>Borzo Delivery Services:</strong> Driver availability and on-road transit governed by Borzo logistics partner terms.</li>
+    </ul>
+
+    <h2 class="section-title">4. Support Communication & Escalation Channels</h2>
+    <ul>
+      <li><strong>Primary Urgent Channel (P1/P2):</strong> Direct WhatsApp Hotline to Nexus Project Lead.</li>
+      <li><strong>Email Support (P3/P4):</strong> <a href="mailto:contactus@nexusdevelopment.in">contactus@nexusdevelopment.in</a> with subject prefix <span style="font-family:monospace;">[RK-SUPPORT]</span>.</li>
+      <li><strong>Support Operating Hours:</strong> Standard coverage 10:00 AM – 9:00 PM IST (covering both Lunch and Dinner operational windows), Tuesday through Sunday.</li>
+    </ul>
+
+    <div class="sign-off-grid">
+      <div class="sign-block">
+        <strong>For Nexus Development:</strong>
+        <p style="font-size:12px; color:var(--muted); margin-top:4px;">Lead Solutions Architect & Operations Manager</p>
+        <div class="sign-line">Authorized Signatory & Date</div>
+      </div>
+      <div class="sign-block">
+        <strong>For Raku's Kitchen:</strong>
+        <p style="font-size:12px; color:var(--muted); margin-top:4px;">Business Owner / Proprietor</p>
+        <div class="sign-line">Client Sign-off & Date</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

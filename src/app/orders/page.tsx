@@ -10,6 +10,7 @@ import { useCart } from "@/lib/cart-context";
 import { subscribeMyOrders } from "@/lib/db";
 import { formatINR, menuItemById } from "@/lib/menu";
 import { waLinkToKitchen } from "@/lib/whatsapp";
+import { useClientOrderAlerts } from "@/lib/client-order-alerts-context";
 import { OrderStatusSteps } from "@/components/OrderStatusSteps";
 import { WhatsAppIcon } from "@/components/icons";
 import type { Order } from "@/types";
@@ -28,6 +29,7 @@ const isPastStatus = (s: Order["status"]) => s === "Delivered" || s === "Cancell
 export default function OrdersPage() {
   const { user, loading } = useAuth();
   const { add, setCartOpen } = useCart();
+  const { soundEnabled, toggleSound, requestNotificationPermission, notificationPermission } = useClientOrderAlerts();
   const router = useRouter();
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [filter, setFilter] = useState<OrderFilter>("active");
@@ -86,6 +88,39 @@ export default function OrdersPage() {
         Tracking your orders on {user.phoneNumber ?? user.email ?? "this account"}. Status
         updates here live as the kitchen progresses your order.
       </p>
+
+      {/* Live notification controller bar */}
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line bg-paper/90 px-4 py-3 text-xs shadow-sm">
+        <div className="flex items-center gap-2">
+          <span className="flex h-2.5 w-2.5 relative">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-ok opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-ok"></span>
+          </span>
+          <span className="font-semibold text-ink">Live Order Tracking Active</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {notificationPermission === "default" && (
+            <button
+              onClick={() => { void requestNotificationPermission(); }}
+              className="btn btn-ghost px-2.5 py-1 text-xs border border-line text-chilidark hover:bg-cream"
+            >
+              🔔 Enable Notifications
+            </button>
+          )}
+          {notificationPermission === "granted" && (
+            <span className="text-[11px] text-ok font-medium flex items-center gap-1">
+              ✓ Notifications On
+            </span>
+          )}
+          <button
+            onClick={toggleSound}
+            className="btn btn-ghost px-2.5 py-1 text-xs"
+            title={soundEnabled ? "Mute order chimes" : "Enable order chimes"}
+          >
+            {soundEnabled ? "🔊 Chimes On" : "🔇 Chimes Muted"}
+          </button>
+        </div>
+      </div>
 
       {orders !== null && orders.length > 0 && (() => {
         const activeOrders = orders.filter((o) => !isPastStatus(o.status));
@@ -163,7 +198,7 @@ export default function OrdersPage() {
                   </header>
 
                   <div className="px-5 py-4">
-                    <OrderStatusSteps status={order.status} />
+                    <OrderStatusSteps status={order.status} fulfillmentType={order.fulfillmentType} />
                   </div>
 
                   <div className="border-t border-line px-5 py-3">

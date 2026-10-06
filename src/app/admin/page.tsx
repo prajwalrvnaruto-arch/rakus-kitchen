@@ -6,18 +6,20 @@ import { useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
-import { subscribeAllOrders, updateOrderStatus, checkAdminAccess, setAdmin, updateDeliveryMeta, type AdminAccessReport } from "@/lib/db";
+import { updateOrderStatus, checkAdminAccess, setAdmin, updateDeliveryMeta, type AdminAccessReport } from "@/lib/db";
 import { formatINR } from "@/lib/menu";
 import { waLinkToCustomer } from "@/lib/whatsapp";
 import { launchPorterAppDeepLink, buildPorterClipboardData } from "@/lib/porterDeepLink";
-import { useOrderAlerts } from "@/lib/useOrderAlerts";
-import type { Order, OrderStatus } from "@/types";
+import { useAdminAlerts } from "@/lib/admin-alerts-context";
+import { subscribeRecentAuditLogs } from "@/lib/auditLogger";
+import type { Order, OrderStatus, AuditLogEntry } from "@/types";
 import { ORDER_STATUSES } from "@/types";
 
 const STATUS_COLORS: Record<OrderStatus, string> = {
   Confirmed: "bg-ok/15 text-ok border-ok/30",
   Preparing: "bg-chili/10 text-chilidark border-chili/30",
   "Out for Delivery": "bg-greenburn/10 text-greenburn border-greenburn/30",
+  "Ready for Pickup": "bg-turmeric/15 text-turmericdark border-turmeric/30",
   Delivered: "bg-ink/10 text-ink border-ink/20",
   Cancelled: "bg-chili/10 text-chili border-chili/30",
 };
@@ -37,19 +39,60 @@ const FILTER_LABELS: Record<OrderFilter, string> = {
 export default function AdminPage() {
   const { user, loading, isAdmin } = useAuth();
   const router = useRouter();
-  const [orders, setOrders] = useState<Order[] | null>(null);
-  const [orderError, setOrderError] = useState<string | null>(null);
-  const [refreshKey, setRefreshKey] = useState(0);
+  const { alerts, orders, orderError, refreshOrders } = useAdminAlerts();
   const [access, setAccess] = useState<AdminAccessReport | null>(null);
   const [checking, setChecking] = useState(false);
   const [showTools, setShowTools] = useState(false);
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [showAuditLogs, setShowAuditLogs] = useState(true);
+
+  // Subscribe to recent audit logs when Tools panel is open
+  useEffect(() => {
+    if (!showTools) return;
+    const unsub = subscribeRecentAuditLogs(
+      (logs) => setAuditLogs(logs),
+      35,
+      (err) => console.warn("[AuditLogs] Subscription failed:", err),
+    );
+    return () => unsub();
+  }, [showTools]);
+
+  // Order alert modal & acceptance state
+  const [activeAlertIndex, setActiveAlertIndex] = useState(0);
+  const [acceptingOrderId, setAcceptingOrderId] = useState<string | null>(null);
+
+  // Clamp index to available queue
+  const safeAlertIndex = Math.min(activeAlertIndex, Math.max(0, alerts.queue.length - 1));
+  const currentAlertOrder = alerts.queue[safeAlertIndex] as Order | undefined;
+
+  const handleAcceptOrder = async (orderToAccept: Order) => {
+    setAcceptingOrderId(orderToAccept.id);
+    try {
+      await updateOrderStatus(orderToAccept.id, "Preparing", user?.email ?? undefined);
+      alerts.acknowledgeOrder(orderToAccept.id);
+    } catch (err) {
+      alert(`Could not accept order ${orderToAccept.orderId}: ${(err as Error).message}`);
+    } finally {
+      setAcceptingOrderId(null);
+    }
+  };
+
+  const handleAcceptAllAlerts = async () => {
+    setAcceptingOrderId("all");
+    try {
+      for (const o of alerts.queue) {
+        await updateOrderStatus(o.id, "Preparing", user?.email ?? undefined);
+      }
+      alerts.acknowledge();
+    } catch (err) {
+      alert(`Could not accept all orders: ${(err as Error).message}`);
+    } finally {
+      setAcceptingOrderId(null);
+    }
+  };
 
   // Search: case-insensitive substring on orderId, customerName, or phone digits.
   const [search, setSearch] = useState("");
-
-  // Kitchen alert system: never-miss loop of banner + buzzer + vibration + title
-  // flash + OS notification, until the admin taps "Got it — start preparing".
-  const alerts = useOrderAlerts();
 
   // Order filter — remembered per device. Hydrated after mount (not in the
   // useState initializer) so server and first client render agree.
@@ -69,11 +112,8 @@ export default function AdminPage() {
     } catch { /* private mode — filter just won't persist */ }
   }, [filter, filterHydrated]);
 
-  // Tear down the listener and re-arm it (bumped from the Refresh/Retry buttons).
   const reloadOrders = () => {
-    setOrders(null);
-    setOrderError(null);
-    setRefreshKey((k) => k + 1);
+    refreshOrders();
   };
 
   const runAccessCheck = async () => {
@@ -104,24 +144,6 @@ export default function AdminPage() {
     if (!user) router.replace("/login?next=%2Fadmin");
   }, [loading, user, router]);
 
-  useEffect(() => {
-    if (!isAdmin) return;
-    const unsubscribe = subscribeAllOrders(
-      (next) => {
-        setOrderError(null); // a live snapshot clears any prior loading snag
-        setOrders(next);
-      },
-      (message) => setOrderError(message),
-      // Third callback: orders that arrived live AFTER initial load — feed
-      // them to the alert queue so the kitchen gets the looping banner + buzz.
-      (fresh) => alerts.pushNew(fresh),
-    );
-    return unsubscribe;
-    // alerts.pushNew is stable (useCallback), but we intentionally exclude it
-    // from deps to avoid re-arming the listener on unrelated hook updates.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin, refreshKey]);
-
   if (loading) return <div className="mx-auto max-w-5xl px-4 py-12 text-center text-soft">Loading…</div>;
 
   if (!user) return null;
@@ -151,11 +173,12 @@ export default function AdminPage() {
     return acc;
   }, {});
 
-  // Action Priority ranking: Confirmed (1) -> Preparing (2) -> Out for Delivery (3)
+  // Action Priority ranking: Confirmed (1) -> Preparing (2) -> Out for Delivery / Ready for Pickup (3)
   const STATUS_PRIORITY: Record<string, number> = {
     Confirmed: 1,
     Preparing: 2,
     "Out for Delivery": 3,
+    "Ready for Pickup": 3,
   };
 
   // Active orders: Action priority first, then FIFO (Oldest created order first)
@@ -233,66 +256,253 @@ export default function AdminPage() {
         </div>
       </header>
 
-      {/* Alert overlay — loops until the admin acknowledges. Sits above the
-          order list so the kitchen can't miss a new order even in a busy view. */}
-      {alerts.queue.length > 0 && (
-        <div
-          role="alert"
-          aria-live="assertive"
-          className="animate-pulse-alert mb-4 rounded-2xl border-2 border-chili bg-chili/10 p-4 sm:p-5"
-        >
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="text-xs font-bold uppercase tracking-wider text-chili">
-                🔔 {alerts.queue.length === 1 ? "New order" : `${alerts.queue.length} new orders`} — start preparing
-              </p>
-              {/* Show the newest order's summary — the rest are visible in the list below. */}
-              {(() => {
-                const latest = alerts.queue[alerts.queue.length - 1];
-                const summary = latest.items.map((i) => `${i.name}×${i.qty}`).join(", ");
-                return (
-                  <p className="mt-1 break-words text-sm text-ink">
-                    <span className="font-bold">{latest.orderId}</span> · {latest.customerName} · {latest.mealSlot}
-                    <span className="block text-xs text-soft">{summary}</span>
-                  </p>
-                );
-              })()}
+      {/* ── High-Priority Floating Incoming Order Modal (Zomato/Swiggy style) ── */}
+      {alerts.queue.length > 0 && currentAlertOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-inkdark/80 p-3 sm:p-4 backdrop-blur-sm animate-fade-in">
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="alert-modal-title"
+            className="relative flex max-h-[92vh] w-full max-w-lg flex-col overflow-hidden rounded-3xl border-4 border-chili bg-paper shadow-2xl animate-scale-up"
+          >
+            {/* Modal Header */}
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-chili/10 px-5 py-3.5">
+              <div className="flex items-center gap-2">
+                <span className="text-xl animate-bounce">🔔</span>
+                <div>
+                  <h2 id="alert-modal-title" className="font-display text-base font-extrabold uppercase tracking-wide text-chili">
+                    New Order Incoming!
+                  </h2>
+                  {alerts.queue.length > 1 && (
+                    <p className="text-xs font-semibold text-soft">
+                      Order {safeAlertIndex + 1} of {alerts.queue.length} in queue
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Stop Sound / Tone Control */}
+              <div className="flex items-center gap-2">
+                {alerts.isRinging ? (
+                  <button
+                    type="button"
+                    onClick={alerts.stopAlertTone}
+                    className="flex items-center gap-1.5 rounded-full border border-chili/40 bg-chili px-3 py-1.5 text-xs font-bold text-white shadow-sm hover:bg-chilidark transition active:scale-95 animate-pulse"
+                    title="Silences the ringing alert tone immediately"
+                  >
+                    <span>🔇 Stop Alert Tone</span>
+                  </button>
+                ) : (
+                  <span className="flex items-center gap-1 rounded-full border border-line bg-cream px-3 py-1 text-xs font-medium text-soft">
+                    <span>🔈</span> Tone stopped
+                  </span>
+                )}
+              </div>
             </div>
-            <div className="flex shrink-0 gap-2">
-              <button
-                onClick={alerts.toggleMute}
-                className="btn btn-ghost px-3 py-2 text-xs"
-                aria-label={alerts.muted ? "Unmute alert sound" : "Mute alert sound"}
-                title={alerts.muted ? "Sound off — tap to turn on" : "Sound on — tap to mute"}
-              >
-                {alerts.muted ? "🔇 Muted" : "🔊 Sound on"}
-              </button>
-              <button
-                onClick={alerts.acknowledge}
-                autoFocus
-                className="btn btn-chili px-4 py-2 text-sm font-bold"
-              >
-                ✅ Got it — start preparing
-              </button>
+
+            {/* Modal Body: Active Order Details */}
+            <div className="min-w-0 flex-1 overflow-y-auto px-5 py-4 space-y-3.5 text-sm">
+              {/* Order Meta Header */}
+              <div className="flex items-start justify-between gap-3 border-b border-line/60 pb-3">
+                <div>
+                  <p className="font-display text-2xl font-black text-ink">
+                    {currentAlertOrder.orderId}
+                  </p>
+                  <p className="text-xs text-soft">
+                    {currentAlertOrder.mealSlot} · {currentAlertOrder.mealDate}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="chip border border-ok/40 bg-ok/10 text-ok font-bold">
+                    {currentAlertOrder.status}
+                  </span>
+                  <p className="mt-1 font-display text-lg font-bold text-ink">
+                    {formatINR(currentAlertOrder.grandTotal)}
+                  </p>
+                </div>
+              </div>
+
+              {/* Customer & Fulfillment Info */}
+              <div className="rounded-2xl border border-line bg-cream/40 p-3 text-xs space-y-1.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-bold text-sm text-ink">{currentAlertOrder.customerName}</span>
+                  <a
+                    href={`tel:${currentAlertOrder.phone.replace(/[^\d+]/g, "")}`}
+                    className="font-bold text-chilidark hover:underline flex items-center gap-1"
+                  >
+                    📞 {currentAlertOrder.phone}
+                  </a>
+                </div>
+
+                {/* Fulfillment Type */}
+                {currentAlertOrder.fulfillmentType === "pickup" ? (
+                  <div className="flex items-center gap-1.5 text-ok font-semibold pt-1">
+                    <span>🛍️</span>
+                    <span>Customer will self-pickup from the kitchen</span>
+                  </div>
+                ) : (
+                  <div className="text-soft pt-1">
+                    <span className="font-semibold text-ink">🛵 Delivery to: </span>
+                    {currentAlertOrder.addressComponents?.displayAddress || currentAlertOrder.deliveryAddress}
+                  </div>
+                )}
+
+                {currentAlertOrder.notes && (
+                  <div className="rounded-lg bg-turmeric/10 border border-turmeric/30 p-2 text-xs text-turmericdark italic">
+                    <strong>Note:</strong> {currentAlertOrder.notes}
+                  </div>
+                )}
+              </div>
+
+              {/* Items List */}
+              <div className="rounded-2xl border border-line bg-paper p-3 text-xs">
+                <p className="mb-2 font-bold uppercase tracking-wider text-soft text-[11px]">
+                  Order Items ({currentAlertOrder.items.reduce((s, i) => s + i.qty, 0)} items)
+                </p>
+                <ul className="divide-y divide-line/40">
+                  {currentAlertOrder.items.map((it, idx) => (
+                    <li key={`${it.menuId}-${idx}`} className="flex items-center justify-between py-1.5">
+                      <span className="font-medium text-ink">
+                        {it.name}{it.variant ? ` (${it.variant})` : ""}{" "}
+                        <span className="font-bold text-chili">×{it.qty}</span>
+                      </span>
+                      <span className="font-semibold text-soft">{formatINR(it.lineTotal)}</span>
+                    </li>
+                  ))}
+                  <li className="flex items-center justify-between pt-1.5 text-soft">
+                    <span>Packaging fee</span>
+                    <span>{formatINR(currentAlertOrder.packagingFee)}</span>
+                  </li>
+                  <li className="flex items-center justify-between pt-1.5 text-sm font-black text-ink">
+                    <span>Grand Total</span>
+                    <span className="text-chilidark font-display text-base">{formatINR(currentAlertOrder.grandTotal)}</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Multi-Order Carousel Selector if queue > 1 */}
+              {alerts.queue.length > 1 && (
+                <div className="flex items-center justify-between gap-2 border-t border-line/50 pt-2 text-xs">
+                  <span className="text-soft">Navigate orders:</span>
+                  <div className="flex items-center gap-1.5">
+                    {alerts.queue.map((qOrder, idx) => (
+                      <button
+                        key={qOrder.id}
+                        type="button"
+                        onClick={() => setActiveAlertIndex(idx)}
+                        className={`rounded-lg px-2.5 py-1 text-xs font-bold transition ${
+                          idx === safeAlertIndex
+                            ? "bg-chili text-white shadow-sm"
+                            : "border border-line bg-paper text-soft hover:text-ink"
+                        }`}
+                      >
+                        #{qOrder.orderId}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Actions Footer */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 border-t border-line bg-paper px-5 py-3.5">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => alerts.acknowledgeOrder(currentAlertOrder.id)}
+                  className="btn btn-ghost px-3 py-2 text-xs text-soft hover:text-ink"
+                  title="Dismiss alert without changing order status"
+                >
+                  Dismiss
+                </button>
+                {alerts.queue.length > 1 && (
+                  <button
+                    type="button"
+                    disabled={acceptingOrderId === "all"}
+                    onClick={handleAcceptAllAlerts}
+                    className="btn btn-ghost px-3 py-2 text-xs font-semibold text-chili hover:bg-chili/10"
+                  >
+                    {acceptingOrderId === "all" ? "Accepting all…" : `Accept all (${alerts.queue.length})`}
+                  </button>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {alerts.isRinging && (
+                  <button
+                    type="button"
+                    onClick={alerts.stopAlertTone}
+                    className="btn btn-ghost px-3 py-2 text-xs font-bold text-chili"
+                  >
+                    🔇 Stop Sound
+                  </button>
+                )}
+                <button
+                  type="button"
+                  disabled={acceptingOrderId === currentAlertOrder.id}
+                  onClick={() => handleAcceptOrder(currentAlertOrder)}
+                  className="btn btn-chili flex-1 sm:flex-initial px-6 py-2.5 text-sm font-extrabold shadow-md hover:shadow-lg transition"
+                >
+                  {acceptingOrderId === currentAlertOrder.id
+                    ? "Accepting…"
+                    : `✅ Accept Order ${currentAlertOrder.orderId}`}
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* Arm banner — one tap unlocks audio (browsers block autoplay until a
-          user gesture) and requests notification/vibration permission. Hides
-          once armed for the session. */}
+      {/* Sticky top banner when new orders are waiting to be accepted */}
+      {alerts.queue.length > 0 && (
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-chili bg-chili/10 p-4 sm:p-5 animate-pulse-alert"
+        >
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-wider text-chili flex items-center gap-1.5">
+              <span>🔔</span>
+              <span>{alerts.queue.length === 1 ? "1 new order waiting for acceptance" : `${alerts.queue.length} new orders waiting for acceptance`}</span>
+            </p>
+            <p className="mt-1 text-sm text-ink font-semibold">
+              {alerts.queue.map((o) => `${o.orderId} (${o.customerName})`).join(", ")}
+            </p>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            {alerts.isRinging && (
+              <button
+                type="button"
+                onClick={alerts.stopAlertTone}
+                className="btn btn-ghost px-3 py-2 text-xs font-bold text-chili"
+              >
+                🔇 Stop Sound
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleAcceptAllAlerts}
+              className="btn btn-chili px-4 py-2 text-sm font-bold"
+            >
+              ✅ Accept All & Start Preparing
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Arm banner — one tap unlocks audio. Hides once armed. */}
       {!alerts.armed && (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border-2 border-turmeric bg-turmeric/10 px-4 py-3 text-sm">
           <p className="min-w-0 text-ink">
             <span className="font-bold">🔔 Enable order alerts</span>
             <span className="block text-xs text-soft">
-              Tap once so the kitchen hears new orders. This device will buzz and ring when a new order arrives.
+              Tap once so the kitchen hears new orders. This device will play the order chime and vibrate when a new order arrives.
             </span>
           </p>
           <button
+            type="button"
             onClick={() => { void alerts.arm(); }}
-            className="btn btn-chili shrink-0 px-4 py-2 text-xs font-bold"
+            className="btn btn-chili shrink-0 px-4 py-2 text-xs font-bold shadow-md hover:shadow-lg transition"
           >
             Enable alerts
           </button>
@@ -402,6 +612,67 @@ export default function AdminPage() {
             probe says DENIED, re-publish{" "}
             <code className="rounded bg-cream px-1.5 py-0.5">firestore.rules.console-safe</code>.
           </p>
+
+          {/* ── Platform Audit Log & Activity Trail ── */}
+          <div className="mt-6 border-t border-line/60 pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <div>
+                <h3 className="font-display font-bold text-base flex items-center gap-2">
+                  <span>📜 Platform Activity & Audit Trail</span>
+                  <span className="rounded-full bg-ok/10 border border-ok/30 px-2 py-0.5 text-[11px] font-medium text-ok">
+                    🛡️ 30-Day Retention Policy
+                  </span>
+                </h3>
+                <p className="text-xs text-soft">
+                  Real-time record of all status updates, inventory changes, and courier bookings. Auto-expires to prevent database bloat.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAuditLogs((v) => !v)}
+                className="btn btn-ghost px-3 py-1.5 text-xs"
+              >
+                {showAuditLogs ? "Hide logs" : `Show logs (${auditLogs.length})`}
+              </button>
+            </div>
+
+            {showAuditLogs && (
+              <div className="mt-3 space-y-2">
+                <div className="rounded-xl border border-line bg-paper/60 p-2.5 text-xs text-soft">
+                  <span>
+                    💡 <strong>Retention guarantee:</strong> Every log carries an <code>expiresAt</code> TTL timestamp to guarantee it never accumulates as an unbounded database burden.
+                  </span>
+                </div>
+                {auditLogs.length === 0 ? (
+                  <p className="py-4 text-center text-xs text-soft italic">No audit records logged yet.</p>
+                ) : (
+                  <div className="max-h-72 overflow-y-auto rounded-xl border border-line bg-paper divide-y divide-line/40">
+                    {auditLogs.map((log, idx) => (
+                      <div key={log.id ?? idx} className="p-3 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="space-y-0.5 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold text-ink">{log.summary}</span>
+                            <span className="rounded bg-cream px-1.5 py-0.5 text-[10px] font-mono text-soft">
+                              {log.action}
+                            </span>
+                          </div>
+                          <p className="text-soft text-[11px]">
+                            Actor: <span className="font-medium text-ink">{log.actor.email || log.actor.name || log.actor.uid || "System"}</span> ({log.actor.type})
+                            {log.targetId && ` · Target: ${log.targetId}`}
+                          </p>
+                        </div>
+                        <span className="shrink-0 text-soft text-[11px] font-mono">
+                          {new Date(log.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) +
+                            ", " +
+                            new Date(log.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -619,6 +890,7 @@ async function copyWithFeedback(
 }
 
 function AdminOrderCard({ order, archived = false }: { order: Order; archived?: boolean }) {
+  const { user } = useAuth();
   const [busy, setBusy] = useState(false);
   const [bookingBusy, setBookingBusy] = useState(false);
   // Per-field "just copied" flags so each row's button can show its own tick.
@@ -639,7 +911,7 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
     if (status === order.status) return;
     setBusy(true);
     try {
-      await updateOrderStatus(order.id, status);
+      await updateOrderStatus(order.id, status, user?.email ?? undefined);
     } catch (err) {
       console.error(err);
       const e = err as Error;
@@ -702,7 +974,7 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
         trackingUrl: data.trackingUrl,
       });
 
-      await updateOrderStatus(order.id, "Out for Delivery");
+      await updateOrderStatus(order.id, "Out for Delivery", user?.email ?? undefined);
       // No implicit WhatsApp popup here — the standard per-status "Message
       // customer" button below sends the Out-for-Delivery message manually,
       // consistent with every other status (and avoids a surprise tab in mock mode).
@@ -820,7 +1092,7 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
         trackingUrl: data.trackingUrl,
       });
 
-      await updateOrderStatus(order.id, "Out for Delivery");
+      await updateOrderStatus(order.id, "Out for Delivery", user?.email ?? undefined);
 
       if (data.mock) {
         alert(
@@ -1029,19 +1301,32 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
               onChange={(e) => changeStatus(e.target.value as OrderStatus)}
               className="field py-2.5 text-sm font-semibold"
             >
-              {(
-                {
+              {(() => {
+                const pickupTransitions: Partial<Record<OrderStatus, OrderStatus[]>> = {
+                  Confirmed: ["Confirmed", "Preparing", "Cancelled"],
+                  Preparing: ["Preparing", "Ready for Pickup", "Cancelled"],
+                  "Ready for Pickup": ["Ready for Pickup", "Delivered", "Cancelled"],
+                  Delivered: ["Delivered"],
+                  Cancelled: ["Cancelled"],
+                };
+                const deliveryTransitions: Partial<Record<OrderStatus, OrderStatus[]>> = {
                   Confirmed: ["Confirmed", "Preparing", "Cancelled"],
                   Preparing: ["Preparing", "Out for Delivery", "Cancelled"],
                   "Out for Delivery": ["Out for Delivery", "Delivered", "Cancelled"],
                   Delivered: ["Delivered"],
                   Cancelled: ["Cancelled"],
-                }[order.status] ?? ORDER_STATUSES
-              ).map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
+                };
+                const transitions =
+                  order.fulfillmentType === "pickup"
+                    ? pickupTransitions[order.status] ?? ["Confirmed", "Preparing", "Ready for Pickup", "Delivered"]
+                    : deliveryTransitions[order.status] ?? ORDER_STATUSES;
+
+                return transitions.map((s) => (
+                  <option key={s} value={s}>
+                    {order.fulfillmentType === "pickup" && s === "Delivered" ? "Picked Up (Delivered)" : s}
+                  </option>
+                ));
+              })()}
             </select>
           )}
           <a
@@ -1055,11 +1340,20 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
           <span className="hidden text-[11px] text-soft md:block">
             Opens WhatsApp to {order.phone} — sent from your Raku&apos;s Kitchen account.
           </span>
-          <span className="hidden text-[11px] text-soft md:block">
-            {order.statusHistory.length > 1
-              ? `From ${order.statusHistory[0].status} → ${order.statusHistory.slice(1).map((h) => h.status).join(" → ")}`
-              : "No changes yet"}
-          </span>
+          <div className="hidden text-[11px] text-soft md:block">
+            {order.statusHistory.length > 1 ? (
+              <div className="space-y-0.5">
+                <span className="block">Flow: {order.statusHistory.map((h) => h.status).join(" → ")}</span>
+                {order.statusHistory[order.statusHistory.length - 1]?.by && (
+                  <span className="block text-[10px] text-soft/80">
+                    Latest update by: {order.statusHistory[order.statusHistory.length - 1].by}
+                  </span>
+                )}
+              </div>
+            ) : (
+              <span>Placed via online payment</span>
+            )}
+          </div>
         </div>
       </div>
     </article>

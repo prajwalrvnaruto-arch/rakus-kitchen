@@ -137,8 +137,16 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     console.error("create-order error:", err);
-    const msg = (err as Error).message || "Could not start payment";
-    const status = msg.startsWith("Missing Authorization") ? 401 : 500;
-    return NextResponse.json({ error: msg }, { status });
+    const rawMsg = (err as Error).message || "";
+    if (rawMsg.startsWith("Missing Authorization")) {
+      return NextResponse.json(
+        { error: "Your session has expired. Please sign in again to place your order." },
+        { status: 401 }
+      );
+    }
+    return NextResponse.json(
+      { error: "Unable to start checkout right now. Please refresh and try again in a moment." },
+      { status: 500 }
+    );
   }
 }

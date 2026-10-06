@@ -2,6 +2,7 @@ export type OrderStatus =
   | "Confirmed"
   | "Preparing"
   | "Out for Delivery"
+  | "Ready for Pickup"
   | "Delivered"
   | "Cancelled";
 
@@ -16,6 +17,7 @@ export const ORDER_STATUS_FLOW: Record<OrderStatus, number> = {
   Confirmed: 0,
   Preparing: 1,
   "Out for Delivery": 2,
+  "Ready for Pickup": 2,
   Delivered: 3,
   Cancelled: -1,
 };
@@ -100,6 +102,34 @@ export interface OrderLineItem {
 export interface StatusEvent {
   status: OrderStatus;
   at: number; // epoch ms
+  /** Actor attribution: who triggered this status transition (email, uid, or system). */
+  by?: string;
+}
+
+export type AuditAction =
+  | "order.created"
+  | "order.status_changed"
+  | "order.cancelled"
+  | "inventory.limit_changed"
+  | "inventory.override_changed"
+  | "inventory.reset"
+  | "courier.booked";
+
+export interface AuditLogEntry {
+  id?: string;
+  action: AuditAction;
+  actor: {
+    uid?: string;
+    email?: string;
+    name?: string;
+    type: "admin" | "customer" | "system";
+  };
+  targetId?: string; // e.g. "RK-00001" or "biryani-chicken"
+  summary: string;
+  metadata?: Record<string, unknown>;
+  createdAt: number;
+  /** Auto-expiry timestamp (30-day retention) so logs never accumulate as a database burden. */
+  expiresAt: number;
 }
 
 /**

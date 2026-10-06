@@ -113,7 +113,26 @@ export const STATUS_MESSAGES: Record<OrderStatus, (order: Order) => string> = {
       "",
       refCard(order),
       "",
-      "Cooked fresh, with nati-style care. You'll get a message the moment it's out for delivery.",
+      order.fulfillmentType === "pickup"
+        ? "Cooked fresh, with nati-style care. You'll get a message the moment it's packed and ready for pickup."
+        : "Cooked fresh, with nati-style care. You'll get a message the moment it's out for delivery.",
+      "",
+      signOff,
+    ].join("\n"),
+
+  "Ready for Pickup": (order) =>
+    [
+      "🛍️ *Raku's Kitchen — Ready for Pickup!*",
+      "",
+      `Hi ${order.customerName}, great news! Your order is hot, packed, and ready for pickup at our kitchen! 🎉`,
+      "",
+      refCard(order, false),
+      "",
+      "📍 *Pickup Address:*",
+      `${BUSINESS.kitchenAddress}`,
+      `Maps: https://maps.google.com/?q=${BUSINESS.lat},${BUSINESS.lng}`,
+      "",
+      "Please collect it whenever you're ready. See you soon!",
       "",
       signOff,
     ].join("\n"),
@@ -135,9 +154,13 @@ export const STATUS_MESSAGES: Record<OrderStatus, (order: Order) => string> = {
 
   Delivered: (order) =>
     [
-      "🎉 *Raku's Kitchen — Delivered!*",
+      order.fulfillmentType === "pickup"
+        ? "🎉 *Raku's Kitchen — Order Picked Up!*"
+        : "🎉 *Raku's Kitchen — Delivered!*",
       "",
-      `Hi ${order.customerName}, we hope your meal was every bit as delicious as we intended. Thank you for choosing *Raku's Kitchen*! 🧡`,
+      order.fulfillmentType === "pickup"
+        ? `Hi ${order.customerName}, thank you for picking up your order from Raku's Kitchen! We hope your meal is every bit as delicious as we intended. 🧡`
+        : `Hi ${order.customerName}, we hope your meal was every bit as delicious as we intended. Thank you for choosing *Raku's Kitchen*! 🧡`,
       "",
       `If you loved it, a quick word on Instagram (@${BUSINESS.instagram}) means the world to a small kitchen like ours. 📸`,
       "",

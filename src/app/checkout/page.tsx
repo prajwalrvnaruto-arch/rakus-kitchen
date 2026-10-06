@@ -12,6 +12,7 @@ import { formatINR } from "@/lib/menu";
 import { upcomingMeals, validateMeal, type MealOption } from "@/lib/order-dates";
 import { waLinkToKitchen } from "@/lib/whatsapp";
 import { BUSINESS } from "@/lib/config";
+import { toFriendlyErrorMessage } from "@/lib/friendlyErrors";
 import { AddressPicker } from "@/components/AddressPicker";
 import { OrderStatusSteps } from "@/components/OrderStatusSteps";
 import { WhatsAppIcon } from "@/components/icons";
@@ -180,10 +181,7 @@ export default function CheckoutPage() {
     } catch (err) {
       console.error("Payment verification failed:", err);
       if (err instanceof ApiError && err.status === 401) setSessionExpired(true);
-      setError(
-        `We couldn't confirm your payment: ${(err as Error).message}. If money was deducted, ` +
-        "it will still be picked up automatically — you can safely retry confirming below.",
-      );
+      setError(toFriendlyErrorMessage(err));
       // Stay on the "verifying" phase — the retry UI renders when error is set.
     }
   }, [clear]);
@@ -255,21 +253,36 @@ export default function CheckoutPage() {
         <div className="mx-auto max-w-md px-4 py-16 text-center">
           {error ? (
             <>
-              <span className="text-5xl" aria-hidden>⚠️</span>
-              <h1 className="section-title mt-4">Couldn&apos;t confirm payment yet</h1>
-              <p className="mt-2 text-sm text-soft">{error}</p>
-              <div className="mt-6 flex flex-col gap-2">
+              <span className="text-5xl" aria-hidden>⏳</span>
+              <h1 className="section-title mt-4">Confirming payment taking a moment</h1>
+              <div className="mt-3 rounded-2xl border border-line bg-paper p-4 text-xs text-soft text-left leading-relaxed shadow-sm">
+                <p className="font-bold text-ink mb-1">Your payment is safe</p>
+                <p>{error}</p>
+              </div>
+              <div className="mt-6 flex flex-col gap-2.5">
                 {sessionExpired ? (
-                  <Link href="/login?next=%2Fcheckout" className="btn btn-chili">Sign in again</Link>
+                  <Link href="/login?next=%2Fcheckout" className="btn btn-chili py-3 text-sm font-bold">Sign in again</Link>
                 ) : (
                   <button
-                    className="btn btn-chili"
+                    className="btn btn-chili py-3 text-sm font-bold shadow"
                     onClick={() => pendingVerification && verifyPayment(pendingVerification)}
                   >
-                    Retry confirming payment
+                    🔄 Retry confirming payment
                   </button>
                 )}
-                <Link href="/orders" className="btn btn-ghost">Check My Orders</Link>
+                <Link href="/orders" className="btn btn-ghost py-2.5 text-xs">
+                  📋 Check My Orders
+                </Link>
+                <a
+                  href={`https://wa.me/919606888096?text=${encodeURIComponent(
+                    `Hi Raku's Kitchen, I need assistance verifying my order payment. Payment ID: ${pendingVerification?.razorpay_payment_id || "N/A"}`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-ghost py-2.5 text-xs border border-line text-chilidark hover:bg-cream flex items-center justify-center gap-1.5"
+                >
+                  💬 WhatsApp Kitchen Support
+                </a>
               </div>
             </>
           ) : (
@@ -301,7 +314,7 @@ export default function CheckoutPage() {
         </div>
 
         <div className="mt-8">
-          <OrderStatusSteps status={placedOrder.status} />
+          <OrderStatusSteps status={placedOrder.status} fulfillmentType={placedOrder.fulfillmentType} />
         </div>
 
         <a

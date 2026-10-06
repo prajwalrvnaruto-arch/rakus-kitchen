@@ -8,6 +8,7 @@ import {
 import { getIdToken, getIdTokenResult } from "firebase/auth";
 import { auth, db } from "./firebase";
 import { sanitizeFirestoreData } from "./sanitize";
+import { recordAuditLog } from "./auditLogger";
 import type { MenuItemConfig } from "./menuLimits";
 import type { AddressComponents, DeliveryMeta, FulfillmentType, Order, OrderLineItem, OrderStatus, StatusEvent } from "@/types";
 
@@ -72,6 +73,8 @@ export function subscribeAllOrders(
   // collection as "added" changes, which are not genuinely new orders.
   // Re-created on each retry via the closure below.
   let seededFirstSnapshot = false;
+  const knownOrderIds = new Set<string>();
+
   return retryingListener("subscribeAllOrders", (onSnapshotError) =>
     onSnapshot(
       collection(firestore, "orders"),
@@ -80,19 +83,34 @@ export function subscribeAllOrders(
         onOrders(orders);
 
         if (!seededFirstSnapshot) {
-          // First snapshot = the existing backlog. Mark seeded and don't alert.
+          // First snapshot = existing backlog. Seed known IDs and don't alert.
+          snap.docs.forEach((d) => knownOrderIds.add(d.id));
           seededFirstSnapshot = true;
           return;
         }
         if (!onNewOrders) return;
 
-        // Only genuinely-added docs, and skip local pending writes (an admin's
-        // own status change echoes back as a modify, not an add, but guard anyway).
-        const added = snap
-          .docChanges()
-          .filter((c) => c.type === "added" && !c.doc.metadata.hasPendingWrites)
-          .map((c) => mapOrder(c.doc));
-        if (added.length > 0) onNewOrders(added);
+        // Collect newly added orders (skipping local pending writes)
+        const freshOrders: Order[] = [];
+        for (const change of snap.docChanges()) {
+          if (change.type === "added" && !change.doc.metadata.hasPendingWrites) {
+            freshOrders.push(mapOrder(change.doc));
+            knownOrderIds.add(change.doc.id);
+          }
+        }
+
+        // Robust fallback: also check if any document was not previously known
+        for (const doc of snap.docs) {
+          if (!knownOrderIds.has(doc.id) && !doc.metadata.hasPendingWrites) {
+            freshOrders.push(mapOrder(doc));
+            knownOrderIds.add(doc.id);
+          }
+        }
+
+        if (freshOrders.length > 0) {
+          const uniqueFresh = Array.from(new Map(freshOrders.map((o) => [o.id, o])).values());
+          onNewOrders(uniqueFresh);
+        }
       },
       onSnapshotError,
     ),
@@ -143,7 +161,11 @@ export function retryingListener(
  * can append rather than overwrite. Each operation is wrapped separately so a failure
  * is attributed to the exact step (read vs write) instead of a generic "update failed".
  */
-export async function updateOrderStatus(orderId: string, status: OrderStatus): Promise<void> {
+export async function updateOrderStatus(
+  orderId: string,
+  status: OrderStatus,
+  by?: string,
+): Promise<void> {
   if (!db || !auth) return;
   const ref = doc(db, "orders", orderId);
 
@@ -181,7 +203,7 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
       if (!adminSnap.exists()) {
         throw new Error(
           `WRITE blocked: your account (${uid}) has no /admins/${uid} document in Firestore. ` +
-          `Open the Admin panel → \"Verify admin access\" → \"Bootstrap admin doc\" to create it, ` +
+          `Open the Admin panel → "Verify admin access" → "Bootstrap admin doc" to create it, ` +
           `or add it manually in the Firebase Console under Firestore → admins → ${uid} → { role: "admin" }.`,
         );
       }
@@ -192,10 +214,17 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
     }
   }
 
+  const actorEmail = by || auth.currentUser?.email || auth.currentUser?.uid || "admin";
+  const newEvent: StatusEvent = {
+    status,
+    at: Date.now(),
+    ...(actorEmail ? { by: actorEmail } : {}),
+  };
+
   try {
     await updateDoc(ref, {
       status,
-      statusHistory: [...history, { status, at: Date.now() }],
+      statusHistory: [...history, newEvent],
       updatedAt: serverTimestamp(),
     });
   } catch (err) {
@@ -204,6 +233,19 @@ export async function updateOrderStatus(orderId: string, status: OrderStatus): P
       `Failed to update order status in Firestore: ${e.code ?? ""} ${e.message ?? ""}`.trim(),
     );
   }
+
+  // Asynchronously record an audit trail entry (non-blocking)
+  recordAuditLog({
+    action: status === "Cancelled" ? "order.cancelled" : "order.status_changed",
+    actor: {
+      uid: auth.currentUser?.uid,
+      email: auth.currentUser?.email ?? undefined,
+      type: "admin",
+    },
+    targetId: orderId,
+    summary: `Order status set to "${status}" by ${actorEmail}`,
+    metadata: { status, orderId },
+  }).catch(() => {});
 }
 
 /* ── Admin allowlist bootstrap ─────────────────────────────────────────── */
@@ -279,6 +321,20 @@ export async function updateDeliveryMeta(
     deliveryMeta: clean,
     updatedAt: serverTimestamp(),
   });
+
+  if (meta.carrierOrderId) {
+    recordAuditLog({
+      action: "courier.booked",
+      actor: {
+        uid: auth?.currentUser?.uid,
+        email: auth?.currentUser?.email ?? undefined,
+        type: "admin",
+      },
+      targetId: docId,
+      summary: `Booked ${meta.carrierId || "courier"} delivery (Carrier Order #${meta.carrierOrderId})`,
+      metadata: { docId, ...meta },
+    }).catch(() => {});
+  }
 }
 
 // Re-exported for the rare case admin tools want a one-off order fetch.
@@ -328,6 +384,17 @@ export async function setMenuItemLimit(menuId: string, limit: number): Promise<v
     { limit, updatedAt: serverTimestamp() },
     { merge: true },
   );
+  recordAuditLog({
+    action: "inventory.limit_changed",
+    actor: {
+      uid: auth?.currentUser?.uid,
+      email: auth?.currentUser?.email ?? undefined,
+      type: "admin",
+    },
+    targetId: menuId,
+    summary: `Menu limit for "${menuId}" set to ${limit}`,
+    metadata: { menuId, limit },
+  }).catch(() => {});
 }
 
 export async function setMenuItemAvailabilityOverride(
@@ -340,6 +407,17 @@ export async function setMenuItemAvailabilityOverride(
     { manualOverride: override, updatedAt: serverTimestamp() },
     { merge: true },
   );
+  recordAuditLog({
+    action: "inventory.override_changed",
+    actor: {
+      uid: auth?.currentUser?.uid,
+      email: auth?.currentUser?.email ?? undefined,
+      type: "admin",
+    },
+    targetId: menuId,
+    summary: `Menu availability for "${menuId}" set to ${override ?? "auto"}`,
+    metadata: { menuId, override },
+  }).catch(() => {});
 }
 
 /** Zeroes one item's running ordered-quantity counter. Manual admin action only. */
@@ -350,6 +428,17 @@ export async function resetMenuItemOrderedQty(menuId: string): Promise<void> {
     { orderedQty: 0, updatedAt: serverTimestamp() },
     { merge: true },
   );
+  recordAuditLog({
+    action: "inventory.reset",
+    actor: {
+      uid: auth?.currentUser?.uid,
+      email: auth?.currentUser?.email ?? undefined,
+      type: "admin",
+    },
+    targetId: menuId,
+    summary: `Ordered quantity reset to 0 for "${menuId}"`,
+    metadata: { menuId },
+  }).catch(() => {});
 }
 
 /** Zeroes every listed item's counter in one batch. Manual admin action only. */
@@ -364,6 +453,17 @@ export async function resetAllMenuItemOrderedQty(menuIds: string[]): Promise<voi
     );
   }
   await batch.commit();
+  recordAuditLog({
+    action: "inventory.reset",
+    actor: {
+      uid: auth?.currentUser?.uid,
+      email: auth?.currentUser?.email ?? undefined,
+      type: "admin",
+    },
+    targetId: "all_items",
+    summary: `Ordered quantity reset to 0 for ${menuIds.length} menu items`,
+    metadata: { menuIds },
+  }).catch(() => {});
 }
 
 /* ── Admin access diagnostic ───────────────────────────────────────────── */

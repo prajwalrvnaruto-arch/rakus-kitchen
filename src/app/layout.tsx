@@ -4,10 +4,12 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
 import { CartProvider } from "@/lib/cart-context";
 import { MenuAvailabilityProvider } from "@/lib/menu-availability-context";
+import { ClientOrderAlertsProvider } from "@/lib/client-order-alerts-context";
 import { Nav } from "@/components/Nav";
 import { MobileNav } from "@/components/MobileNav";
 import { Footer } from "@/components/Footer";
 import { CartDrawer } from "@/components/CartDrawer";
+import { ClientOrderToast } from "@/components/ClientOrderToast";
 
 const fraunces = Fraunces({
   subsets: ["latin"],
@@ -35,15 +37,18 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={`${fraunces.variable} ${inter.variable}`}>
       <body className="min-h-dvh flex flex-col">
         <AuthProvider>
-          <MenuAvailabilityProvider>
-            <CartProvider>
-              <Nav />
-              <main className="flex-1 pb-20 md:pb-0">{children}</main>
-              <Footer />
-              <CartDrawer />
-              <MobileNav />
-            </CartProvider>
-          </MenuAvailabilityProvider>
+          <ClientOrderAlertsProvider>
+            <MenuAvailabilityProvider>
+              <CartProvider>
+                <Nav />
+                <main className="flex-1 pb-20 md:pb-0">{children}</main>
+                <Footer />
+                <CartDrawer />
+                <MobileNav />
+                <ClientOrderToast />
+              </CartProvider>
+            </MenuAvailabilityProvider>
+          </ClientOrderAlertsProvider>
         </AuthProvider>
       </body>
     </html>

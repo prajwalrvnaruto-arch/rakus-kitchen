@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product Requirements Document (PRD) — Raku's Kitchen | Nexus Development</title>
+  <style>
+    :root {
+      --primary: #0F172A;
+      --accent: #9EFF00;
+      --accent-dark: #7ac700;
+      --text: #1E293B;
+      --muted: #64748B;
+      --border: #CBD5E1;
+      --bg-light: #F8FAFC;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: var(--text);
+      background-color: #F1F5F9;
+      line-height: 1.6;
+      padding: 40px 20px;
+    }
+    .page {
+      max-width: 960px;
+      margin: 0 auto;
+      background: #FFFFFF;
+      padding: 60px 70px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+    .top-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--border);
+    }
+    .top-nav a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .top-nav a:hover { color: var(--primary); }
+    .print-btn {
+      background: var(--primary);
+      color: #FFFFFF;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 40px;
+      padding-bottom: 25px;
+      border-bottom: 2px solid var(--border);
+    }
+    .company-info {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+    .company-details h2 {
+      font-size: 20px;
+      color: var(--primary);
+      font-weight: 700;
+    }
+    .company-details p {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .doc-meta { text-align: right; }
+    .badge {
+      display: inline-block;
+      background: #F1F5F9;
+      color: var(--primary);
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .doc-meta p { font-size: 13px; color: var(--muted); }
+    h1 {
+      font-size: 28px;
+      color: var(--primary);
+      margin-bottom: 12px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .lead { font-size: 16px; color: var(--muted); margin-bottom: 30px; }
+    h2.section-title {
+      font-size: 18px;
+      color: var(--primary);
+      margin-top: 36px;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1.5px solid var(--primary);
+    }
+    h3 { font-size: 15px; color: var(--primary); margin: 20px 0 8px 0; }
+    p, ul, ol { margin-bottom: 14px; font-size: 14px; color: #334155; }
+    ul, ol { padding-left: 20px; }
+    li { margin-bottom: 6px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0 24px 0;
+      font-size: 13px;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px 12px;
+      text-align: left;
+    }
+    th { background: var(--bg-light); color: var(--primary); font-weight: 600; }
+    pre {
+      background: #0F172A;
+      color: #E2E8F0;
+      padding: 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      overflow-x: auto;
+      margin: 14px 0;
+      line-height: 1.5;
+    }
+    .code-badge {
+      font-family: monospace;
+      background: #F1F5F9;
+      color: #0F172A;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    .card-box {
+      background: var(--bg-light);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin: 16px 0;
+    }
+    @media print {
+      body { background: #FFFFFF; padding: 0; }
+      .page { box-shadow: none; padding: 30px; max-width: 100%; border-radius: 0; }
+      .top-nav { display: none; }
+      .page-break { page-break-before: always; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="top-nav">
+      <a href="index.html">&larr; Back to Documentation Hub</a>
+      <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+    </div>
+
+    <header>
+      <div class="company-info">
+        <svg width="42" height="42" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="40" height="40" rx="6" fill="#9EFF00"/>
+          <path d="M7.22998 12.4749L19.9999 20V34.3662L7.22998 27.0691L7.22998 12.4749Z" fill="#1A1A1A"/>
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M21.1267 19.9899V32.4246L31.6431 26.4152V13.7927L21.1267 19.9899ZM32.77 27.0691L19.9999 34.3662V20L7.22998 12.4748L19.9999 5.63379L32.77 12.4748V27.0691ZM31.0524 12.833L19.9999 6.91205L9.52874 12.5216L20.5547 19.0191L31.0524 12.833Z" fill="#1A1A1A"/>
+        </svg>
+        <div class="company-details">
+          <h2>Nexus Development</h2>
+          <p>Custom Software Solutions | Bengaluru & Global</p>
+          <p style="font-size:11px;">https://nexusdevelopment.in | contactus@nexusdevelopment.in</p>
+        </div>
+      </div>
+      <div class="doc-meta">
+        <span class="badge">PRODUCT REQUIREMENTS DOCUMENT</span>
+        <p><strong>Doc Ref:</strong> NX-PRD-RK-2026-02</p>
+        <p><strong>Baseline Version:</strong> 1.0 (Production Verified)</p>
+        <p><strong>Date:</strong> October 2026</p>
+      </div>
+    </header>
+
+    <h1>Product Requirements Document (PRD)</h1>
+    <p class="lead">System Architecture & Technical Specifications for Raku's Kitchen Ordering Engine</p>
+
+    <h2 class="section-title">1. System Overview & Technical Architecture</h2>
+    <p>
+      The <strong>Raku's Kitchen Platform</strong> is built as a server-rendered, edge-optimized progressive web application using <strong>Next.js 14 App Router</strong>, backed by Google Cloud Firestore for real-time order state distribution and Firebase Authentication for frictionless phone OTP verification.
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Architectural Layer</th>
+          <th>Technology Selected</th>
+          <th>Strategic Architectural Purpose</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Frontend & Backend</strong></td>
+          <td>Next.js 14.2 (App Router), React 18, TypeScript 5.6</td>
+          <td>Unified full-stack architecture with React Server Components (RSC) and secure server action APIs.</td>
+        </tr>
+        <tr>
+          <td><strong>Design & Styling</strong></td>
+          <td>Tailwind CSS 3.4 + Lucide Icons</td>
+          <td>Mobile-first responsive UI tailored for high-converting smartphone shopping experiences.</td>
+        </tr>
+        <tr>
+          <td><strong>Authentication</strong></td>
+          <td>Firebase Auth (Phone OTP)</td>
+          <td>Zero-friction phone number authentication eliminates customer password drop-offs.</td>
+        </tr>
+        <tr>
+          <td><strong>Database</strong></td>
+          <td>Cloud Firestore (NoSQL)</td>
+          <td>Real-time bi-directional synchronization (<span class="code-badge">onSnapshot</span>) powering the kitchen admin console.</td>
+        </tr>
+        <tr>
+          <td><strong>Payments Gateway</strong></td>
+          <td>Razorpay SDK + Server Webhooks</td>
+          <td>UPI, NetBanking, and Card payments with server-side signature verification.</td>
+        </tr>
+        <tr>
+          <td><strong>Maps & Geocoding</strong></td>
+          <td>Ola Maps Autocomplete & Reverse API</td>
+          <td>Verified address selection and high-precision latitude/longitude coordinate capture.</td>
+        </tr>
+        <tr>
+          <td><strong>Courier Automation</strong></td>
+          <td>Borzo 1-Click Business API + Porter Deep-link</td>
+          <td>Instant courier booking directly from the kitchen dashboard.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2 class="section-title">2. Detailed Functional Specifications</h2>
+
+    <h3>Module 1: Catalog & Weight-Based Biryani Engine</h3>
+    <ul>
+      <li><strong>Weight Selection Model:</strong> Biryani can be ordered in ½ kg, 1 kg, 2 kg, and 3 kg weight tiers. Non-biryani gravies (Chilly Chicken, Mutton Chops) are selectable in ½ kg and 1 kg weight portions.</li>
+      <li><strong>Extra Meat Add-on Rules:</strong> Customers can add extra meat (in 250g increments) up to a strict cap determined by the base container weight.</li>
+      <li><strong>Composite Cart Keying:</strong> Cart lines are stored under composite keys <span class="code-badge">(menuId, variant)</span>. Orphan extra-meat lines are automatically purged or clamped if parent lines are decremented.</li>
+      <li><strong>Packaging Calculation:</strong> Fixed packaging fee of ₹20 per individual item unit is computed automatically.</li>
+    </ul>
+
+    <h3>Module 2: Cart & Server-Side Price Verification</h3>
+    <div class="card-box">
+      <strong>Server-Side Trust Boundary:</strong> The client browser is treated as untrusted. Client-submitted prices are discarded. The server function <span class="code-badge">recomputeOrderTotals</span> imports the canonical menu catalog and recalculates item base prices, variant differentials, extra meat add-ons, and quantity-based packaging fees before creating the Razorpay order.
+    </div>
+
+    <h3>Module 3: Slot Scheduling & Operational Constraints</h3>
+    <ul>
+      <li><strong>Meal Slot Picker:</strong> Customers select between <em>Lunch</em> (ready at 12:30 PM) and <em>Dinner</em> (ready at 7:30 PM).</li>
+      <li><strong>Date Validation:</strong> Mondays and Thursdays are blocked. Sunday dinner slots are blocked. 1-day advance booking rules are enforced at the API boundary.</li>
+    </ul>
+
+    <div class="page-break"></div>
+
+    <h3>Module 4: Address Verification & Geolocation</h3>
+    <ul>
+      <li><strong>Ola Maps Autocomplete:</strong> Real-time address typeahead restricted to Bangalore geofence.</li>
+      <li><strong>Structured Address Schema:</strong> Captures complete flat/door number, landmark, pin code, street address, and exact lat/lng coordinates to power courier dispatch.</li>
+    </ul>
+
+    <h3>Module 5: Payment Processing (Razorpay)</h3>
+    <ul>
+      <li><strong>Server-Side Order Creation:</strong> Next.js Route Handler calls <span class="code-badge">razorpay.orders.create</span> with strictly verified rupee amounts.</li>
+      <li><strong>Webhook Verification:</strong> Cryptographic HMAC SHA256 signature verification validates <span class="code-badge">razorpay_signature</span> before moving order status to <span class="code-badge">Confirmed</span>.</li>
+    </ul>
+
+    <h3>Module 6: Kitchen Admin Operations Dashboard (`/admin`)</h3>
+    <ul>
+      <li><strong>Real-Time Firestore Feed:</strong> Orders render instantaneously without page refreshes via Firestore listeners.</li>
+      <li><strong>Priority Status Workflow:</strong> Orders navigate through a strict state machine:
+        <span class="code-badge">Confirmed</span> &rarr; <span class="code-badge">Preparing</span> &rarr; <span class="code-badge">Out for Delivery</span> &rarr; <span class="code-badge">Delivered</span> (or <span class="code-badge">Cancelled</span>).
+      </li>
+      <li><strong>Logistics 1-Click Booking:</strong>
+        <ul>
+          <li><strong>Borzo Business API:</strong> Calculates delivery quotes and books two-wheeler couriers with pickup instructions in 1 click.</li>
+          <li><strong>Porter Integration:</strong> Generates formatted delivery notes and launches Porter app deep-links with customer address on the clipboard.</li>
+        </ul>
+      </li>
+      <li><strong>Customer WhatsApp Sync:</strong> Dedicated click-to-chat links prefill localized status updates with order numbers, ETA, and tracking info.</li>
+    </ul>
+
+    <h2 class="section-title">3. Cloud Firestore Data Schema</h2>
+    <p>Canonical JSON structure for the <span class="code-badge">orders</span> collection:</p>
+    <pre>{
+  "orderId": "RK-2026-1004-9842",
+  "customer": {
+    "name": "Arun Kumar",
+    "phone": "+919876543210",
+    "uid": "fb_auth_user_9921"
+  },
+  "slot": {
+    "date": "2026-10-05",
+    "meal": "lunch",
+    "readyTime": "12:30 PM"
+  },
+  "items": [
+    {
+      "id": "chicken-biryani",
+      "variant": "1kg",
+      "quantity": 2,
+      "unitPrice": 799,
+      "extraMeat": 250,
+      "extraMeatCost": 150
+    }
+  ],
+  "financials": {
+    "subtotal": 1898,
+    "packagingFee": 40,
+    "deliveryFee": 0, // Paid to courier directly
+    "total": 1938
+  },
+  "payment": {
+    "provider": "razorpay",
+    "orderId": "order_PUh298hsdf",
+    "paymentId": "pay_PUh3872hf",
+    "status": "PAID"
+  },
+  "delivery": {
+    "address": "42, 2nd Cross, Jambusavari Dinne, JP Nagar 8th Phase",
+    "lat": 12.8712,
+    "lng": 77.5814,
+    "provider": "borzo",
+    "trackingId": "BORZO-99214-BLR"
+  },
+  "status": "Confirmed",
+  "createdAt": "2026-10-04T12:30:00Z"
+}</pre>
+
+    <h2 class="section-title">4. Non-Functional & Security Requirements</h2>
+    <ul>
+      <li><strong>Security Rules:</strong> Firestore security rules guarantee customers can read only their own orders via Firebase Auth UID. Kitchen admins must have verified records in the <span class="code-badge">/admins/{uid}</span> allowlist.</li>
+      <li><strong>Concurrency & High Traffic:</strong> Serverless Next.js edge runtime scales to handle festive and Sunday spikes with sub-200ms API latency.</li>
+      <li><strong>PWA / Mobile Performance:</strong> Fast initial bundle load (&lt;1.5s on 4G) with offline caching for catalog images.</li>
+    </ul>
+
+    <div style="margin-top: 40px; padding: 20px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-light);">
+      <p style="font-size: 13px; color: var(--muted); margin: 0;">
+        <strong>Document Sign-off:</strong> This Product Requirements Document forms the certified technical baseline for Raku's Kitchen platform developed by Nexus Development. All described modules are verified live and operational in production.
+      </p>
+    </div>
+  </div>
+</body>
+</html>

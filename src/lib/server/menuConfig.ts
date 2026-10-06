@@ -82,49 +82,55 @@ export async function checkQuantityLimits(
 }
 
 /**
- * Called INSIDE finalizePayment's Firestore transaction, after the
- * idempotency early-return so it only ever runs once per order. Increments
- * every touched item's orderedQty unconditionally (for accurate reporting)
- * — it does not re-check the limit, since payment is already captured by
- * this point and there's no refund path to unwind an over-limit order.
- *
- * Firestore requires all tx.get() reads in a transaction to happen before
- * any writes, so this reads every touched config doc up front, then applies
- * all the tx.set() writes.
+/**
+ * Reads all touched menu config docs inside tx BEFORE any transaction writes occur.
+ * Returns a commit function that applies all tx.set() / tx.update() writes.
+ * This guarantees strict compliance with Firestore's "all reads before all writes" rule.
  */
-export async function incrementMenuQuantities(
+export async function prepareMenuQuantityIncrements(
   tx: Transaction,
   lines: OrderLineItem[],
-): Promise<void> {
+): Promise<() => void> {
   const requested = aggregateRequestedQty(lines);
-  if (requested.size === 0) return;
+  if (requested.size === 0) return () => {};
 
   const db = adminDb();
   const menuIds = Array.from(requested.keys());
   const refs = menuIds.map((id) => db.collection("menuConfig").doc(id));
   const snaps = await Promise.all(refs.map((ref) => tx.get(ref)));
 
-  for (let i = 0; i < menuIds.length; i++) {
-    const menuId = menuIds[i];
-    const delta = requested.get(menuId)!;
-    const snap = snaps[i];
-    const item = menuItemById(menuId);
+  return () => {
+    for (let i = 0; i < menuIds.length; i++) {
+      const menuId = menuIds[i];
+      const delta = requested.get(menuId)!;
+      const snap = snaps[i];
+      const item = menuItemById(menuId);
 
-    if (!snap.exists) {
-      tx.set(refs[i], {
-        limitEnabled: item ? itemHasQuantityLimit(item) : false,
-        limit: DEFAULT_ITEM_LIMIT,
-        orderedQty: delta,
-        manualOverride: null,
-        updatedAt: Date.now(),
-      } satisfies MenuConfigDoc);
-    } else {
-      tx.update(refs[i], {
-        orderedQty: FieldValue.increment(delta),
-        updatedAt: Date.now(),
-      });
+      if (!snap.exists) {
+        tx.set(refs[i], {
+          limitEnabled: item ? itemHasQuantityLimit(item) : false,
+          limit: DEFAULT_ITEM_LIMIT,
+          orderedQty: delta,
+          manualOverride: null,
+          updatedAt: Date.now(),
+        } satisfies MenuConfigDoc);
+      } else {
+        tx.update(refs[i], {
+          orderedQty: FieldValue.increment(delta),
+          updatedAt: Date.now(),
+        });
+      }
     }
-  }
+  };
+}
+
+/** Legacy wrapper if used outside an ordered read/write transaction sequence. */
+export async function incrementMenuQuantities(
+  tx: Transaction,
+  lines: OrderLineItem[],
+): Promise<void> {
+  const commit = await prepareMenuQuantityIncrements(tx, lines);
+  commit();
 }
 
 export { DEFAULT_ITEM_LIMIT, deriveAvailability, itemHasQuantityLimit };

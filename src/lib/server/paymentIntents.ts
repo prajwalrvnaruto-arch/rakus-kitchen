@@ -3,7 +3,8 @@ import { FieldValue, Timestamp } from "firebase-admin/firestore";
 import { adminDb } from "./firebaseAdmin";
 import { sanitizeFirestoreData } from "@/lib/sanitize";
 import { decideRateLimit } from "@/lib/rate-limit-policy";
-import { incrementMenuQuantities } from "./menuConfig";
+import { prepareMenuQuantityIncrements } from "./menuConfig";
+import { recordServerAuditLog } from "./auditLogServer";
 import type { OrderDraft } from "@/lib/db";
 import type { FulfillmentType, Order, OrderStatus, PaymentMeta, StatusEvent } from "@/types";
 
@@ -138,11 +139,16 @@ export async function finalizePayment(params: {
       if (existing.exists) return mapOrderDoc(existing.id, existing.data()!);
     }
 
-    // Bump the human-friendly order-id counter, same scheme as the old
-    // client-side createOrder (RK-00001), now done server-side under the
-    // same transaction as the order write so it can't collide or skip.
+    // --- PHASE 1: ALL READS FIRST (Firestore requirement) ---
+    // Read the order-id counter doc
     const counterRef = db.doc("meta/counters");
     const counterSnap = await tx.get(counterRef);
+
+    // Read all touched menu item config docs before any writes
+    const applyMenuQuantities = await prepareMenuQuantityIncrements(tx, intent.draft.items);
+
+    // --- PHASE 2: ALL WRITES AFTER ALL READS ARE COMPLETE ---
+    // Bump the human-friendly order-id counter
     const next = ((counterSnap.data()?.nextOrder as number) ?? 0) + 1;
     tx.set(counterRef, { nextOrder: next }, { merge: true });
     const orderId = `RK-${String(next).padStart(5, "0")}`;
@@ -158,11 +164,8 @@ export async function finalizePayment(params: {
       paidAt: Date.now(),
     };
 
-    // Increment each ordered item's running quantity total. Unconditional —
-    // payment is already captured by this point and there's no refund path,
-    // so this only ever records for reporting; the hard reject happens
-    // earlier, at create-order time, via checkQuantityLimits().
-    await incrementMenuQuantities(tx, intent.draft.items);
+    // Apply menu quantity increments
+    applyMenuQuantities();
 
     const ordersRef = db.collection("orders").doc();
     const orderPayload = sanitizeFirestoreData({
@@ -170,7 +173,7 @@ export async function finalizePayment(params: {
       orderId,
       customerId: intent.customerId,
       status: "Confirmed" as OrderStatus,
-      statusHistory: [{ status: "Confirmed" as OrderStatus, at: Date.now() }],
+      statusHistory: [{ status: "Confirmed" as OrderStatus, at: Date.now(), by: "customer_payment" }],
       payment,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
@@ -184,12 +187,30 @@ export async function finalizePayment(params: {
       orderId,
       customerId: intent.customerId,
       status: "Confirmed" as OrderStatus,
-      statusHistory: [{ status: "Confirmed" as OrderStatus, at: Date.now() }],
+      statusHistory: [{ status: "Confirmed" as OrderStatus, at: Date.now(), by: "customer_payment" }],
       payment,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     } satisfies Order;
   });
+
+  // Server audit log for newly created order
+  recordServerAuditLog({
+    action: "order.created",
+    actor: {
+      uid: result.customerId,
+      name: result.customerName,
+      type: "customer",
+    },
+    targetId: result.orderId,
+    summary: `New order ${result.orderId} placed by ${result.customerName} (₹${result.grandTotal})`,
+    metadata: {
+      orderId: result.orderId,
+      grandTotal: result.grandTotal,
+      fulfillmentType: result.fulfillmentType,
+      itemsCount: result.items.length,
+    },
+  }).catch(() => {});
 
   return result;
 }

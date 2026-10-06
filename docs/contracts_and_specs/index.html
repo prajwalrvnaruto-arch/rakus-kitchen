@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nexus Development & Raku's Kitchen — Project Documentation Hub</title>
+  <style>
+    :root {
+      --nexus-lime: #9EFF00;
+      --nexus-dark: #121826;
+      --nexus-card-bg: #1E293B;
+      --nexus-border: #334155;
+      --nexus-text: #F8FAFC;
+      --nexus-muted: #94A3B8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: var(--nexus-dark);
+      color: var(--nexus-text);
+      line-height: 1.6;
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--nexus-border);
+      margin-bottom: 40px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .brand-title h1 {
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: #FFFFFF;
+    }
+    .brand-title p {
+      font-size: 13px;
+      color: var(--nexus-muted);
+    }
+    .header-badge {
+      background: rgba(158, 255, 0, 0.12);
+      border: 1px solid var(--nexus-lime);
+      color: var(--nexus-lime);
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+    .hero {
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.95) 100%);
+      border: 1px solid var(--nexus-border);
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 40px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: "";
+      position: absolute;
+      top: -50px;
+      right: -50px;
+      width: 200px;
+      height: 200px;
+      background: radial-gradient(circle, rgba(158, 255, 0, 0.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero h2 {
+      font-size: 26px;
+      margin-bottom: 12px;
+      color: #FFFFFF;
+    }
+    .hero p {
+      color: var(--nexus-muted);
+      font-size: 15px;
+      max-width: 800px;
+      margin-bottom: 20px;
+    }
+    .meta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+    .meta-item {
+      display: flex;
+      flex-direction: column;
+    }
+    .meta-label {
+      font-size: 12px;
+      color: var(--nexus-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+    .meta-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: #FFFFFF;
+    }
+    .doc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 24px;
+      margin-bottom: 40px;
+    }
+    .doc-card {
+      background: var(--nexus-card-bg);
+      border: 1px solid var(--nexus-border);
+      border-radius: 12px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+    .doc-card:hover {
+      border-color: var(--nexus-lime);
+      transform: translateY(-2px);
+      box-shadow: 0 10px 24px -10px rgba(0,0,0,0.5);
+    }
+    .doc-tag {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      color: var(--nexus-lime);
+      margin-bottom: 8px;
+    }
+    .doc-card h3 {
+      font-size: 19px;
+      color: #FFFFFF;
+      margin-bottom: 10px;
+    }
+    .doc-card p {
+      font-size: 14px;
+      color: var(--nexus-muted);
+      margin-bottom: 20px;
+      flex-grow: 1;
+    }
+    .doc-card .actions {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 9px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+    .btn-primary {
+      background-color: var(--nexus-lime);
+      color: #0F172A;
+    }
+    .btn-primary:hover {
+      background-color: #8be000;
+    }
+    .btn-outline {
+      border: 1px solid var(--nexus-border);
+      color: var(--nexus-text);
+      background: transparent;
+    }
+    .btn-outline:hover {
+      border-color: #64748B;
+      background: rgba(255,255,255,0.05);
+    }
+    footer {
+      text-align: center;
+      padding: 30px 0;
+      color: var(--nexus-muted);
+      font-size: 13px;
+      border-top: 1px solid var(--nexus-border);
+    }
+    footer a {
+      color: var(--nexus-lime);
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <!-- Official Nexus Development Logo SVG -->
+        <svg width="44" height="44" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="40" height="40" rx="6" fill="#9EFF00"/>
+          <path d="M7.22998 12.4749L19.9999 20V34.3662L7.22998 27.0691L7.22998 12.4749Z" fill="#1A1A1A"/>
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M21.1267 19.9899V32.4246L31.6431 26.4152V13.7927L21.1267 19.9899ZM32.77 27.0691L19.9999 34.3662V20L7.22998 12.4748L19.9999 5.63379L32.77 12.4748V27.0691ZM31.0524 12.833L19.9999 6.91205L9.52874 12.5216L20.5547 19.0191L31.0524 12.833Z" fill="#1A1A1A"/>
+        </svg>
+        <div class="brand-title">
+          <h1>Nexus Development</h1>
+          <p>Custom Software Solutions & Enterprise IT Delivery</p>
+        </div>
+      </div>
+      <div class="header-badge">Delivery Sign-Off Package</div>
+    </header>
+
+    <div class="hero">
+      <h2>Project Documentation & Governance Portal</h2>
+      <p>
+        Official Project Management & Business Analysis suite for <strong>Raku's Kitchen Direct-to-Consumer Cloud Kitchen & Catering Platform</strong>. 
+        All documents below represent the formalized baseline, technical specifications, legal agreements, service level guarantees, and milestone billing schedule developed and delivered over the past 2-month discovery and agile execution cycle.
+      </p>
+
+      <div class="meta-grid">
+        <div class="meta-item">
+          <span class="meta-label">Client Entity</span>
+          <span class="meta-value">Raku's Kitchen</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Delivery Partner</span>
+          <span class="meta-value">Nexus Development</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Total Contract Value</span>
+          <span class="meta-value">₹80,000 INR (Exempt/No-GST)</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">Delivery Status</span>
+          <span class="meta-value" style="color: var(--nexus-lime);">Live & Production Ready</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="doc-grid">
+      <!-- 01: BRD -->
+      <div class="doc-card">
+        <div class="doc-tag">01 • Business Analysis</div>
+        <h3>Business Requirements Document (BRD)</h3>
+        <p>Comprehensive business case, AS-IS vs. TO-BE ordering workflows, operational rules (lunch/dinner slots, advance notice), ROI calculation, and business KPI governance.</p>
+        <div class="actions">
+          <a href="01_BRD_Business_Requirements_Document.html" class="btn btn-primary">Open Document</a>
+          <a href="01_BRD_Business_Requirements_Document.md" class="btn btn-outline">Markdown</a>
+        </div>
+      </div>
+
+      <!-- 02: PRD -->
+      <div class="doc-card">
+        <div class="doc-tag">02 • Product Architecture</div>
+        <h3>Product Requirements Document (PRD)</h3>
+        <p>Complete technical and functional specifications: Next.js 14, Firebase Auth OTP, Ola Maps Geocoding, Razorpay Payment lifecycle, Borzo 1-Click courier API, and Admin live console.</p>
+        <div class="actions">
+          <a href="02_PRD_Product_Requirements_Document.html" class="btn btn-primary">Open Document</a>
+          <a href="02_PRD_Product_Requirements_Document.md" class="btn btn-outline">Markdown</a>
+        </div>
+      </div>
+
+      <!-- 03: SOW -->
+      <div class="doc-card">
+        <div class="doc-tag">03 • Legal Contract</div>
+        <h3>Statement of Work (SOW)</h3>
+        <p>Contractual scope baseline, milestone breakdown, client responsibilities, out-of-scope boundaries, change management procedure, and dual-party signature sign-off blocks.</p>
+        <div class="actions">
+          <a href="03_SOW_Statement_of_Work.html" class="btn btn-primary">Open Document</a>
+          <a href="03_SOW_Statement_of_Work.md" class="btn btn-outline">Markdown</a>
+        </div>
+      </div>
+
+      <!-- 04: SLA -->
+      <div class="doc-card">
+        <div class="doc-tag">04 • Governance & AMC</div>
+        <h3>Service Level Agreement (SLA)</h3>
+        <p>Severity matrices (P1–P4), response & resolution MTTR, free bug-fix warranty, zero-cost menu & price updates included in ₹80k contract, plus ₹1,500/hr new feature rate.</p>
+        <div class="actions">
+          <a href="04_SLA_Service_Level_Agreement.html" class="btn btn-primary">Open Document</a>
+          <a href="04_SLA_Service_Level_Agreement.md" class="btn btn-outline">Markdown</a>
+        </div>
+      </div>
+
+      <!-- 05: Invoices -->
+      <div class="doc-card">
+        <div class="doc-tag">05 • Commercials & Billing</div>
+        <h3>Milestone Tax Invoices (1, 2 & 3)</h3>
+        <p>Formal commercial billing package totaling ₹80,000 split across 3 milestones: Milestone 1 (₹24,000), Milestone 2 (₹32,000), and Milestone 3 (₹24,000) with 1-click print-to-PDF layout.</p>
+        <div class="actions">
+          <a href="05_Milestone_Invoices.html" class="btn btn-primary">Open Invoices</a>
+          <a href="05_Milestone_Invoices.md" class="btn btn-outline">Markdown</a>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <p>&copy; 2026 Nexus Development. All rights reserved. | <a href="https://nexusdevelopment.in" target="_blank">nexusdevelopment.in</a> | contactus@nexusdevelopment.in</p>
+      <p style="margin-top: 6px; font-size: 12px; color: #64748B;">Documents formatted for browser viewing, print-to-PDF rendering, and contractual binding.</p>
+    </footer>
+  </div>
+</body>
+</html>

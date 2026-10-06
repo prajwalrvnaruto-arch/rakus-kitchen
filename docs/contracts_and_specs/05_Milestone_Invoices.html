@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Milestone Invoices Package — Raku's Kitchen | Nexus Development</title>
+  <style>
+    :root {
+      --primary: #0F172A;
+      --accent: #9EFF00;
+      --accent-dark: #7ac700;
+      --text: #1E293B;
+      --muted: #64748B;
+      --border: #CBD5E1;
+      --bg-light: #F8FAFC;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: var(--text);
+      background-color: #F1F5F9;
+      line-height: 1.6;
+      padding: 40px 20px;
+    }
+    .wrapper {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .top-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 25px;
+      background: #FFFFFF;
+      padding: 16px 24px;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+    .top-nav a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .top-nav a:hover { color: var(--primary); }
+    .nav-buttons {
+      display: flex;
+      gap: 10px;
+    }
+    .btn {
+      padding: 7px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--border);
+      background: #FFFFFF;
+      color: var(--text);
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: #FFFFFF;
+      border-color: var(--primary);
+    }
+    .btn-lime {
+      background: var(--accent);
+      color: #0F172A;
+      border-color: var(--accent);
+    }
+    .invoice-card {
+      background: #FFFFFF;
+      padding: 50px 60px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+      margin-bottom: 40px;
+      page-break-after: always;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 30px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid var(--border);
+    }
+    .company-info {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+    .company-details h2 {
+      font-size: 20px;
+      color: var(--primary);
+      font-weight: 700;
+    }
+    .company-details p {
+      font-size: 12.5px;
+      color: var(--muted);
+    }
+    .invoice-title-block {
+      text-align: right;
+    }
+    .invoice-title-block h1 {
+      font-size: 24px;
+      color: var(--primary);
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .invoice-title-block p {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .invoice-meta-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin: 25px 0;
+      padding: 16px 20px;
+      background: var(--bg-light);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .meta-box h4 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .meta-box p {
+      font-size: 13.5px;
+      color: var(--primary);
+      line-height: 1.4;
+    }
+    table.invoice-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 25px 0;
+      font-size: 13.5px;
+    }
+    table.invoice-table th, table.invoice-table td {
+      border: 1px solid var(--border);
+      padding: 12px 14px;
+      text-align: left;
+    }
+    table.invoice-table th {
+      background: var(--bg-light);
+      color: var(--primary);
+      font-weight: 600;
+    }
+    .text-right { text-align: right !important; }
+    .text-center { text-align: center !important; }
+    .totals-area {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 15px;
+    }
+    .totals-table {
+      width: 320px;
+      border-collapse: collapse;
+      font-size: 13.5px;
+    }
+    .totals-table td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .totals-table tr.grand-total td {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--primary);
+      border-top: 2px solid var(--primary);
+      border-bottom: 2px solid var(--primary);
+      background: var(--bg-light);
+    }
+    .payment-info {
+      margin-top: 30px;
+      padding: 18px 20px;
+      background: #F8FAFC;
+      border-left: 4px solid var(--accent);
+      border-radius: 0 6px 6px 0;
+    }
+    .payment-info h4 {
+      font-size: 12px;
+      text-transform: uppercase;
+      color: var(--primary);
+      margin-bottom: 6px;
+    }
+    .payment-info p {
+      font-size: 12.5px;
+      color: #334155;
+    }
+    .sign-area {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+    .sign-box {
+      width: 250px;
+    }
+    .sign-box p {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .sign-box .line {
+      margin-top: 35px;
+      border-bottom: 1px dashed var(--muted);
+    }
+    @media print {
+      body { background: #FFFFFF; padding: 0; }
+      .wrapper { max-width: 100%; }
+      .top-nav { display: none; }
+      .invoice-card { box-shadow: none; padding: 30px; border-radius: 0; border: none; }
+      .invoice-card:last-child { page-break-after: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="top-nav">
+      <a href="index.html">&larr; Back to Documentation Hub</a>
+      <div class="nav-buttons">
+        <a href="#summary-ledger" class="btn">View Ledger</a>
+        <a href="#inv-1" class="btn">Invoice 1</a>
+        <a href="#inv-2" class="btn">Invoice 2</a>
+        <a href="#inv-3" class="btn">Invoice 3</a>
+        <button class="btn btn-primary" onclick="window.print()">Print / Save PDF</button>
+      </div>
+    </div>
+
+    <!-- ================= SUMMARY BILLING LEDGER ================= -->
+    <div class="invoice-card" id="summary-ledger">
+      <header>
+        <div class="company-info">
+          <svg width="42" height="42" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="40" height="40" rx="6" fill="#9EFF00"/>
+            <path d="M7.22998 12.4749L19.9999 20V34.3662L7.22998 27.0691L7.22998 12.4749Z" fill="#1A1A1A"/>
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M21.1267 19.9899V32.4246L31.6431 26.4152V13.7927L21.1267 19.9899ZM32.77 27.0691L19.9999 34.3662V20L7.22998 12.4748L19.9999 5.63379L32.77 12.4748V27.0691ZM31.0524 12.833L19.9999 6.91205L9.52874 12.5216L20.5547 19.0191L31.0524 12.833Z" fill="#1A1A1A"/>
+          </svg>
+          <div class="company-details">
+            <h2>Nexus Development</h2>
+            <p>Custom Software Solutions & IT Delivery</p>
+            <p style="font-size:11px;">https://nexusdevelopment.in | contactus@nexusdevelopment.in</p>
+          </div>
+        </div>
+        <div class="invoice-title-block">
+          <h1>STATEMENT OF ACCOUNT</h1>
+          <p><strong>Master Ledger:</strong> NX-SOA-RK-2026</p>
+          <p><strong>Total Project Value:</strong> ₹80,000 INR</p>
+        </div>
+      </header>
+
+      <div class="invoice-meta-grid">
+        <div class="meta-box">
+          <h4>Billed To (Client):</h4>
+          <p><strong>Raku's Kitchen</strong></p>
+          <p>Jambusavari Dinne, JP Nagar 8th Phase</p>
+          <p>Bengaluru, Karnataka - 560083</p>
+          <p>Phone: +91 9606888096</p>
+        </div>
+        <div class="meta-box">
+          <h4>Project Summary:</h4>
+          <p><strong>Project:</strong> Direct-to-Consumer Cloud Kitchen Platform</p>
+          <p><strong>Contract Model:</strong> Fixed Price Milestone Delivery</p>
+          <p><strong>Tax Status:</strong> Freelance / Sole Proprietorship (GST Exempt)</p>
+          <p><strong>Delivery Cycle:</strong> 2 Months Iterative Handover</p>
+        </div>
+      </div>
+
+      <table class="invoice-table">
+        <thead>
+          <tr>
+            <th>Milestone / Invoice #</th>
+            <th>Description & Scope Delivered</th>
+            <th class="text-center">Share</th>
+            <th class="text-right">Amount (INR)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <strong>Milestone 1</strong><br>
+              <span style="font-size:12px; color:var(--muted);">NX-INV-2026-081</span>
+            </td>
+            <td>
+              <strong>Project Inception & UI/UX Architecture</strong><br>
+              Information architecture, customer ordering flow, weight-based Biryani picker & slot scheduling UX.
+            </td>
+            <td class="text-center">30%</td>
+            <td class="text-right"><strong>₹24,000.00</strong></td>
+          </tr>
+          <tr>
+            <td>
+              <strong>Milestone 2</strong><br>
+              <span style="font-size:12px; color:var(--muted);">NX-INV-2026-092</span>
+            </td>
+            <td>
+              <strong>Core Engineering & API Integrations</strong><br>
+              Next.js 14 App Router full-stack, Firebase Auth (Phone OTP), Cloud Firestore, Ola Maps geocoding & Razorpay PG checkout.
+            </td>
+            <td class="text-center">40%</td>
+            <td class="text-right"><strong>₹32,000.00</strong></td>
+          </tr>
+          <tr>
+            <td>
+              <strong>Milestone 3</strong><br>
+              <span style="font-size:12px; color:var(--muted);">NX-INV-2026-103</span>
+            </td>
+            <td>
+              <strong>Logistics Automation & Production Go-Live</strong><br>
+              Real-time Admin Command Portal (<span style="font-family:monospace;">/admin</span>), Borzo 1-Click API courier booking, Porter deep-links, WhatsApp messaging & production deployment.
+            </td>
+            <td class="text-center">30%</td>
+            <td class="text-right"><strong>₹24,000.00</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="totals-area">
+        <table class="totals-table">
+          <tr>
+            <td>Subtotal:</td>
+            <td class="text-right">₹80,000.00</td>
+          </tr>
+          <tr>
+            <td>GST (Exempt / Freelance):</td>
+            <td class="text-right">₹0.00</td>
+          </tr>
+          <tr class="grand-total">
+            <td>TOTAL PAYABLE:</td>
+            <td class="text-right">₹80,000.00</td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="payment-info">
+        <h4>Remittance / Bank Transfer Information:</h4>
+        <p><strong>Account Name:</strong> Nexus Development</p>
+        <p><strong>Payment Modes Accepted:</strong> IMPS / NEFT / RTGS / Direct UPI</p>
+        <p><strong>Terms:</strong> Milestone payments in accordance with the signed Statement of Work.</p>
+      </div>
+
+      <div class="sign-area">
+        <div class="sign-box">
+          <p>Prepared By:</p>
+          <div class="line"></div>
+          <p style="margin-top:6px; font-weight:600; color:var(--primary);">Nexus Development</p>
+        </div>
+        <div class="sign-box">
+          <p>Accepted By:</p>
+          <div class="line"></div>
+          <p style="margin-top:6px; font-weight:600; color:var(--primary);">Raku's Kitchen</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= INVOICE 1 ================= -->
+    <div class="invoice-card" id="inv-1">
+      <header>
+        <div class="company-info">
+          <svg width="42" height="42" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="40" height="40" rx="6" fill="#9EFF00"/>
+            <path d="M7.22998 12.4749L19.9999 20V34.3662L7.22998 27.0691L7.22998 12.4749Z" fill="#1A1A1A"/>
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M21.1267 19.9899V32.4246L31.6431 26.4152V13.7927L21.1267 19.9899ZM32.77 27.0691L19.9999 34.3662V20L7.22998 12.4748L19.9999 5.63379L32.77 12.4748V27.0691ZM31.0524 12.833L19.9999 6.91205L9.52874 12.5216L20.5547 19.0191L31.0524 12.833Z" fill="#1A1A1A"/>
+          </svg>
+          <div class="company-details">
+            <h2>Nexus Development</h2>
+            <p>Custom Software Solutions</p>
+            <p style="font-size:11px;">https://nexusdevelopment.in | contactus@nexusdevelopment.in</p>
+          </div>
+        </div>
+        <div class="invoice-title-block">
+          <h1>INVOICE</h1>
+          <p><strong>Invoice #:</strong> NX-INV-2026-081</p>
+          <p><strong>Milestone:</strong> 1 of 3 (Inception & Design)</p>
+          <p><strong>Date:</strong> August 2026 (Tentative Baseline)</p>
+        </div>
+      </header>
+
+      <div class="invoice-meta-grid">
+        <div class="meta-box">
+          <h4>Billed To:</h4>
+          <p><strong>Raku's Kitchen</strong></p>
+          <p>Jambusavari Dinne, JP Nagar 8th Phase</p>
+          <p>Bengaluru, Karnataka - 560083</p>
+        </div>
+        <div class="meta-box">
+          <h4>Invoice Details:</h4>
+          <p><strong>Reference:</strong> Milestone 1 — SOW Ref NX-SOW-RK-2026-03</p>
+          <p><strong>Payment Terms:</strong> Due on Milestone Presentation</p>
+          <p><strong>GST Status:</strong> Non-GST Registered Freelance Supply</p>
+        </div>
+      </div>
+
+      <table class="invoice-table">
+        <thead>
+          <tr>
+            <th>Item Description</th>
+            <th class="text-center">Qty</th>
+            <th class="text-right">Rate (INR)</th>
+            <th class="text-right">Amount (INR)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <strong>Milestone 1: Project Inception, UI/UX Architecture & Ordering UX</strong><br>
+              <span style="font-size:12px; color:var(--muted);">
+                • Full mobile-first responsive wireframing and brand identity translation.<br>
+                • Biryani weight-selection interaction model (½ kg, 1 kg, multi-kg) and extra-meat constraints.<br>
+                • Lunch (12:30 PM) and Dinner (7:30 PM) advance slot scheduling specifications.
+              </span>
+            </td>
+            <td class="text-center">1</td>
+            <td class="text-right">₹24,000.00</td>
+            <td class="text-right"><strong>₹24,000.00</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="totals-area">
+        <table class="totals-table">
+          <tr>
+            <td>Subtotal:</td>
+            <td class="text-right">₹24,000.00</td>
+          </tr>
+          <tr>
+            <td>Taxes (GST Exempt):</td>
+            <td class="text-right">₹0.00</td>
+          </tr>
+          <tr class="grand-total">
+            <td>INVOICE TOTAL:</td>
+            <td class="text-right">₹24,000.00</td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="sign-area">
+        <div class="sign-box">
+          <p>Authorized Signatory:</p>
+          <div class="line"></div>
+          <p style="margin-top:6px; font-weight:600; color:var(--primary);">Nexus Development</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= INVOICE 2 ================= -->
+    <div class="invoice-card" id="inv-2">
+      <header>
+        <div class="company-info">
+          <svg width="42" height="42" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="40" height="40" rx="6" fill="#9EFF00"/>
+            <path d="M7.22998 12.4749L19.9999 20V34.3662L7.22998 27.0691L7.22998 12.4749Z" fill="#1A1A1A"/>
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M21.1267 19.9899V32.4246L31.6431 26.4152V13.7927L21.1267 19.9899ZM32.77 27.0691L19.9999 34.3662V20L7.22998 12.4748L19.9999 5.63379L32.77 12.4748V27.0691ZM31.0524 12.833L19.9999 6.91205L9.52874 12.5216L20.5547 19.0191L31.0524 12.833Z" fill="#1A1A1A"/>
+          </svg>
+          <div class="company-details">
+            <h2>Nexus Development</h2>
+            <p>Custom Software Solutions</p>
+            <p style="font-size:11px;">https://nexusdevelopment.in | contactus@nexusdevelopment.in</p>
+          </div>
+        </div>
+        <div class="invoice-title-block">
+          <h1>INVOICE</h1>
+          <p><strong>Invoice #:</strong> NX-INV-2026-092</p>
+          <p><strong>Milestone:</strong> 2 of 3 (Core Engineering)</p>
+          <p><strong>Date:</strong> September 2026 (Tentative Baseline)</p>
+        </div>
+      </header>
+
+      <div class="invoice-meta-grid">
+        <div class="meta-box">
+          <h4>Billed To:</h4>
+          <p><strong>Raku's Kitchen</strong></p>
+          <p>Jambusavari Dinne, JP Nagar 8th Phase</p>
+          <p>Bengaluru, Karnataka - 560083</p>
+        </div>
+        <div class="meta-box">
+          <h4>Invoice Details:</h4>
+          <p><strong>Reference:</strong> Milestone 2 — SOW Ref NX-SOW-RK-2026-03</p>
+          <p><strong>Payment Terms:</strong> Due on Core Engine Validation</p>
+          <p><strong>GST Status:</strong> Non-GST Registered Freelance Supply</p>
+        </div>
+      </div>
+
+      <table class="invoice-table">
+        <thead>
+          <tr>
+            <th>Item Description</th>
+            <th class="text-center">Qty</th>
+            <th class="text-right">Rate (INR)</th>
+            <th class="text-right">Amount (INR)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <strong>Milestone 2: Core Engineering, Auth & Payment PG Integration</strong><br>
+              <span style="font-size:12px; color:var(--muted);">
+                • Next.js 14 App Router architecture, TypeScript & Tailwind CSS implementation.<br>
+                • Firebase Phone OTP Authentication (passwordless customer login).<br>
+                • Cloud Firestore collections, index configuration & client-isolation security rules.<br>
+                • Ola Maps autocomplete & reverse geocoding API integration.<br>
+                • Razorpay online payment integration with server-side HMAC-SHA256 webhook verification.
+              </span>
+            </td>
+            <td class="text-center">1</td>
+            <td class="text-right">₹32,000.00</td>
+            <td class="text-right"><strong>₹32,000.00</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="totals-area">
+        <table class="totals-table">
+          <tr>
+            <td>Subtotal:</td>
+            <td class="text-right">₹32,000.00</td>
+          </tr>
+          <tr>
+            <td>Taxes (GST Exempt):</td>
+            <td class="text-right">₹0.00</td>
+          </tr>
+          <tr class="grand-total">
+            <td>INVOICE TOTAL:</td>
+            <td class="text-right">₹32,000.00</td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="sign-area">
+        <div class="sign-box">
+          <p>Authorized Signatory:</p>
+          <div class="line"></div>
+          <p style="margin-top:6px; font-weight:600; color:var(--primary);">Nexus Development</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ================= INVOICE 3 ================= -->
+    <div class="invoice-card" id="inv-3">
+      <header>
+        <div class="company-info">
+          <svg width="42" height="42" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="40" height="40" rx="6" fill="#9EFF00"/>
+            <path d="M7.22998 12.4749L19.9999 20V34.3662L7.22998 27.0691L7.22998 12.4749Z" fill="#1A1A1A"/>
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M21.1267 19.9899V32.4246L31.6431 26.4152V13.7927L21.1267 19.9899ZM32.77 27.0691L19.9999 34.3662V20L7.22998 12.4748L19.9999 5.63379L32.77 12.4748V27.0691ZM31.0524 12.833L19.9999 6.91205L9.52874 12.5216L20.5547 19.0191L31.0524 12.833Z" fill="#1A1A1A"/>
+          </svg>
+          <div class="company-details">
+            <h2>Nexus Development</h2>
+            <p>Custom Software Solutions</p>
+            <p style="font-size:11px;">https://nexusdevelopment.in | contactus@nexusdevelopment.in</p>
+          </div>
+        </div>
+        <div class="invoice-title-block">
+          <h1>INVOICE</h1>
+          <p><strong>Invoice #:</strong> NX-INV-2026-103</p>
+          <p><strong>Milestone:</strong> 3 of 3 (Logistics & Go-Live)</p>
+          <p><strong>Date:</strong> October 2026 (Tentative Baseline)</p>
+        </div>
+      </header>
+
+      <div class="invoice-meta-grid">
+        <div class="meta-box">
+          <h4>Billed To:</h4>
+          <p><strong>Raku's Kitchen</strong></p>
+          <p>Jambusavari Dinne, JP Nagar 8th Phase</p>
+          <p>Bengaluru, Karnataka - 560083</p>
+        </div>
+        <div class="meta-box">
+          <h4>Invoice Details:</h4>
+          <p><strong>Reference:</strong> Milestone 3 — SOW Ref NX-SOW-RK-2026-03</p>
+          <p><strong>Payment Terms:</strong> Due on Final Handover & Sign-off</p>
+          <p><strong>GST Status:</strong> Non-GST Registered Freelance Supply</p>
+        </div>
+      </div>
+
+      <table class="invoice-table">
+        <thead>
+          <tr>
+            <th>Item Description</th>
+            <th class="text-center">Qty</th>
+            <th class="text-right">Rate (INR)</th>
+            <th class="text-right">Amount (INR)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <strong>Milestone 3: Logistics Automation, Admin Command Portal & Production Handover</strong><br>
+              <span style="font-size:12px; color:var(--muted);">
+                • Real-time Admin Command Dashboard (<span style="font-family:monospace;">/admin</span>) with live Firestore listeners.<br>
+                • Borzo 1-Click Business API courier booking and automatic route calculation.<br>
+                • Porter manual deep-link dispatch helper with clipboard address sync.<br>
+                • Contextual WhatsApp order notification link engine.<br>
+                • Complete production release, end-to-end stability audit & handover.
+              </span>
+            </td>
+            <td class="text-center">1</td>
+            <td class="text-right">₹24,000.00</td>
+            <td class="text-right"><strong>₹24,000.00</strong></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="totals-area">
+        <table class="totals-table">
+          <tr>
+            <td>Subtotal:</td>
+            <td class="text-right">₹24,000.00</td>
+          </tr>
+          <tr>
+            <td>Taxes (GST Exempt):</td>
+            <td class="text-right">₹0.00</td>
+          </tr>
+          <tr class="grand-total">
+            <td>INVOICE TOTAL:</td>
+            <td class="text-right">₹24,000.00</td>
+          </tr>
+        </table>
+      </div>
+
+      <div class="sign-area">
+        <div class="sign-box">
+          <p>Authorized Signatory:</p>
+          <div class="line"></div>
+          <p style="margin-top:6px; font-weight:600; color:var(--primary);">Nexus Development</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

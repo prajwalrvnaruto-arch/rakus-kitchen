@@ -1,106 +1,158 @@
 "use client";
 
 /**
- * useOrderAlerts — kitchen new-order alert controller.
+ * useOrderAlerts — kitchen new-order alert controller for Raku's Kitchen.
  *
  * Owns everything the kitchen admin needs to *never miss* a new order:
- *   - armed:      an audio context (needs one user gesture to unlock),
- *                 OS notification permission, and vibration ready
- *   - queue:      orders that arrived live and haven't been acknowledged
- *   - loop:       while the queue is non-empty →
- *                   · a looping Web Audio buzzer (no external asset)
- *                   · navigator.vibrate on each buzz (mobile)
- *                   · document.title flash ("🔔 NEW ORDER (n)")
- *                   · one OS notification per new order (when backgrounded)
- *   - muted:      admin can silence sound while the banner stays up
- *   - acknowledge: clears the queue and stops everything
- *
- * Design constraints:
- *   - Browsers block audio autoplay until a user gesture. The `arm()` function
- *     must be called inside a click handler — it creates/resumes an AudioContext
- *     and requests permissions there. After that, alerts fire automatically.
- *   - `armed` state persists in sessionStorage so a same-tab reload stays armed
- *     (the AudioContext is recreated lazily on the next push).
- *   - All browser API calls are guarded (typeof + try/catch): this runs on
- *     phones with partial API support and in server-side render contexts.
+ *   - Sound engine: Zomato-style upbeat marimba arpeggio, Swiggy bell, or classic buzzer
+ *   - Auto-resumes AudioContext if suspended
+ *   - Vibration loop on supported devices
+ *   - Document title flashing
+ *   - Native OS Notifications with order summary
+ *   - Queue management with acknowledge action
+ *   - Sound testing and volume controls
+ *   - Persistent settings across browser tabs via localStorage
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Order } from "@/types";
+import {
+  attachAudioAutoUnlock,
+  getAudioContext,
+  playKitchenAlert,
+  type SoundTheme,
+} from "./audioAlerts";
 
-const SESSION_KEY = "rk-alerts-armed-v1";
+const STORAGE_ARMED_KEY = "rk-alerts-armed-v2";
+const STORAGE_THEME_KEY = "rk-alerts-sound-theme-v2";
+const STORAGE_VOLUME_KEY = "rk-alerts-volume-v2";
 
 export interface OrderAlertsHook {
-  /** True after the admin tapped "Enable alerts". Sound/vibration ready. */
+  /** True after alerts have been enabled (persisted in localStorage). */
   armed: boolean;
-  /** Orders waiting for acknowledgement (arrival order, oldest first). */
+  /** Orders waiting for acknowledgement (oldest first). */
   queue: Order[];
-  /** Whether sound is muted (banner stays; just no audio). */
+  /** Whether sound is muted. */
   muted: boolean;
-  /** Arm alerts: call inside a click handler. Resolves AudioContext,
-   *  requests Notification + vibration permissions. */
+  /** Whether the alert sound loop is currently ringing. */
+  isRinging: boolean;
+  /** Chosen sound theme: "zomato" | "bell" | "buzzer" */
+  soundTheme: SoundTheme;
+  /** Volume level: 0 to 1 */
+  volume: number;
+  /** Enable and unlock audio alerts + request OS notification permissions. */
   arm: () => Promise<void>;
   /** Push genuinely-new orders into the alert queue. */
   pushNew: (orders: Order[]) => void;
-  /** Acknowledge all pending orders: clear queue, stop sound/vibration/title. */
+  /** Acknowledge a single order: removes it from the queue and stops sound if queue is now empty. */
+  acknowledgeOrder: (orderId: string) => void;
+  /** Acknowledge all pending orders: clears queue and stops alert loop. */
   acknowledge: () => void;
-  /** Toggle sound mute without clearing the queue. */
+  /** Immediately silences the ringing tone without clearing the queue. */
+  stopAlertTone: () => void;
+  /** Toggle sound mute. */
   toggleMute: () => void;
+  /** Select alert sound theme. */
+  setSoundTheme: (theme: SoundTheme) => void;
+  /** Set alert volume. */
+  setVolume: (vol: number) => void;
+  /** Plays a preview test of the currently selected sound. */
+  testSound: () => void;
 }
 
 export function useOrderAlerts(): OrderAlertsHook {
   const [armed, setArmed] = useState<boolean>(() => {
-    try { return !!sessionStorage.getItem(SESSION_KEY); } catch { return false; }
+    try {
+      return localStorage.getItem(STORAGE_ARMED_KEY) === "1";
+    } catch {
+      return false;
+    }
   });
+
+  const [soundTheme, setSoundThemeState] = useState<SoundTheme>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_THEME_KEY);
+      if (saved === "zomato" || saved === "bell" || saved === "buzzer") return saved;
+    } catch { /* ignore */ }
+    return "zomato";
+  });
+
+  const [volume, setVolumeState] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_VOLUME_KEY);
+      if (saved) {
+        const val = parseFloat(saved);
+        if (!isNaN(val) && val >= 0 && val <= 1) return val;
+      }
+    } catch { /* ignore */ }
+    return 0.85;
+  });
+
   const [queue, setQueue] = useState<Order[]>([]);
   const [muted, setMuted] = useState(false);
+  const [toneSilenced, setToneSilenced] = useState(false);
+  const [isRinging, setIsRinging] = useState(false);
 
-  // Stable refs so interval callbacks close over the latest values.
-  const audioCtxRef = useRef<AudioContext | null>(null);
+  // Stable refs for interval callbacks
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const originalTitle = useRef<string>("");
+  const soundThemeRef = useRef(soundTheme);
+  soundThemeRef.current = soundTheme;
+  const volumeRef = useRef(volume);
+  volumeRef.current = volume;
+  const mutedRef = useRef(muted);
+  mutedRef.current = muted;
 
-  // ── Sound ─────────────────────────────────────────────────────────────── //
+  // Initialize auto-unlock listener once on mount
+  useEffect(() => {
+    attachAudioAutoUnlock();
+  }, []);
 
-  const playBuzz = useCallback(() => {
-    if (muted) return;
-    const ctx = audioCtxRef.current;
-    if (!ctx) return;
-    try {
-      // A short oscillator burst: 220 Hz → 280 Hz over 180ms, then silence.
-      // Sounds like a kitchen buzzer — attention-grabbing, not a gentle chime.
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = "square";
-      osc.frequency.setValueAtTime(220, ctx.currentTime);
-      osc.frequency.linearRampToValueAtTime(280, ctx.currentTime + 0.12);
-      gain.gain.setValueAtTime(0.35, ctx.currentTime);
-      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.18);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.2);
-    } catch { /* AudioContext may be suspended or unavailable */ }
-  }, [muted]);
+  const setSoundTheme = useCallback((theme: SoundTheme) => {
+    setSoundThemeState(theme);
+    try { localStorage.setItem(STORAGE_THEME_KEY, theme); } catch { /* ignore */ }
+  }, []);
+
+  const setVolume = useCallback((vol: number) => {
+    const clamped = Math.max(0, Math.min(1, vol));
+    setVolumeState(clamped);
+    try { localStorage.setItem(STORAGE_VOLUME_KEY, clamped.toString()); } catch { /* ignore */ }
+  }, []);
+
+  const playAlertSound = useCallback(() => {
+    if (mutedRef.current) return;
+    const ctx = getAudioContext();
+    if (ctx && ctx.state === "suspended") {
+      ctx.resume().catch(() => {});
+    }
+    playKitchenAlert(soundThemeRef.current, volumeRef.current);
+  }, []);
+
+  const testSound = useCallback(() => {
+    const ctx = getAudioContext();
+    if (ctx && ctx.state === "suspended") {
+      ctx.resume().catch(() => {});
+    }
+    playKitchenAlert(soundThemeRef.current, volumeRef.current);
+  }, []);
 
   // ── Vibration ─────────────────────────────────────────────────────────── //
-
   const vibrate = useCallback(() => {
     try {
       if (typeof navigator !== "undefined" && "vibrate" in navigator) {
-        navigator.vibrate([200, 100, 200]);
+        // Distinctive double-pulse vibration
+        navigator.vibrate([250, 100, 250, 100, 400]);
       }
-    } catch { /* vibration not available */ }
+    } catch { /* ignore */ }
   }, []);
 
-  // ── Start / stop the alert loop ────────────────────────────────────────── //
-
+  // ── Start / Stop the alert loop ───────────────────────────────────────── //
   const stopLoop = useCallback(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-    // Restore the original tab title.
+    setIsRinging(false);
     if (originalTitle.current) {
       try { document.title = originalTitle.current; } catch { /* server */ }
     }
@@ -110,15 +162,14 @@ export function useOrderAlerts(): OrderAlertsHook {
     stopLoop();
     if (count === 0) return;
 
-    // Capture the real title on first alert (if the document is available).
     try {
       if (!originalTitle.current) originalTitle.current = document.title;
     } catch { /* server */ }
 
+    setIsRinging(true);
     let titleFlip = false;
-    // Buzz + vibrate immediately, then every 2.5 s until acknowledged.
     const tick = () => {
-      playBuzz();
+      playAlertSound();
       vibrate();
       try {
         titleFlip = !titleFlip;
@@ -127,43 +178,38 @@ export function useOrderAlerts(): OrderAlertsHook {
           : (originalTitle.current || "Raku's Kitchen — Admin");
       } catch { /* server */ }
     };
-    tick();
-    intervalRef.current = setInterval(tick, 2500);
-  }, [playBuzz, vibrate, stopLoop]);
 
-  // Re-start the loop whenever the queue changes (new order added or cleared).
+    tick();
+    intervalRef.current = setInterval(tick, 2800);
+  }, [playAlertSound, vibrate, stopLoop]);
+
+  // Restart loop when queue or armed state changes (unless user explicitly silenced the current tone)
   useEffect(() => {
-    if (queue.length > 0 && armed) {
+    if (queue.length > 0 && armed && !toneSilenced) {
       startLoop(queue.length);
     } else {
       stopLoop();
     }
-    return () => { /* cleanup handled by stopLoop in acknowledge */ };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queue.length, armed]);
+    return () => {};
+  }, [queue.length, armed, toneSilenced, startLoop, stopLoop]);
 
-  // Cleanup on unmount (e.g. admin navigates away).
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       stopLoop();
-      try { audioCtxRef.current?.close(); } catch { /* ignore */ }
     };
   }, [stopLoop]);
 
   // ── Public API ─────────────────────────────────────────────────────────── //
 
   const arm = useCallback(async () => {
-    // Create or resume the AudioContext inside the user gesture.
-    try {
-      if (!audioCtxRef.current) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const AC = (window.AudioContext ?? (window as any).webkitAudioContext) as typeof AudioContext | undefined;
-        if (AC) audioCtxRef.current = new AC();
-      }
-      await audioCtxRef.current?.resume();
-    } catch { /* AudioContext may not be available (some older mobile browsers) */ }
+    const ctx = getAudioContext();
+    if (ctx) {
+      try {
+        await ctx.resume();
+      } catch { /* ignore */ }
+    }
 
-    // Request OS notification permission (best-effort, never mandatory).
     try {
       if (typeof Notification !== "undefined" && Notification.permission === "default") {
         await Notification.requestPermission();
@@ -171,26 +217,36 @@ export function useOrderAlerts(): OrderAlertsHook {
     } catch { /* ignore */ }
 
     setArmed(true);
-    try { sessionStorage.setItem(SESSION_KEY, "1"); } catch { /* private mode */ }
+    try { localStorage.setItem(STORAGE_ARMED_KEY, "1"); } catch { /* ignore */ }
+
+    // Play a friendly single-bell confirmation so the admin immediately hears sound works
+    playKitchenAlert(soundThemeRef.current, volumeRef.current);
   }, []);
 
   const pushNew = useCallback((orders: Order[]) => {
     if (orders.length === 0) return;
+
+    // Reset silence flag for newly arrived orders
+    setToneSilenced(false);
+
     setQueue((prev) => {
-      // Deduplicate by order id so a Firestore retry doesn't double-alert.
       const existing = new Set(prev.map((o) => o.id));
       const fresh = orders.filter((o) => !existing.has(o.id));
       if (fresh.length === 0) return prev;
 
-      // Fire one OS notification per new order if permission granted.
+      // Send OS Notification if permission granted
       for (const o of fresh) {
         try {
           if (typeof Notification !== "undefined" && Notification.permission === "granted") {
             const itemSummary = o.items.map((i) => `${i.name}×${i.qty}`).join(", ");
-            new Notification(`🔔 New order — ${o.orderId}`, {
-              body: `${o.customerName} · ${o.mealSlot} · ${itemSummary}`,
-              tag: o.id, // dedupes if multiple tabs are open
+            const notif = new Notification(`🔔 New Order ${o.orderId}`, {
+              body: `${o.customerName} (₹${o.grandTotal}) · ${o.mealSlot}\n${itemSummary}`,
+              tag: o.id,
+              icon: "/favicon.ico",
             });
+            notif.onclick = () => {
+              window.focus();
+            };
           }
         } catch { /* ignore */ }
       }
@@ -199,8 +255,25 @@ export function useOrderAlerts(): OrderAlertsHook {
     });
   }, []);
 
+  const stopAlertTone = useCallback(() => {
+    setToneSilenced(true);
+    stopLoop();
+  }, [stopLoop]);
+
+  const acknowledgeOrder = useCallback((orderId: string) => {
+    setQueue((prev) => {
+      const next = prev.filter((o) => o.id !== orderId && o.orderId !== orderId);
+      if (next.length === 0) {
+        stopLoop();
+        setToneSilenced(false);
+      }
+      return next;
+    });
+  }, [stopLoop]);
+
   const acknowledge = useCallback(() => {
     setQueue([]);
+    setToneSilenced(false);
     stopLoop();
     try {
       if (originalTitle.current) document.title = originalTitle.current;
@@ -209,5 +282,21 @@ export function useOrderAlerts(): OrderAlertsHook {
 
   const toggleMute = useCallback(() => setMuted((m) => !m), []);
 
-  return { armed, queue, muted, arm, pushNew, acknowledge, toggleMute };
+  return {
+    armed,
+    queue,
+    muted,
+    isRinging,
+    soundTheme,
+    volume,
+    arm,
+    pushNew,
+    acknowledgeOrder,
+    acknowledge,
+    stopAlertTone,
+    toggleMute,
+    setSoundTheme,
+    setVolume,
+    testSound,
+  };
 }

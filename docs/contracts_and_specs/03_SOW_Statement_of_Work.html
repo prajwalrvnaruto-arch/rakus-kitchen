@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Statement of Work (SOW) — Raku's Kitchen | Nexus Development</title>
+  <style>
+    :root {
+      --primary: #0F172A;
+      --accent: #9EFF00;
+      --accent-dark: #7ac700;
+      --text: #1E293B;
+      --muted: #64748B;
+      --border: #CBD5E1;
+      --bg-light: #F8FAFC;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: var(--text);
+      background-color: #F1F5F9;
+      line-height: 1.6;
+      padding: 40px 20px;
+    }
+    .page {
+      max-width: 920px;
+      margin: 0 auto;
+      background: #FFFFFF;
+      padding: 60px 70px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+    .top-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--border);
+    }
+    .top-nav a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+    }
+    .top-nav a:hover { color: var(--primary); }
+    .print-btn {
+      background: var(--primary);
+      color: #FFFFFF;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 40px;
+      padding-bottom: 25px;
+      border-bottom: 2px solid var(--border);
+    }
+    .company-info {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+    .company-details h2 {
+      font-size: 20px;
+      color: var(--primary);
+      font-weight: 700;
+    }
+    .company-details p {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .doc-meta { text-align: right; }
+    .badge {
+      display: inline-block;
+      background: #F1F5F9;
+      color: var(--primary);
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .doc-meta p { font-size: 13px; color: var(--muted); }
+    h1 {
+      font-size: 28px;
+      color: var(--primary);
+      margin-bottom: 12px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .lead { font-size: 16px; color: var(--muted); margin-bottom: 30px; }
+    h2.section-title {
+      font-size: 18px;
+      color: var(--primary);
+      margin-top: 36px;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1.5px solid var(--primary);
+    }
+    h3 { font-size: 15px; color: var(--primary); margin: 20px 0 8px 0; }
+    p, ul, ol { margin-bottom: 14px; font-size: 14px; color: #334155; }
+    ul, ol { padding-left: 20px; }
+    li { margin-bottom: 6px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0 24px 0;
+      font-size: 13.5px;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      text-align: left;
+    }
+    th { background: var(--bg-light); color: var(--primary); font-weight: 600; }
+    .summary-card {
+      background: #F8FAFC;
+      border: 1px solid var(--border);
+      border-left: 5px solid var(--accent);
+      border-radius: 6px;
+      padding: 18px 24px;
+      margin: 20px 0;
+    }
+    .sign-off-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-top: 40px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+    .sign-block {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      background: var(--bg-light);
+    }
+    .sign-line {
+      margin-top: 40px;
+      border-bottom: 1px dashed var(--muted);
+      padding-bottom: 4px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    @media print {
+      body { background: #FFFFFF; padding: 0; }
+      .page { box-shadow: none; padding: 30px; max-width: 100%; border-radius: 0; }
+      .top-nav { display: none; }
+      .page-break { page-break-before: always; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="top-nav">
+      <a href="index.html">&larr; Back to Documentation Hub</a>
+      <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+    </div>
+
+    <header>
+      <div class="company-info">
+        <svg width="42" height="42" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="40" height="40" rx="6" fill="#9EFF00"/>
+          <path d="M7.22998 12.4749L19.9999 20V34.3662L7.22998 27.0691L7.22998 12.4749Z" fill="#1A1A1A"/>
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M21.1267 19.9899V32.4246L31.6431 26.4152V13.7927L21.1267 19.9899ZM32.77 27.0691L19.9999 34.3662V20L7.22998 12.4748L19.9999 5.63379L32.77 12.4748V27.0691ZM31.0524 12.833L19.9999 6.91205L9.52874 12.5216L20.5547 19.0191L31.0524 12.833Z" fill="#1A1A1A"/>
+        </svg>
+        <div class="company-details">
+          <h2>Nexus Development</h2>
+          <p>Custom Software Solutions | Bengaluru & Global</p>
+          <p style="font-size:11px;">https://nexusdevelopment.in | contactus@nexusdevelopment.in</p>
+        </div>
+      </div>
+      <div class="doc-meta">
+        <span class="badge">STATEMENT OF WORK (SOW)</span>
+        <p><strong>Contract Ref:</strong> NX-SOW-RK-2026-03</p>
+        <p><strong>Status:</strong> Final Deliverable Baseline</p>
+        <p><strong>Date:</strong> October 2026</p>
+      </div>
+    </header>
+
+    <h1>Statement of Work (SOW)</h1>
+    <p class="lead">Engagement Agreement for Direct-to-Consumer Food Ordering Platform & Kitchen Dispatch Engine</p>
+
+    <div class="summary-card">
+      <strong>Engagement Summary:</strong> This Statement of Work ("SOW") formalizes the scope of services, deliverables, milestone payments, and ongoing support terms agreed upon between <strong>Nexus Development</strong> ("Service Provider") and <strong>Raku's Kitchen</strong> ("Client"). This instrument documents the collaborative delivery cycle executed over the past 2 months resulting in a complete, live production solution.
+    </div>
+
+    <h2 class="section-title">1. Contracting Parties & Commercial Value</h2>
+    <table>
+      <tbody>
+        <tr>
+          <td style="width: 30%;"><strong>Service Provider</strong></td>
+          <td><strong>Nexus Development</strong> (Bengaluru, India | contactus@nexusdevelopment.in | https://nexusdevelopment.in)</td>
+        </tr>
+        <tr>
+          <td><strong>Client Entity</strong></td>
+          <td><strong>Raku's Kitchen</strong> (Jambusavari Dinne, JP Nagar 8th Phase, Bengaluru, Karnataka | Contact: +91 9606888096)</td>
+        </tr>
+        <tr>
+          <td><strong>Total Contract Price</strong></td>
+          <td><strong>₹80,000 INR</strong> (Fixed Price, Freelance Billing — Exempt from Goods and Services Tax)</td>
+        </tr>
+        <tr>
+          <td><strong>Engagement Timeline</strong></td>
+          <td>2 Months Agile Iterative Delivery (August 2026 – October 2026)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2 class="section-title">2. In-Scope Deliverables & Milestone Breakdown</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Milestone</th>
+          <th>Deliverables Summary</th>
+          <th>Percentage</th>
+          <th>Amount (INR)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Milestone 1: Inception & UI/UX Architecture</strong></td>
+          <td>
+            • Brand alignment & information architecture.<br>
+            • Mobile-first customer storefront UI layout.<br>
+            • Weight-based Biryani picker & portioning flow design.<br>
+            • Operational schedule & slot-booking UX.
+          </td>
+          <td>30%</td>
+          <td><strong>₹24,000</strong></td>
+        </tr>
+        <tr>
+          <td><strong>Milestone 2: Core Engineering & Integrations</strong></td>
+          <td>
+            • Next.js 14 App Router full-stack implementation.<br>
+            • Firebase Authentication (Phone OTP login).<br>
+            • Cloud Firestore data models & security rules.<br>
+            • Ola Maps autocomplete & reverse geocoding.<br>
+            • Razorpay Payment Gateway integration (prepayment).
+          </td>
+          <td>40%</td>
+          <td><strong>₹32,000</strong></td>
+        </tr>
+        <tr>
+          <td><strong>Milestone 3: Logistics Automation & Go-Live</strong></td>
+          <td>
+            • Real-time Admin Command Portal (<span style="font-family:monospace;">/admin</span>).<br>
+            • Borzo Business 1-Click Courier Dispatch API.<br>
+            • Porter manual deep-link dispatch helper.<br>
+            • WhatsApp contextual click-to-chat messaging.<br>
+            • Production deployment, load verification & handover.
+          </td>
+          <td>30%</td>
+          <td><strong>₹24,000</strong></td>
+        </tr>
+        <tr style="background: var(--bg-light); font-weight: 700;">
+          <td colspan="2"><strong>TOTAL CONTRACT VALUE</strong></td>
+          <td><strong>100%</strong></td>
+          <td><strong>₹80,000 INR</strong></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="page-break"></div>
+
+    <h2 class="section-title">3. Cloud Account & Infrastructure Ownership</h2>
+    <p>
+      In accordance with standard enterprise software governance, <strong>all third-party accounts, APIs, and cloud services are directly owned by and registered to the Client (Raku's Kitchen)</strong>. The Client maintains direct billing relationships with all third-party vendors:
+    </p>
+    <ul>
+      <li><strong>Google Cloud / Firebase:</strong> Firebase Auth, Cloud Firestore, Firebase Hosting/Storage.</li>
+      <li><strong>Razorpay:</strong> Merchant account, KYC verification, and payout settlement bank account.</li>
+      <li><strong>Ola Maps API:</strong> Map rendering and geocoding quota billings.</li>
+      <li><strong>Borzo & Porter:</strong> Business delivery accounts and rider recharge wallets.</li>
+    </ul>
+
+    <h2 class="section-title">4. Maintenance, Warranty & Ongoing Support Terms</h2>
+    <p>
+      The total contract value of <strong>₹80,000</strong> includes full warranty and ongoing maintenance support as follows:
+    </p>
+    <ul>
+      <li><strong>Included Without Additional Expense:</strong>
+        <ul>
+          <li>Full bug-fixing and technical support for all features and modules delivered under this SOW.</li>
+          <li>Ongoing minor operational changes including dish name changes, menu pricing updates, packaging fee adjustments, holiday hours changes, and operational banner updates.</li>
+        </ul>
+      </li>
+      <li><strong>Hourly Feature Expansion (Out of Scope):</strong>
+        <ul>
+          <li>Any major architectural additions or new feature modules (e.g., custom loyalty rewards, multi-branch kitchen support, native app builds) will be scoped separately and billed on a <strong>Time & Materials basis at ₹1,500/hour</strong>.</li>
+        </ul>
+      </li>
+    </ul>
+
+    <h2 class="section-title">5. Boundaries & Exclusions (Out of Scope)</h2>
+    <ul>
+      <li>Native mobile application builds submitted to the Apple App Store or Google Play Store (the delivered solution is a Progressive Web App).</li>
+      <li>Payment gateway transaction charges (Razorpay standard MDR fees are settled directly between Razorpay and Client).</li>
+      <li>Doorstep delivery rider fees (courier costs are paid directly by end customers to Borzo/Porter delivery riders).</li>
+      <li>Kitchen food preparation hardware or physical tablet/printer hardware procurement.</li>
+    </ul>
+
+    <h2 class="section-title">6. Acceptance & Formal Sign-off</h2>
+    <p>
+      Both parties hereby acknowledge and agree to the scope, milestones, and governance terms specified in this Statement of Work.
+    </p>
+
+    <div class="sign-off-grid">
+      <div class="sign-block">
+        <strong>Service Provider: Nexus Development</strong>
+        <p style="font-size:12px; color:var(--muted); margin-top:4px;">Lead Solutions Architect & Delivery Manager</p>
+        <div class="sign-line">Authorized Signatory & Date</div>
+      </div>
+      <div class="sign-block">
+        <strong>Client: Raku's Kitchen</strong>
+        <p style="font-size:12px; color:var(--muted); margin-top:4px;">Business Owner / Proprietor</p>
+        <div class="sign-line">Authorized Acceptance & Date</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

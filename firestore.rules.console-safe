@@ -63,5 +63,10 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdmin();
     }
+
+    // Centralized platform audit logs — read and written by admins
+    match /auditLogs/{logId} {
+      allow read, write: if isAdmin();
+    }
   }
 }
