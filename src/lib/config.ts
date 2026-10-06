@@ -17,4 +17,14 @@ export const BUSINESS = {
   lat: 12.8892,
   lng: 77.5985,
   kitchenAddress: "Jambusavari Dinne, JP Nagar 8th Phase, Bengaluru, Karnataka 560078",
+  // DPDP Act 2023 & DPDP Rules 2025: Designated Grievance Officer
+  grievanceOfficer: {
+    name: "Rakesh K.",
+    designation: "Data Protection & Grievance Officer",
+    email: "grievance@rakuskitchen.in",
+    backupEmail: "rakuskitchenblr@gmail.com",
+    phone: "+91 96068 88096",
+    address: "Jambusavari Dinne, JP Nagar 8th Phase, Bengaluru, Karnataka 560078",
+    slaDays: 15,
+  },
 } as const;

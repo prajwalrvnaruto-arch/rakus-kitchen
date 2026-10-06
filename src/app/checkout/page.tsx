@@ -119,6 +119,7 @@ export default function CheckoutPage() {
   const [addressComponents, setAddressComponents] = useState<AddressComponents | null>(null);
   const [meal, setMeal] = useState<MealOption | null>(null);
   const [notes, setNotes] = useState("");
+  const [consentAgreed, setConsentAgreed] = useState(false);
 
   const mealOptions = useMemo(() => upcomingMeals(7), []);
 
@@ -615,6 +616,26 @@ export default function CheckoutPage() {
                 value={addressComponents}
                 onChange={handleAddressChange}
               />
+              {addressComponents && (
+                <div className="mt-2.5 flex items-center justify-between text-xs text-soft">
+                  <span>📍 Coordinates saved locally for fast re-ordering</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAddressComponents(null);
+                      if (user?.uid) {
+                        try {
+                          window.localStorage.removeItem(`rk-address-v2-${user.uid}`);
+                        } catch { /* ignore */ }
+                      }
+                    }}
+                    className="font-medium text-chilidark underline hover:text-ink"
+                    title="Right to Erasure under DPDP Act: wipe saved address coordinates from this device"
+                  >
+                    Clear saved address
+                  </button>
+                </div>
+              )}
             </fieldset>
           ) : (
             <div className="card p-5">
@@ -650,6 +671,34 @@ export default function CheckoutPage() {
             />
           </fieldset>
 
+          {/* DPDP Act 2023 Statutory Affirmative Consent & Privacy Notice */}
+          <div className="rounded-2xl border border-line bg-cream/50 p-4 text-xs text-soft space-y-2">
+            <div className="flex items-center gap-1.5 font-semibold text-ink">
+              <span>🛡️</span>
+              <span>DPDP Act, 2023 Statutory Consent</span>
+            </div>
+            <label className="flex items-start gap-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                id="dpdp-affirmative-consent"
+                checked={consentAgreed}
+                onChange={(e) => setConsentAgreed(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-line text-chili focus:ring-chili shrink-0"
+                required
+              />
+              <span className="leading-relaxed text-ink/90">
+                I hereby grant affirmative consent to Raku&apos;s Kitchen to process my name, mobile number, and address strictly for meal preparation, rider dispatch, and status alerts as per the{" "}
+                <Link href="/privacy" target="_blank" className="font-semibold text-chilidark underline hover:text-ink">
+                  Privacy Policy
+                </Link>{" "}
+                and{" "}
+                <Link href="/terms" target="_blank" className="font-semibold text-chilidark underline hover:text-ink">
+                  Terms of Service
+                </Link>.
+              </span>
+            </label>
+          </div>
+
           {error && (
             <div className="rounded-xl border border-chili/30 bg-chili/5 px-4 py-3 text-sm font-medium text-chili" role="alert">
               <p>{error}</p>
@@ -661,7 +710,12 @@ export default function CheckoutPage() {
             </div>
           )}
 
-          <button type="submit" disabled={phase === "processing"} className="btn btn-chili w-full py-4 text-base">
+          <button
+            type="submit"
+            disabled={phase === "processing" || !consentAgreed}
+            className="btn btn-chili w-full py-4 text-base disabled:opacity-50"
+            title={!consentAgreed ? "Please check the consent box above to proceed" : ""}
+          >
             {phase === "processing" ? "Starting payment…" : `Pay ${formatINR(grandTotal)}`}
           </button>
         </form>

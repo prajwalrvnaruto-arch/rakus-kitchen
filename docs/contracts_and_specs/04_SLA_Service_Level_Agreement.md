@@ -4,7 +4,7 @@
 **Client Entity:** Raku's Kitchen (Bengaluru)  
 **Service Provider:** Nexus Development ([nexusdevelopment.in](https://nexusdevelopment.in))  
 **Agreement Ref:** `NX-SLA-RK-2026-04`  
-**Status:** Active Ongoing Governance (Included in ₹80,000 Scope)  
+**Status:** Active Ongoing Governance (Included in ₹1,50,000 Scope)  
 **Date:** October 2026  
 
 ---
@@ -14,11 +14,11 @@
 This Service Level Agreement ("SLA") establishes the operational, maintenance, and bug-support guarantees provided by **Nexus Development** for the **Raku’s Kitchen platform**.
 
 ### Core Terms:
-- **Included Under ₹80,000 Total Project Fee:**
+- **Included Under ₹1,50,000 Total Project Fee:**
   - 100% bug fixes and technical support for all delivered code (Next.js, Firebase Auth, Firestore, Razorpay, Ola Maps, Borzo API, and Admin console).
   - All ongoing routine operational updates (menu dish additions/removals, price adjustments, weight alterations, holiday calendar updates, packaging charge modifications) are performed at **zero additional cost**.
 - **New Feature Enhancements:**
-  - Any new functional module outside the signed SOW/PRD will be quoted in advance and billed on an **hourly basis at ₹1,500/hour** (Time & Materials).
+  - Any new functional module outside the signed SOW/PRD will be quoted in advance and billed on an **hourly basis at ₹600/hour** (Time & Materials).
 
 ---
 

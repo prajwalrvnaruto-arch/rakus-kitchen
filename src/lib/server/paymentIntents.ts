@@ -5,6 +5,7 @@ import { sanitizeFirestoreData } from "@/lib/sanitize";
 import { decideRateLimit } from "@/lib/rate-limit-policy";
 import { prepareMenuQuantityIncrements } from "./menuConfig";
 import { recordServerAuditLog } from "./auditLogServer";
+import { generateUniqueOrderId } from "./orderIdGenerator";
 import type { OrderDraft } from "@/lib/db";
 import type { FulfillmentType, Order, OrderStatus, PaymentMeta, StatusEvent } from "@/types";
 
@@ -140,18 +141,14 @@ export async function finalizePayment(params: {
     }
 
     // --- PHASE 1: ALL READS FIRST (Firestore requirement) ---
-    // Read the order-id counter doc
-    const counterRef = db.doc("meta/counters");
-    const counterSnap = await tx.get(counterRef);
+    // Generate unique, collision-free, non-sequential order ID (Option A: RK-XXXXX)
+    // Avoids German Tank Problem (business volume leakage) and eliminates meta/counters write contention
+    const orderId = await generateUniqueOrderId(tx);
 
     // Read all touched menu item config docs before any writes
     const applyMenuQuantities = await prepareMenuQuantityIncrements(tx, intent.draft.items);
 
     // --- PHASE 2: ALL WRITES AFTER ALL READS ARE COMPLETE ---
-    // Bump the human-friendly order-id counter
-    const next = ((counterSnap.data()?.nextOrder as number) ?? 0) + 1;
-    tx.set(counterRef, { nextOrder: next }, { merge: true });
-    const orderId = `RK-${String(next).padStart(5, "0")}`;
 
     const payment: PaymentMeta = {
       provider: "razorpay",

@@ -59,8 +59,17 @@ export function Footer() {
           </div>
         </div>
       </div>
-      <div className="border-t border-line/60 px-4 py-5 text-center text-xs text-soft">
-        © {new Date().getFullYear()} Raku&apos;s Kitchen · Pure Taste of Nati Style · Bangalore
+      <div className="border-t border-line/60 px-4 py-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-soft">
+        <p>© {new Date().getFullYear()} Raku&apos;s Kitchen · Pure Taste of Nati Style · Bangalore</p>
+        <div className="flex items-center gap-4">
+          <Link href="/privacy" className="hover:text-ink hover:underline">
+            Privacy Policy & DPDP Notice
+          </Link>
+          <span>·</span>
+          <Link href="/terms" className="hover:text-ink hover:underline">
+            Terms of Service
+          </Link>
+        </div>
       </div>
     </footer>
   );

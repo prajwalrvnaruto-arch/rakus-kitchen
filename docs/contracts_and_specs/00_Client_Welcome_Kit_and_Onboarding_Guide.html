@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Client Welcome Kit & Onboarding Guide — Raku's Kitchen | Nexus Development</title>
+  <style>
+    :root {
+      --primary: #0F172A;
+      --accent: #9EFF00;
+      --accent-dark: #7ac700;
+      --text: #1E293B;
+      --muted: #64748B;
+      --border: #E2E8F0;
+      --bg-light: #F8FAFC;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: var(--text);
+      background-color: #F1F5F9;
+      line-height: 1.6;
+      padding: 40px 20px;
+    }
+    .page {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #FFFFFF;
+      padding: 60px 70px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+    .top-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      padding-bottom: 15px;
+      border-bottom: 1px solid var(--border);
+    }
+    .top-nav a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .top-nav a:hover { color: var(--primary); }
+    .print-btn {
+      background: var(--primary);
+      color: #FFFFFF;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .print-btn:hover { background: #1E293B; }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 40px;
+      padding-bottom: 25px;
+      border-bottom: 2px solid var(--border);
+    }
+    .company-info {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+    .company-details h2 {
+      font-size: 20px;
+      color: var(--primary);
+      font-weight: 700;
+    }
+    .company-details p {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .doc-meta {
+      text-align: right;
+    }
+    .badge {
+      display: inline-block;
+      background: #ECFCCB;
+      color: #365314;
+      border: 1px solid #BEF264;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .doc-meta p {
+      font-size: 13px;
+      color: var(--muted);
+    }
+    h1 {
+      font-size: 28px;
+      color: var(--primary);
+      margin-bottom: 12px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+    }
+    .lead {
+      font-size: 16px;
+      color: var(--muted);
+      margin-bottom: 28px;
+    }
+    .welcome-card {
+      background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+      color: #FFFFFF;
+      padding: 28px 32px;
+      border-radius: 10px;
+      margin-bottom: 35px;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+      border-left: 6px solid var(--accent);
+    }
+    .welcome-card h3 {
+      font-size: 18px;
+      margin-bottom: 10px;
+      color: var(--accent);
+    }
+    .welcome-card p {
+      font-size: 14.5px;
+      line-height: 1.65;
+      color: #E2E8F0;
+      margin-bottom: 12px;
+    }
+    .welcome-card p:last-child {
+      margin-bottom: 0;
+    }
+    h2.section-title {
+      font-size: 18px;
+      color: var(--primary);
+      margin-top: 36px;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1.5px solid var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    p, li {
+      font-size: 14px;
+      color: var(--text);
+      line-height: 1.6;
+    }
+    ul, ol {
+      margin-left: 20px;
+      margin-bottom: 16px;
+    }
+    li { margin-bottom: 6px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0 24px;
+      font-size: 13.5px;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      text-align: left;
+    }
+    th {
+      background: var(--bg-light);
+      font-weight: 600;
+      color: var(--primary);
+    }
+    .callout {
+      background: var(--bg-light);
+      border-left: 4px solid var(--accent-dark);
+      padding: 16px 20px;
+      border-radius: 0 8px 8px 0;
+      margin: 20px 0;
+      font-size: 13.5px;
+    }
+    .routine-flow {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+      margin: 20px 0 28px;
+    }
+    .routine-step {
+      background: var(--bg-light);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      text-align: center;
+      position: relative;
+    }
+    .routine-step .step-num {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .routine-step .step-time {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 6px;
+    }
+    .routine-step .step-desc {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .growth-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin: 20px 0;
+    }
+    .growth-box {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px;
+      background: #FFFFFF;
+    }
+    .growth-box h4 {
+      font-size: 14.5px;
+      color: var(--primary);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .growth-box p {
+      font-size: 12.5px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .sign-off-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 30px;
+      margin-top: 45px;
+      padding-top: 25px;
+      border-top: 2px solid var(--border);
+    }
+    .sign-block {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 18px;
+      background: var(--bg-light);
+    }
+    .sign-line {
+      margin-top: 30px;
+      border-bottom: 1px dashed var(--muted);
+      padding-bottom: 4px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    @media print {
+      body { background: #FFFFFF; padding: 0; }
+      .page { box-shadow: none; padding: 20px 0; max-width: 100%; }
+      .top-nav { display: none; }
+      .page-break { page-break-before: always; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="top-nav">
+      <a href="index.html">&larr; Back to Documentation Hub</a>
+      <button class="print-btn" onclick="window.print()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+        Print / Save PDF
+      </button>
+    </div>
+
+    <header>
+      <div class="company-info">
+        <svg width="46" height="46" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="40" height="40" rx="6" fill="#9EFF00"/>
+          <path d="M7.22998 12.4749L19.9999 20V34.3662L7.22998 27.0691L7.22998 12.4749Z" fill="#1A1A1A"/>
+          <path fill-rule="evenodd" clip-rule="evenodd" d="M21.1267 19.9899V32.4246L31.6431 26.4152V13.7927L21.1267 19.9899ZM32.77 27.0691L19.9999 34.3662V20L7.22998 12.4748L19.9999 5.63379L32.77 12.4748V27.0691ZM31.0524 12.833L19.9999 6.91205L9.52874 12.5216L20.5547 19.0191L31.0524 12.833Z" fill="#1A1A1A"/>
+        </svg>
+        <div class="company-details">
+          <h2>Nexus Development</h2>
+          <p>Custom Software Solutions & IT Delivery</p>
+        </div>
+      </div>
+      <div class="doc-meta">
+        <span class="badge">ONBOARDING SUITE</span>
+        <p><strong>Ref:</strong> NX-CWK-RK-2026-00</p>
+        <p><strong>Date:</strong> October 2026</p>
+        <p><strong>Client:</strong> Raku's Kitchen</p>
+      </div>
+    </header>
+
+    <h1>Client Welcome Kit & Onboarding Guide</h1>
+    <p class="lead">Handover Playbook, Systems Directory & Operational Governance Guide</p>
+
+    <div class="welcome-card">
+      <h3>Welcome to Your Digital Platform, Raku's Kitchen!</h3>
+      <p>
+        On behalf of the entire engineering team at <strong>Nexus Development</strong>, congratulations on the official launch of your custom Direct-to-Consumer food ordering platform and automated kitchen dispatch engine!
+      </p>
+      <p>
+        Over the past two months, we engineered this platform to achieve a single mission: <strong>free Raku's Kitchen from high 25%–30% aggregator commissions</strong>, establish direct customer relationships, automate hyper-local Bengaluru courier delivery via Borzo & Porter, and give you complete control over your cloud kitchen revenue.
+      </p>
+    </div>
+
+    <h2 class="section-title">1. What Has Been Built & Delivered</h2>
+    <p>Your platform is built on modern, cloud-native technologies that ensure high performance and zero monthly hosting overhead:</p>
+    <table>
+      <thead>
+        <tr>
+          <th>System Layer</th>
+          <th>Technology</th>
+          <th>Operational Function</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Customer Storefront</strong></td>
+          <td>Next.js 14 App Router + Tailwind CSS</td>
+          <td>Mobile-first customer experience, Biryani portion weight selection (½ kg, 1 kg, multi-kg), and Lunch (12:30 PM) / Dinner (7:30 PM) slot scheduling.</td>
+        </tr>
+        <tr>
+          <td><strong>Customer Sign-In</strong></td>
+          <td>Firebase Phone OTP Authentication</td>
+          <td>Frictionless passwordless sign-in with verified mobile numbers. Zero lost passwords or forgotten logins.</td>
+        </tr>
+        <tr>
+          <td><strong>Database & Real-Time Sync</strong></td>
+          <td>Google Cloud Firestore</td>
+          <td>Instant, live synchronization between customer order placement and your kitchen management dashboard.</td>
+        </tr>
+        <tr>
+          <td><strong>Address & Geocoding</strong></td>
+          <td>Ola Maps API</td>
+          <td>Bengaluru hyper-local autocomplete and precise coordinates ensure riders arrive at the exact doorstep without confusing phone calls.</td>
+        </tr>
+        <tr>
+          <td><strong>Payments & Bank Settlements</strong></td>
+          <td>Razorpay PG + HMAC-SHA256 Webhooks</td>
+          <td>100% upfront prepayment via UPI, Cards, and Net Banking routed directly to Raku's Kitchen's bank account.</td>
+        </tr>
+        <tr>
+          <td><strong>Courier Automation</strong></td>
+          <td>Borzo 1-Click API + Porter Deep-Links</td>
+          <td>One-click courier dispatch with automated route calculation, rider phone assignment, and live parcel tracking.</td>
+        </tr>
+        <tr>
+          <td><strong>Admin Command Dashboard</strong></td>
+          <td><span style="font-family:monospace;">/admin</span> Real-Time Console</td>
+          <td>Live kitchen management: toggle preparation statuses, monitor daily cooking batches, and trigger rider assignments.</td>
+        </tr>
+        <tr>
+          <td><strong>Customer Messaging</strong></td>
+          <td>WhatsApp Click-to-Chat Engine</td>
+          <td>Instant WhatsApp notifications with rider contact info and tracking links sent directly to customers with a single click.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2 class="section-title">2. Master Access & Systems Directory</h2>
+    <p>All accounts and services are <strong>100% owned directly by Raku's Kitchen</strong>. You maintain complete administrative and financial ownership:</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Platform / Asset</th>
+          <th>Access Location</th>
+          <th>Primary Use Case</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Live Customer Storefront</strong></td>
+          <td><code>[Your Custom Domain]</code></td>
+          <td>Public customer menu, weight selection, slot picker, and payment checkout.</td>
+        </tr>
+        <tr>
+          <td><strong>Admin Command Dashboard</strong></td>
+          <td><code>[Your Domain]/admin</code></td>
+          <td>Kitchen order management, courier dispatch, and live status advancement.</td>
+        </tr>
+        <tr>
+          <td><strong>Google Cloud / Firebase Console</strong></td>
+          <td><code>console.firebase.google.com</code></td>
+          <td>Firestore database records, authentication logs, and security rules.</td>
+        </tr>
+        <tr>
+          <td><strong>Razorpay Merchant Dashboard</strong></td>
+          <td><code>dashboard.razorpay.com</code></td>
+          <td>Daily settlement tracking, customer payment details, and bank payouts.</td>
+        </tr>
+        <tr>
+          <td><strong>Ola Maps Developer Console</strong></td>
+          <td><code>maps.olacabs.com</code></td>
+          <td>Bengaluru geocoding usage and API quota metrics.</td>
+        </tr>
+        <tr>
+          <td><strong>Borzo Business Portal</strong></td>
+          <td><code>borzodelivery.com/in</code></td>
+          <td>Courier wallet recharge, rider history, and delivery dispute resolution.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="page-break"></div>
+
+    <h2 class="section-title">3. Daily Kitchen Operations Playbook (The 5-Step Routine)</h2>
+    <p>Follow this daily routine for seamless order batching and dispatch during your lunch and dinner windows:</p>
+
+    <div class="routine-flow">
+      <div class="routine-step">
+        <div class="step-num">Step 1</div>
+        <div class="step-time">10:00 AM</div>
+        <div class="step-desc">Open <code>/admin</code>. Verify menu availability and todays special items.</div>
+      </div>
+      <div class="routine-step">
+        <div class="step-num">Step 2</div>
+        <div class="step-time">11:30 AM</div>
+        <div class="step-desc">Review Lunch Slot orders. Tally total cooked weight and begin kitchen prep.</div>
+      </div>
+      <div class="routine-step">
+        <div class="step-num">Step 3</div>
+        <div class="step-time">12:15 PM</div>
+        <div class="step-desc">Click <strong>"Book Borzo Rider"</strong>. Rider coordinates populate automatically.</div>
+      </div>
+      <div class="routine-step">
+        <div class="step-num">Step 4</div>
+        <div class="step-time">12:30 PM</div>
+        <div class="step-desc">Hand over food packet to rider. Send 1-click WhatsApp tracking alert.</div>
+      </div>
+      <div class="routine-step">
+        <div class="step-num">Step 5</div>
+        <div class="step-time">8:30 PM</div>
+        <div class="step-desc">Complete Dinner Slot. Mark orders as delivered. Check Razorpay settlements.</div>
+      </div>
+    </div>
+
+    <h2 class="section-title">4. Ongoing Support, SLA & Maintenance Terms</h2>
+    <div class="callout">
+      <strong>Comprehensive 1-Year Support Included:</strong> Your ₹1,50,000 contract value includes ongoing maintenance, bug resolution, and operational support provided directly by Nexus Development.
+    </div>
+
+    <ul>
+      <li><strong>100% Free Under Ongoing Support:</strong>
+        <ul>
+          <li>All bug remediation across the storefront, database, Ola Maps, Borzo dispatch, and Razorpay PG.</li>
+          <li>Menu adjustments: adding/removing items, updating photos, descriptions, and portion weight tags.</li>
+          <li>Price adjustments: changing prices per kg or modifying the ₹20 packaging fee.</li>
+          <li>Operational updates: setting holiday closures, festival schedules, or lunch/dinner slot timings.</li>
+        </ul>
+      </li>
+      <li><strong>Major Feature Expansions (Out of Scope):</strong>
+        <ul>
+          <li>Brand-new capabilities (e.g., custom loyalty rewards, multi-branch kitchen support, native Android/iOS mobile apps) are quoted in advance at <strong>₹600/hour (Time & Materials)</strong>.</li>
+        </ul>
+      </li>
+      <li><strong>Support Channels:</strong>
+        <ul>
+          <li><strong>Urgent / Critical Incidents (P1/P2):</strong> Direct WhatsApp hotline to Nexus Project Lead (&lt; 1 hour response).</li>
+          <li><strong>Routine Updates & Menu Changes (P3/P4):</strong> Email to <code>contactus@nexusdevelopment.in</code> (&lt; 6 hours response).</li>
+          <li><strong>Operating Hours:</strong> 10:00 AM – 9:00 PM IST, Tuesday through Sunday.</li>
+        </ul>
+      </li>
+    </ul>
+
+    <h2 class="section-title">5. Four Growth Strategies to Maximize Kitchen ROI</h2>
+    <div class="growth-grid">
+      <div class="growth-box">
+        <h4>1. Direct Instagram Bio Link</h4>
+        <p>Update your Instagram bio link directly to your custom ordering portal with clear text: <em>"Order authentic Dum Biryani fresh — Lunch (12:30 PM) & Dinner (7:30 PM)"</em>.</p>
+      </div>
+      <div class="growth-box">
+        <h4>2. Packaging QR Code Stickers</h4>
+        <p>Place a small sticker on every parcel bag with a QR code pointing directly to your web app. Offer direct customers a complimentary sweet or free extra gravy.</p>
+      </div>
+      <div class="growth-box">
+        <h4>3. 24-Hr Advance Broadcasts</h4>
+        <p>Send a WhatsApp broadcast every Friday morning inviting customers to reserve their Saturday/Sunday Biryani slots in advance to avoid selling out.</p>
+      </div>
+      <div class="growth-box">
+        <h4>4. Enjoy 0% Aggregator Fee</h4>
+        <p>Since you save 25%–30% on every order through your own platform, you can maintain generous portion sizes and premium meat quality without inflating customer prices.</p>
+      </div>
+    </div>
+
+    <h2 class="section-title">6. Complete Documentation Suite</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Ref #</th>
+          <th>Document Title</th>
+          <th>Purpose & Details</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>01</strong></td>
+          <td><strong>Business Requirements Document (BRD)</strong></td>
+          <td>Business case, order state diagrams, ROI analysis, and operational constraints.</td>
+          <td><a href="01_BRD_Business_Requirements_Document.html">View BRD &rarr;</a></td>
+        </tr>
+        <tr>
+          <td><strong>02</strong></td>
+          <td><strong>Product Requirements Document (PRD)</strong></td>
+          <td>Full engineering specs: Next.js 14, Ola Maps, Borzo API, and Firestore schemas.</td>
+          <td><a href="02_PRD_Product_Requirements_Document.html">View PRD &rarr;</a></td>
+        </tr>
+        <tr>
+          <td><strong>03</strong></td>
+          <td><strong>Statement of Work (SOW)</strong></td>
+          <td>Contractual baseline, ₹1,50,000 commercial terms, and dual sign-off blocks.</td>
+          <td><a href="03_SOW_Statement_of_Work.html">View SOW &rarr;</a></td>
+        </tr>
+        <tr>
+          <td><strong>04</strong></td>
+          <td><strong>Service Level Agreement (SLA)</strong></td>
+          <td>Support tiering, MTTA/MTTR response matrix, and maintenance policy.</td>
+          <td><a href="04_SLA_Service_Level_Agreement.html">View SLA &rarr;</a></td>
+        </tr>
+        <tr>
+          <td><strong>05</strong></td>
+          <td><strong>Milestone Tax Invoices</strong></td>
+          <td>Master Statement of Account and Invoices 1, 2, and 3 with 1-click PDF print.</td>
+          <td><a href="05_Milestone_Invoices.html">View Invoices &rarr;</a></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="sign-off-grid">
+      <div class="sign-block">
+        <strong>Delivered By: Nexus Development</strong>
+        <p style="font-size:12px; color:var(--muted); margin-top:4px;">Solutions Architecture & Delivery Leadership</p>
+        <p style="font-size:12px; color:var(--muted);">https://nexusdevelopment.in</p>
+        <div class="sign-line">Authorized Signatory & Date</div>
+      </div>
+      <div class="sign-block">
+        <strong>Accepted By: Raku's Kitchen</strong>
+        <p style="font-size:12px; color:var(--muted); margin-top:4px;">Business Owner / Proprietor</p>
+        <p style="font-size:12px; color:var(--muted);">Jambusavari Dinne, JP Nagar 8th Phase, Bengaluru</p>
+        <div class="sign-line">Authorized Signatory & Date</div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

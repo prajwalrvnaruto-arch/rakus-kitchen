@@ -65,4 +65,4 @@
 ## 5. Stakeholder Matrix & Governance
 
 - **Client Primary (Raku's Kitchen):** Owner / Operator responsible for day-to-day order preparation, status updates, and customer relationship.
-- **Technology Partner (Nexus Development):** Senior Business Analyst and Project Delivery Lead overseeing cloud infrastructure setup, full-stack development, continuous system maintenance, and free menu/price updates under the ₹80,000 contract.
+- **Technology Partner (Nexus Development):** Senior Business Analyst and Project Delivery Lead overseeing cloud infrastructure setup, full-stack development, continuous system maintenance, and free menu/price updates under the ₹1,50,000 contract.

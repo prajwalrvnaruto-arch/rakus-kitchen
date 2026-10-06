@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   RecaptchaVerifier,
@@ -176,6 +177,16 @@ export function PhoneOtpForm() {
           >
             {busy ? "Sending code…" : "Send OTP"}
           </button>
+          <p className="pt-1 text-center text-[11px] leading-relaxed text-soft">
+            By signing in, you confirm you are 18+ years of age, agree to our{" "}
+            <Link href="/terms" className="text-chilidark underline hover:text-ink">
+              Terms of Service
+            </Link>{" "}
+            and acknowledge our{" "}
+            <Link href="/privacy" className="text-chilidark underline hover:text-ink">
+              Privacy Policy (DPDP Act, 2023)
+            </Link>.
+          </p>
         </form>
       ) : (
         <form onSubmit={verifyOtp} className="space-y-4">

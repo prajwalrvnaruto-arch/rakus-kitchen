@@ -13,6 +13,7 @@ import { waLinkToKitchen } from "@/lib/whatsapp";
 import { useClientOrderAlerts } from "@/lib/client-order-alerts-context";
 import { OrderStatusSteps } from "@/components/OrderStatusSteps";
 import { WhatsAppIcon } from "@/components/icons";
+import { BUSINESS } from "@/lib/config";
 import type { Order } from "@/types";
 
 // The customer-facing filter is simpler than the admin's: people think
@@ -254,6 +255,59 @@ export default function OrdersPage() {
           ))}
         </div>
       )}
+
+      {/* ── DPDP Act 2023: Customer Privacy & Data Protection Rights ── */}
+      <section className="mt-10 rounded-2xl border border-line bg-cream/40 p-5 text-xs text-soft space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line/60 pb-3">
+          <div className="flex items-center gap-2">
+            <span className="text-base">🛡️</span>
+            <h2 className="font-display text-sm font-bold text-ink">
+              Your Privacy &amp; Data Rights (DPDP Act, 2023)
+            </h2>
+          </div>
+          <span className="rounded-full bg-ok/10 border border-ok/30 px-2.5 py-0.5 text-[11px] font-semibold text-ok">
+            Data Principal Rights
+          </span>
+        </div>
+
+        <p className="leading-relaxed">
+          Signed in as <span className="font-semibold text-ink">{user?.phoneNumber || "Customer"}</span>.
+          Under the Digital Personal Data Protection Act, 2023, you have statutory rights to access your order history,
+          correct details, or request erasure of personal data that is no longer required for delivery or statutory accounting.
+        </p>
+
+        <div className="flex flex-wrap gap-2.5 pt-1">
+          <button
+            type="button"
+            onClick={() => {
+              if (user?.uid) {
+                try {
+                  window.localStorage.removeItem(`rk-address-v2-${user.uid}`);
+                  alert("Saved address coordinates have been wiped from this device.");
+                } catch { /* ignore */ }
+              }
+            }}
+            className="rounded-xl border border-line bg-paper px-3 py-2 text-xs font-semibold text-ink hover:border-chili transition"
+            title="Right to Erasure under Section 12 of DPDP Act"
+          >
+            🗑️ Wipe saved address from this device
+          </button>
+
+          <a
+            href={`mailto:${BUSINESS.grievanceOfficer.email}?subject=DPDP%20Data%20Request&body=Hi%20Grievance%20Officer%2C%0A%0AI%20am%20exercising%20my%20Data%20Principal%20rights%20under%20the%20DPDP%20Act%202023%20for%20phone%20number%20${user?.phoneNumber || ""}.`}
+            className="rounded-xl border border-line bg-paper px-3 py-2 text-xs font-semibold text-chilidark hover:underline flex items-center gap-1.5"
+          >
+            ⚖️ Contact Grievance Officer
+          </a>
+
+          <Link
+            href="/privacy"
+            className="rounded-xl border border-line bg-paper px-3 py-2 text-xs font-semibold text-ink hover:text-chilidark hover:underline"
+          >
+            Read Privacy Notice →
+          </Link>
+        </div>
+      </section>
     </div>
   );
 }
