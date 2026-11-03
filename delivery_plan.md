@@ -129,7 +129,7 @@ Customer's Phone / Browser
 - [ ] **Set budget alert at ₹100/month** (Google Cloud Console → Billing → Budgets)
 - [x] Enable Cloud Firestore (production mode, Native database in Mumbai)
 - [x] Enable Firebase Authentication (Email/Password & Authorized domains configured)
-- [ ] Enable Firebase App Hosting
+- [x] Enable Firebase App Hosting (Deployed live at https://rakus-kitchen--rakus-kitchen-prod.asia-southeast1.hosted.app)
 - [x] Generate Service Account key for `firebase-admin` (configured in .env.production)
 - [ ] Invite your developer account as Editor during setup phase
 - [x] Migrate Firestore Security Rules from dev project (deployed via CLI)
@@ -173,7 +173,7 @@ Customer's Phone / Browser
 - [x] Verify `.env.local`, `.env`, `.env.production`, and all `.json` service account files are in `.gitignore`
 - [x] Create `.env.example` with variable names only (no real values)
 - [x] Map public and secret environment variables in `apphosting.yaml`
-- [ ] Configure all secrets in Firebase App Hosting dashboard / Cloud Secret Manager (encrypted at rest):
+- [x] Configure all secrets in Firebase App Hosting / Cloud Secret Manager (encrypted at rest):
   - `CASHFREE_APP_ID`
   - `CASHFREE_SECRET_KEY`
   - `CASHFREE_WEBHOOK_SECRET`
