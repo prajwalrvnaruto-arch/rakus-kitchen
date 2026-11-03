@@ -1,0 +1,97 @@
+# Firebase App Hosting Configuration for Raku's Kitchen (rakuskitchen.com)
+# Option A: 100% Free Tier Architecture (₹0/month)
+# Server-side secrets are securely configured directly in the Firebase App Hosting
+# Dashboard environment settings or Cloud Secret Manager (encrypted at rest, zero git exposure).
+
+runConfig:
+  minInstances: 0
+  maxInstances: 5
+  concurrency: 80
+  cpu: 1
+  memoryMiB: 512
+
+# Environment variables
+env:
+  # ── Public Frontend Config (Available at Build and Runtime) ───────────
+  - variable: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: AIzaSyD3OmRAo36YkmTTr5uzs-8xgnM0s9np6l8
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: rakus-kitchen-prod.firebaseapp.com
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: rakus-kitchen-prod
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: rakus-kitchen-prod.firebasestorage.app
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "60738298875"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: 1:60738298875:web:1b6d99c6c2ad8c0a40215e
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: NEXT_PUBLIC_EMULATOR
+    value: "false"
+    availability:
+      - BUILD
+      - RUNTIME
+  - variable: BORZO_API_BASE
+    value: https://robot-in.borzodelivery.com/api/business/1.8
+    availability:
+      - RUNTIME
+
+  # ── Secret Server-Side Variables (Injected via Cloud Secret Manager) ──
+  - variable: FIREBASE_ADMIN_PROJECT_ID
+    secret: FIREBASE_ADMIN_PROJECT_ID
+    availability:
+      - RUNTIME
+  - variable: FIREBASE_ADMIN_CLIENT_EMAIL
+    secret: FIREBASE_ADMIN_CLIENT_EMAIL
+    availability:
+      - RUNTIME
+  - variable: FIREBASE_ADMIN_PRIVATE_KEY
+    secret: FIREBASE_ADMIN_PRIVATE_KEY
+    availability:
+      - RUNTIME
+  - variable: OLA_MAPS_API_KEY
+    secret: OLA_MAPS_API_KEY
+    availability:
+      - RUNTIME
+  - variable: BORZO_API_KEY
+    secret: BORZO_API_KEY
+    availability:
+      - RUNTIME
+  - variable: FAST2SMS_API_KEY
+    secret: FAST2SMS_API_KEY
+    availability:
+      - RUNTIME
+  - variable: FAST2SMS_SECRET_SALT
+    secret: FAST2SMS_SECRET_SALT
+    availability:
+      - RUNTIME
+  - variable: CASHFREE_APP_ID
+    secret: CASHFREE_APP_ID
+    availability:
+      - RUNTIME
+  - variable: CASHFREE_SECRET_KEY
+    secret: CASHFREE_SECRET_KEY
+    availability:
+      - RUNTIME
+  - variable: CASHFREE_WEBHOOK_SECRET
+    secret: CASHFREE_WEBHOOK_SECRET
+    availability:
+      - RUNTIME
+

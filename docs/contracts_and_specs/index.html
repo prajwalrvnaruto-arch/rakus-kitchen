@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Nexus Development & Raku's Kitchen — Project Documentation Hub</title>
+  <title>Nexus Development & Raku's Kitchen — Project Documentation & E-Sign Portal</title>
+  <link rel="stylesheet" href="esignature.css">
   <style>
     :root {
       --nexus-lime: #9EFF00;
@@ -12,6 +13,7 @@
       --nexus-border: #334155;
       --nexus-text: #F8FAFC;
       --nexus-muted: #94A3B8;
+      --nexus-green: #10B981;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -22,7 +24,7 @@
       padding: 40px 20px;
     }
     .container {
-      max-width: 1100px;
+      max-width: 1120px;
       margin: 0 auto;
     }
     header {
@@ -48,6 +50,11 @@
       font-size: 13px;
       color: var(--nexus-muted);
     }
+    .header-badges {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
     .header-badge {
       background: rgba(158, 255, 0, 0.12);
       border: 1px solid var(--nexus-lime);
@@ -60,7 +67,7 @@
       text-transform: uppercase;
     }
     .hero {
-      background: linear-gradient(135deg, rgba(30, 41, 59, 0.8) 0%, rgba(15, 23, 42, 0.95) 100%);
+      background: linear-gradient(135deg, rgba(30, 41, 59, 0.85) 0%, rgba(15, 23, 42, 0.98) 100%);
       border: 1px solid var(--nexus-border);
       border-radius: 16px;
       padding: 32px;
@@ -73,9 +80,9 @@
       position: absolute;
       top: -50px;
       right: -50px;
-      width: 200px;
-      height: 200px;
-      background: radial-gradient(circle, rgba(158, 255, 0, 0.15) 0%, transparent 70%);
+      width: 250px;
+      height: 250px;
+      background: radial-gradient(circle, rgba(158, 255, 0, 0.12) 0%, transparent 70%);
       pointer-events: none;
     }
     .hero h2 {
@@ -86,14 +93,67 @@
     .hero p {
       color: var(--nexus-muted);
       font-size: 15px;
-      max-width: 800px;
-      margin-bottom: 20px;
+      max-width: 860px;
+      margin-bottom: 24px;
     }
+
+    /* Live E-Signature Progress Bar */
+    .sign-progress-box {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 18px 24px;
+      margin-bottom: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .sign-progress-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .sign-progress-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #E2E8F0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .sign-progress-count {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--nexus-lime);
+    }
+    .progress-bar-track {
+      width: 100%;
+      height: 10px;
+      background: #334155;
+      border-radius: 999px;
+      overflow: hidden;
+      position: relative;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #9EFF00 0%, #10B981 100%);
+      width: 0%;
+      border-radius: 999px;
+      transition: width 0.4s ease;
+    }
+    .sign-progress-note {
+      font-size: 12px;
+      color: var(--nexus-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+
     .meta-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 16px;
-      margin-top: 24px;
       padding-top: 20px;
       border-top: 1px solid rgba(255,255,255,0.08);
     }
@@ -113,9 +173,10 @@
       font-weight: 600;
       color: #FFFFFF;
     }
+
     .doc-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
       gap: 24px;
       margin-bottom: 40px;
     }
@@ -135,14 +196,52 @@
       transform: translateY(-2px);
       box-shadow: 0 10px 24px -10px rgba(0,0,0,0.5);
     }
+    .doc-card.is-signed {
+      border-color: #10B981;
+      background: linear-gradient(180deg, #1E293B 0%, rgba(16, 185, 129, 0.08) 100%);
+    }
+
+    .doc-tag-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
     .doc-tag {
       font-size: 11px;
       font-weight: 700;
       letter-spacing: 0.5px;
       text-transform: uppercase;
       color: var(--nexus-lime);
-      margin-bottom: 8px;
     }
+    
+    .hub-sign-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .hub-sign-badge.unsigned {
+      background: rgba(245, 158, 11, 0.15);
+      color: #FBBF24;
+      border: 1px solid rgba(245, 158, 11, 0.4);
+    }
+    .hub-sign-badge.signed {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34D399;
+      border: 1px solid rgba(16, 185, 129, 0.5);
+    }
+    .hub-sign-badge.exempt {
+      background: rgba(148, 163, 184, 0.15);
+      color: #94A3B8;
+      border: 1px solid rgba(148, 163, 184, 0.3);
+    }
+
     .doc-card h3 {
       font-size: 19px;
       color: #FFFFFF;
@@ -163,20 +262,31 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      padding: 9px 18px;
+      gap: 6px;
+      padding: 10px 18px;
       border-radius: 8px;
       font-size: 13px;
       font-weight: 600;
       text-decoration: none;
       cursor: pointer;
-      transition: background 0.15s ease;
+      transition: all 0.15s ease;
     }
     .btn-primary {
       background-color: var(--nexus-lime);
       color: #0F172A;
+      flex-grow: 1;
     }
     .btn-primary:hover {
       background-color: #8be000;
+      transform: translateY(-1px);
+    }
+    .btn-signed {
+      background-color: #10B981;
+      color: #FFFFFF;
+      flex-grow: 1;
+    }
+    .btn-signed:hover {
+      background-color: #059669;
     }
     .btn-outline {
       border: 1px solid var(--nexus-border);
@@ -187,16 +297,26 @@
       border-color: #64748B;
       background: rgba(255,255,255,0.05);
     }
-    footer {
-      text-align: center;
-      padding: 30px 0;
-      color: var(--nexus-muted);
-      font-size: 13px;
-      border-top: 1px solid var(--nexus-border);
-    }
-    footer a {
-      color: var(--nexus-lime);
-      text-decoration: none;
+
+    @media (max-width: 768px) {
+      body { padding: 16px 12px; }
+      header { flex-direction: column; gap: 14px; align-items: stretch; margin-bottom: 24px; padding-bottom: 16px; }
+      .brand { gap: 12px; }
+      .brand-title h1 { font-size: 20px; }
+      .header-badges { justify-content: flex-start; }
+      .hero { padding: 20px 16px; border-radius: 12px; margin-bottom: 24px; }
+      .hero h2 { font-size: 20px; }
+      .hero p { font-size: 13.5px; margin-bottom: 16px; }
+      .sign-progress-box { padding: 14px 16px; margin-bottom: 16px; }
+      .sign-progress-note { flex-direction: column; gap: 4px; }
+      .meta-grid { grid-template-columns: 1fr 1fr; gap: 12px; padding-top: 14px; }
+      .meta-label { font-size: 11px; }
+      .meta-value { font-size: 13.5px; }
+      .doc-grid { grid-template-columns: 1fr; gap: 16px; margin-bottom: 24px; }
+      .doc-card { padding: 18px 16px; }
+      .doc-card h3 { font-size: 17px; }
+      .doc-card .actions { flex-direction: column; width: 100%; gap: 8px; }
+      .doc-card .actions .btn { width: 100%; }
     }
   </style>
 </head>
@@ -215,15 +335,34 @@
           <p>Custom Software Solutions & Enterprise IT Delivery</p>
         </div>
       </div>
-      <div class="header-badge">Delivery Sign-Off Package</div>
+      <div class="header-badges">
+        <div class="header-badge">Delivery Sign-Off Package</div>
+      </div>
     </header>
 
     <div class="hero">
-      <h2>Project Documentation & Governance Portal</h2>
+      <h2>Project Documentation & E-Sign Portal</h2>
       <p>
-        Official Project Management & Business Analysis suite for <strong>Raku's Kitchen Direct-to-Consumer Cloud Kitchen & Catering Platform</strong>. 
-        All documents below represent the formalized baseline, technical specifications, legal agreements, service level guarantees, and milestone billing schedule developed and delivered over the past 2-month discovery and agile execution cycle.
+        Official Project Management, Specification, and Legal Governance portal for <strong>Raku's Kitchen Direct-to-Consumer Cloud Kitchen & Catering Platform</strong>. 
+        Please review and digitally execute each agreement below. All digital signatures are sealed with cryptographic SHA-256 timestamps in compliance with Section 10A of the Information Technology Act, 2000.
       </p>
+
+      <!-- Live E-Signature Progress Bar Widget -->
+      <div class="sign-progress-box">
+        <div class="sign-progress-top">
+          <span class="sign-progress-title">
+            <span>✍️</span> Client Execution Progress
+          </span>
+          <span class="sign-progress-count" id="signCountLabel">0 of 5 Executed</span>
+        </div>
+        <div class="progress-bar-track">
+          <div class="progress-bar-fill" id="progressBarFill"></div>
+        </div>
+        <div class="sign-progress-note">
+          <span id="signProgressSubtext">Please review and adopt electronic signatures for documents 00 through 04.</span>
+          <span style="color: #94A3B8;">Invoices (05) are commercial billing and do not require signing.</span>
+        </div>
+      </div>
 
       <div class="meta-grid">
         <div class="meta-item">
@@ -236,87 +375,166 @@
         </div>
         <div class="meta-item">
           <span class="meta-label">Total Contract Value</span>
-          <span class="meta-value">₹1,50,000 INR (Exempt/No-GST)</span>
+          <span class="meta-value">₹55,000 INR (Fixed Price)</span>
         </div>
         <div class="meta-item">
-          <span class="meta-label">Delivery Status</span>
-          <span class="meta-value" style="color: var(--nexus-lime);">Live & Production Ready</span>
+          <span class="meta-label">Deployment Schedule</span>
+          <span class="meta-value" style="color: var(--nexus-lime);">Go-Live 20 Days Post-Signing</span>
         </div>
       </div>
     </div>
 
     <div class="doc-grid">
       <!-- 00: Welcome Kit -->
-      <div class="doc-card" style="border: 2px solid var(--nexus-lime);">
-        <div class="doc-tag" style="background:#ECFCCB; color:#365314; border:1px solid #BEF264;">00 • Client Onboarding</div>
+      <div class="doc-card" id="card_doc_00_welcome">
+        <div class="doc-tag-row">
+          <div class="doc-tag">00 • Client Onboarding</div>
+          <span class="hub-sign-badge unsigned" id="badge_doc_00_welcome">Pending Sign-off</span>
+        </div>
         <h3>Client Welcome Kit & Handover Guide</h3>
         <p>Executive welcome letter, delivered technology overview, master credentials directory, daily 5-step kitchen operations routine, growth recommendations, and SLA summary.</p>
         <div class="actions">
-          <a href="00_Client_Welcome_Kit_and_Onboarding_Guide.html" class="btn btn-primary">Open Guide</a>
-          <a href="00_Client_Welcome_Kit_and_Onboarding_Guide.md" class="btn btn-outline">Markdown</a>
+          <a href="00_Client_Welcome_Kit_and_Onboarding_Guide.html" class="btn btn-primary" id="btn_doc_00_welcome">
+            Review & Sign &rarr;
+          </a>
         </div>
       </div>
 
       <!-- 01: BRD -->
-      <div class="doc-card">
-        <div class="doc-tag">01 • Business Analysis</div>
+      <div class="doc-card" id="card_doc_01_brd">
+        <div class="doc-tag-row">
+          <div class="doc-tag">01 • Business Analysis</div>
+          <span class="hub-sign-badge unsigned" id="badge_doc_01_brd">Pending Sign-off</span>
+        </div>
         <h3>Business Requirements Document (BRD)</h3>
         <p>Comprehensive business case, AS-IS vs. TO-BE ordering workflows, operational rules (lunch/dinner slots, advance notice), ROI calculation, and business KPI governance.</p>
         <div class="actions">
-          <a href="01_BRD_Business_Requirements_Document.html" class="btn btn-primary">Open Document</a>
-          <a href="01_BRD_Business_Requirements_Document.md" class="btn btn-outline">Markdown</a>
+          <a href="01_BRD_Business_Requirements_Document.html" class="btn btn-primary" id="btn_doc_01_brd">
+            Review & Sign &rarr;
+          </a>
         </div>
       </div>
 
       <!-- 02: PRD -->
-      <div class="doc-card">
-        <div class="doc-tag">02 • Product Architecture</div>
+      <div class="doc-card" id="card_doc_02_prd">
+        <div class="doc-tag-row">
+          <div class="doc-tag">02 • Product Architecture</div>
+          <span class="hub-sign-badge unsigned" id="badge_doc_02_prd">Pending Sign-off</span>
+        </div>
         <h3>Product Requirements Document (PRD)</h3>
-        <p>Complete technical and functional specifications: Next.js 14, Firebase Auth OTP, Ola Maps Geocoding, Razorpay Payment lifecycle, Borzo 1-Click courier API, and Admin live console.</p>
+        <p>Complete technical and functional specifications: Next.js 14, Phone OTP Auth, Ola Maps Geocoding, Razorpay Payment lifecycle, Borzo 1-Click courier API, and Admin live console.</p>
         <div class="actions">
-          <a href="02_PRD_Product_Requirements_Document.html" class="btn btn-primary">Open Document</a>
-          <a href="02_PRD_Product_Requirements_Document.md" class="btn btn-outline">Markdown</a>
+          <a href="02_PRD_Product_Requirements_Document.html" class="btn btn-primary" id="btn_doc_02_prd">
+            Review & Sign &rarr;
+          </a>
         </div>
       </div>
 
       <!-- 03: SOW -->
-      <div class="doc-card">
-        <div class="doc-tag">03 • Legal Contract</div>
+      <div class="doc-card" id="card_doc_03_sow">
+        <div class="doc-tag-row">
+          <div class="doc-tag">03 • Legal Contract</div>
+          <span class="hub-sign-badge unsigned" id="badge_doc_03_sow">Pending Sign-off</span>
+        </div>
         <h3>Statement of Work (SOW)</h3>
-        <p>Contractual scope baseline, milestone breakdown, client responsibilities, out-of-scope boundaries, change management procedure, and dual-party signature sign-off blocks.</p>
+        <p>Contractual scope baseline, commercial breakdown (₹50k Web App with 1-Year Maintenance & Bug-Fix Warranty, ₹5k Domain & Cloud Hosting), client responsibilities, out-of-scope boundaries, and sign-off blocks.</p>
         <div class="actions">
-          <a href="03_SOW_Statement_of_Work.html" class="btn btn-primary">Open Document</a>
-          <a href="03_SOW_Statement_of_Work.md" class="btn btn-outline">Markdown</a>
+          <a href="03_SOW_Statement_of_Work.html" class="btn btn-primary" id="btn_doc_03_sow">
+            Review & Sign &rarr;
+          </a>
         </div>
       </div>
 
       <!-- 04: SLA -->
-      <div class="doc-card">
-        <div class="doc-tag">04 • Governance & AMC</div>
+      <div class="doc-card" id="card_doc_04_sla">
+        <div class="doc-tag-row">
+          <div class="doc-tag">04 • Governance & AMC</div>
+          <span class="hub-sign-badge unsigned" id="badge_doc_04_sla">Pending Sign-off</span>
+        </div>
         <h3>Service Level Agreement (SLA)</h3>
-        <p>Severity matrices (P1–P4), response & resolution MTTR, free bug-fix warranty, zero-cost menu & price updates included in ₹1,50,000 contract, plus ₹600/hr new feature rate.</p>
+        <p>Severity matrices (P1–P4), response & resolution MTTR, 1-year free bug-fix warranty, zero-cost menu & price updates included in ₹55,000 contract value, plus ₹600/hr new feature rate.</p>
         <div class="actions">
-          <a href="04_SLA_Service_Level_Agreement.html" class="btn btn-primary">Open Document</a>
-          <a href="04_SLA_Service_Level_Agreement.md" class="btn btn-outline">Markdown</a>
+          <a href="04_SLA_Service_Level_Agreement.html" class="btn btn-primary" id="btn_doc_04_sla">
+            Review & Sign &rarr;
+          </a>
         </div>
       </div>
 
-      <!-- 05: Invoices -->
-      <div class="doc-card">
-        <div class="doc-tag">05 • Commercials & Billing</div>
-        <h3>Milestone Tax Invoices (1, 2 & 3)</h3>
-        <p>Formal commercial billing package totaling ₹1,50,000 split across 3 milestones: Milestone 1 (₹45,000), Milestone 2 (₹60,000), and Milestone 3 (₹45,000) with 1-click print-to-PDF layout.</p>
+      <!-- 05: Invoices (No E-Sign Required) -->
+      <div class="doc-card" style="border-left: 3px solid #64748B;">
+        <div class="doc-tag-row">
+          <div class="doc-tag" style="color: #94A3B8;">05 • Commercials & Billing</div>
+          <span class="hub-sign-badge exempt">Tax Invoices (No Sign Required)</span>
+        </div>
+        <h3>Commercial Tax Invoices (1 & 2)</h3>
+        <p>Formal commercial billing package totaling ₹55,000 all-inclusive contract value (₹50k Web App with 1-Yr Maintenance, ₹5k Domain & Cloud Hosting) with 1-click print-to-PDF layout.</p>
         <div class="actions">
-          <a href="05_Milestone_Invoices.html" class="btn btn-primary">Open Invoices</a>
-          <a href="05_Milestone_Invoices.md" class="btn btn-outline">Markdown</a>
+          <a href="05_Milestone_Invoices.html" class="btn btn-primary" style="background:#334155; color:#F8FAFC;">
+            View Invoices &rarr;
+          </a>
+          <a href="05_Milestone_Invoices.html" class="btn btn-outline" onclick="window.open('05_Milestone_Invoices.html'); return false;">
+            🖨️ Print PDF
+          </a>
         </div>
       </div>
     </div>
 
     <footer>
       <p>&copy; 2026 Nexus Development. All rights reserved. | <a href="https://nexusdevelopment.in" target="_blank">nexusdevelopment.in</a> | contactus@nexusdevelopment.in</p>
-      <p style="margin-top: 6px; font-size: 12px; color: #64748B;">Documents formatted for browser viewing, print-to-PDF rendering, and contractual binding.</p>
+      <p style="margin-top: 6px; font-size: 12px; color: #64748B;">Official Client Documentation Suite & SecureSign Governance System.</p>
     </footer>
   </div>
+
+  <script src="esignature.js"></script>
+  <script>
+    // Master Hub Progress & Status Updater
+    (function () {
+      const DOC_KEYS = ['doc_00_welcome', 'doc_01_brd', 'doc_02_prd', 'doc_03_sow', 'doc_04_sla'];
+      let signedCount = 0;
+
+      DOC_KEYS.forEach(key => {
+        const status = NexusSign.getSignStatus(key);
+        const badge = document.getElementById('badge_' + key);
+        const card = document.getElementById('card_' + key);
+        const btn = document.getElementById('btn_' + key);
+
+        if (status) {
+          signedCount++;
+          if (badge) {
+            badge.className = 'hub-sign-badge signed';
+            badge.innerHTML = '✓ Signed & Verified';
+          }
+          if (card) {
+            card.classList.add('is-signed');
+          }
+          if (btn) {
+            btn.className = 'btn btn-signed';
+            btn.innerHTML = 'View Signed Copy &rarr;';
+          }
+        } else {
+          if (badge) {
+            badge.className = 'hub-sign-badge unsigned';
+            badge.innerHTML = 'Pending Sign-off';
+          }
+        }
+      });
+
+      const fill = document.getElementById('progressBarFill');
+      const countLabel = document.getElementById('signCountLabel');
+      const subtext = document.getElementById('signProgressSubtext');
+      const pct = Math.round((signedCount / DOC_KEYS.length) * 100);
+
+      if (fill) fill.style.width = pct + '%';
+      if (countLabel) countLabel.textContent = `${signedCount} of ${DOC_KEYS.length} Executed (${pct}%)`;
+
+      if (subtext) {
+        if (signedCount === DOC_KEYS.length) {
+          subtext.innerHTML = '<strong style="color:#10B981;">🎉 All 5 governance and specification documents have been fully signed and certified!</strong>';
+        } else {
+          subtext.textContent = `${DOC_KEYS.length - signedCount} document${DOC_KEYS.length - signedCount === 1 ? '' : 's'} remaining for client digital signature.`;
+        }
+      }
+    })();
+  </script>
 </body>
 </html>

@@ -12,6 +12,8 @@ import { waLinkToCustomer } from "@/lib/whatsapp";
 import { launchPorterAppDeepLink, buildPorterClipboardData } from "@/lib/porterDeepLink";
 import { useAdminAlerts } from "@/lib/admin-alerts-context";
 import { subscribeRecentAuditLogs } from "@/lib/auditLogger";
+import { AdminDeliveryModal, type DeliveryModalState } from "@/components/AdminDeliveryModal";
+import { AdminAnalyticsTab } from "@/components/AdminAnalyticsTab";
 import type { Order, OrderStatus, AuditLogEntry } from "@/types";
 import { ORDER_STATUSES } from "@/types";
 
@@ -26,14 +28,15 @@ const STATUS_COLORS: Record<OrderStatus, string> = {
 
 // Which slice of orders the dashboard shows. Defaults to "active" so completed
 // and cancelled orders stay out of the kitchen's way unless asked for.
-type OrderFilter = "active" | "delivered" | "cancelled" | "all";
+type OrderFilter = "active" | "delivered" | "cancelled" | "all" | "analytics";
 const FILTER_KEY = "rakus-kitchen-admin-filter-v1";
-const FILTERS: OrderFilter[] = ["active", "delivered", "cancelled", "all"];
+const FILTERS: OrderFilter[] = ["active", "delivered", "cancelled", "all", "analytics"];
 const FILTER_LABELS: Record<OrderFilter, string> = {
   active: "Active",
   delivered: "Delivered",
   cancelled: "Cancelled",
   all: "All",
+  analytics: "📊 Analytics",
 };
 
 export default function AdminPage() {
@@ -45,6 +48,7 @@ export default function AdminPage() {
   const [showTools, setShowTools] = useState(false);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [showAuditLogs, setShowAuditLogs] = useState(true);
+  const [pageModal, setPageModal] = useState<DeliveryModalState | null>(null);
 
   // Subscribe to recent audit logs when Tools panel is open
   useEffect(() => {
@@ -71,7 +75,13 @@ export default function AdminPage() {
       await updateOrderStatus(orderToAccept.id, "Preparing", user?.email ?? undefined);
       alerts.acknowledgeOrder(orderToAccept.id);
     } catch (err) {
-      alert(`Could not accept order ${orderToAccept.orderId}: ${(err as Error).message}`);
+      setPageModal({
+        type: "error",
+        carrier: "general",
+        title: "Could Not Accept Order",
+        message: (err as Error).message,
+        orderId: orderToAccept.orderId,
+      });
     } finally {
       setAcceptingOrderId(null);
     }
@@ -85,7 +95,12 @@ export default function AdminPage() {
       }
       alerts.acknowledge();
     } catch (err) {
-      alert(`Could not accept all orders: ${(err as Error).message}`);
+      setPageModal({
+        type: "error",
+        carrier: "general",
+        title: "Could Not Accept All Orders",
+        message: (err as Error).message,
+      });
     } finally {
       setAcceptingOrderId(null);
     }
@@ -133,7 +148,12 @@ export default function AdminPage() {
       // Re-run the full check so every row refreshes.
       setAccess(await checkAdminAccess(user?.email));
     } catch (e) {
-      alert(`Failed to create admin doc: ${(e as Error).message}`);
+      setPageModal({
+        type: "error",
+        carrier: "general",
+        title: "Admin Setup Failed",
+        message: (e as Error).message,
+      });
     } finally {
       setChecking(false);
     }
@@ -141,7 +161,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (loading) return;
-    if (!user) router.replace("/login?next=%2Fadmin");
+    if (!user) router.replace("/admin/login?next=%2Fadmin");
   }, [loading, user, router]);
 
   if (loading) return <div className="mx-auto max-w-5xl px-4 py-12 text-center text-soft">Loading…</div>;
@@ -154,14 +174,14 @@ export default function AdminPage() {
         <span className="text-5xl" aria-hidden>🔒</span>
         <h1 className="section-title mt-4">Admins only</h1>
         <p className="mt-2 text-sm text-soft">
-          You&apos;re signed in as <span className="font-semibold text-ink">{user.phoneNumber ?? user.email ?? user.uid}</span> ({user.uid}),
+          You&apos;re signed in as <span className="font-semibold text-ink">{user.email ?? user.phoneNumber ?? user.uid}</span> ({user.uid}),
           but this account isn&apos;t on the admin list. An existing admin needs to add it under{" "}
           <code className="rounded bg-cream px-1.5 py-0.5 text-xs">/admins/&lt;your-uid&gt;</code> in Firestore.
         </p>
         <div className="mt-5 flex justify-center gap-2">
           <Link href="/orders" className="btn btn-ghost px-4 py-2 text-xs">My orders</Link>
-          <button onClick={() => { signOut(auth!); router.push("/"); }} className="btn btn-ghost px-4 py-2 text-xs">
-            Sign out
+          <button onClick={() => { signOut(auth!); router.push("/admin/login"); }} className="btn btn-ghost px-4 py-2 text-xs">
+            Sign out & Switch
           </button>
         </div>
       </div>
@@ -208,11 +228,12 @@ export default function AdminPage() {
     return false;
   };
 
-  const filterCounts: Record<OrderFilter, number> = {
+  const filterCounts: Record<OrderFilter, number | string> = {
     active: active.length,
     delivered: counts.Delivered ?? 0,
     cancelled: counts.Cancelled ?? 0,
     all: (orders ?? []).length,
+    analytics: "Insights",
   };
 
   // The "all" view renders archived orders separately in a collapsed group,
@@ -678,7 +699,7 @@ export default function AdminPage() {
 
       {/* Search — counts on the filter tabs already summarize state, so the
           five status tiles are gone. This narrows within the active tab. */}
-      {orders !== null && orders.length > 0 && (
+      {orders !== null && orders.length > 0 && filter !== "analytics" && (
         <div className="mb-4 relative">
           <input
             type="search"
@@ -757,38 +778,47 @@ export default function AdminPage() {
             })}
           </div>
 
-          <div role="tabpanel" id="orders-panel" aria-labelledby={`filter-tab-${filter}`} className="space-y-4">
-            {visibleOrders.length === 0 && filter !== "all" && (
-              <div className="card p-8 text-center text-sm text-soft">{EMPTY_MESSAGES[filter]}</div>
-            )}
+          {filter === "analytics" ? (
+            <div role="tabpanel" id="orders-panel" aria-labelledby="filter-tab-analytics">
+              <AdminAnalyticsTab orders={orders ?? []} />
+            </div>
+          ) : (
+            <div role="tabpanel" id="orders-panel" aria-labelledby={`filter-tab-${filter}`} className="space-y-4">
+              {visibleOrders.length === 0 && filter !== "all" && (
+                <div className="card p-8 text-center text-sm text-soft">{EMPTY_MESSAGES[filter]}</div>
+              )}
 
-            {visibleOrders.map((order) => (
-              <AdminOrderCard key={order.id} order={order} archived={filter !== "active" && filter !== "all"} />
-            ))}
+              {visibleOrders.map((order) => (
+                <AdminOrderCard key={order.id} order={order} archived={filter !== "active" && filter !== "all"} />
+              ))}
 
-            {/* In the All view, finished orders sit in a collapsed group below active ones. */}
-            {filter === "all" && archivedOrders.filter(matchesSearch).length > 0 && (
-              <details className="group">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl border border-line bg-cream/40 px-4 py-3 text-sm font-semibold text-ink">
-                  <span>Delivered &amp; Cancelled ({archivedOrders.filter(matchesSearch).length})</span>
-                  <span className="text-xs text-soft group-open:hidden">Show</span>
-                  <span className="hidden text-xs text-soft group-open:inline">Hide</span>
-                </summary>
-                <div className="mt-4 space-y-4">
-                  {archivedOrders.filter(matchesSearch).map((order) => (
-                    <AdminOrderCard key={order.id} order={order} archived />
-                  ))}
-                </div>
-              </details>
-            )}
-          </div>
+              {/* In the All view, finished orders sit in a collapsed group below active ones. */}
+              {filter === "all" && archivedOrders.filter(matchesSearch).length > 0 && (
+                <details className="group">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl border border-line bg-cream/40 px-4 py-3 text-sm font-semibold text-ink">
+                    <span>Delivered &amp; Cancelled ({archivedOrders.filter(matchesSearch).length})</span>
+                    <span className="text-xs text-soft group-open:hidden">Show</span>
+                    <span className="hidden text-xs text-soft group-open:inline">Hide</span>
+                  </summary>
+                  <div className="mt-4 space-y-4">
+                    {archivedOrders.filter(matchesSearch).map((order) => (
+                      <AdminOrderCard key={order.id} order={order} archived />
+                    ))}
+                  </div>
+                </details>
+              )}
+            </div>
+          )}
         </>
       )}
+
+      {/* Raku's Kitchen Styled Admin Modal */}
+      <AdminDeliveryModal modal={pageModal} onClose={() => setPageModal(null)} />
     </div>
   );
 }
 
-const EMPTY_MESSAGES: Record<Exclude<OrderFilter, "all">, string> = {
+const EMPTY_MESSAGES: Record<Exclude<OrderFilter, "all" | "analytics">, string> = {
   active: "No active orders right now. New ones will appear here.",
   delivered: "No delivered orders yet.",
   cancelled: "No cancelled orders.",
@@ -895,13 +925,8 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
   const [bookingBusy, setBookingBusy] = useState(false);
   // Per-field "just copied" flags so each row's button can show its own tick.
   const [copied, setCopied] = useState<Record<string, boolean>>({});
-  // ShadowFax fare calculator: separate from bookingBusy so fetching a quote
-  // doesn't disable the other carriers' buttons.
-  const [quoteBusy, setQuoteBusy] = useState(false);
-  const [quote, setQuote] = useState<
-    { fareEstimate: number; distanceKm?: number; etaMinutes?: number; mock?: boolean } | null
-  >(null);
-  const [quoteError, setQuoteError] = useState<string | null>(null);
+  const [deliveryModal, setDeliveryModal] = useState<DeliveryModalState | null>(null);
+  const [deliveryError, setDeliveryError] = useState<{ carrier: string; message: string } | null>(null);
   const time = new Date(order.createdAt).toLocaleString("en-IN", {
     day: "numeric", month: "short", hour: "numeric", minute: "2-digit",
   });
@@ -916,36 +941,41 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
       console.error(err);
       const e = err as Error;
       const code = e.name === "FirebaseError" ? (err as { code?: string }).code ?? "" : "";
-      alert(
-        `Couldn't update the status.\n\n${e.message ?? "Unknown error"}${code ? `\n\n(code: ${code})` : ""}`,
-      );
+      const errorMsg = `Couldn't update status: ${e.message ?? "Unknown error"}${code ? ` (${code})` : ""}`;
+      setDeliveryError({ carrier: "Order Status", message: errorMsg });
+      setDeliveryModal({
+        type: "error",
+        carrier: "general",
+        title: "Status Update Failed",
+        message: errorMsg,
+        orderId: order.orderId,
+      });
     } finally {
       setBusy(false);
     }
   };
 
   /**
-   * Books a Borzo delivery ride (Automated 1-Click API).
+   * Executes the actual Borzo booking API call after confirmation.
    */
-  const handleBookBorzo = async () => {
-    const dropAddress = order.addressComponents
-      ? `${order.addressComponents.doorAndBuilding}, ${order.addressComponents.displayAddress}${
-          order.addressComponents.landmark ? ` (Landmark: ${order.addressComponents.landmark})` : ""
-        }`
-      : order.deliveryAddress;
-
-    if (!confirm(
-      `Book 1-click Borzo delivery for ${order.orderId}?\n\n` +
-      `Customer: ${order.customerName}\n` +
-      `Drop: ${dropAddress}`,
-    )) return;
-
+  const executeBookBorzo = async (dropAddress: string) => {
     setBookingBusy(true);
+    setDeliveryModal({
+      type: "confirm",
+      carrier: "borzo",
+      orderId: order.orderId,
+      customerName: order.customerName,
+      customerPhone: order.phone,
+      dropAddress,
+      isBusy: true,
+      onConfirm: () => {},
+    });
+
     try {
       const res = await fetch("/api/delivery/borzo", {
         method: "POST",
-        // Borzo route is admin-gated — send the admin's ID token, same as the
-        // Shadowfax handlers, or requireAdmin returns 401.
+        // Borzo route is admin-gated — send the admin's ID token, or
+        // requireAdmin returns 401.
         headers: await authHeaders(),
         body: JSON.stringify({
           orderId: order.orderId,
@@ -975,35 +1005,54 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
       });
 
       await updateOrderStatus(order.id, "Out for Delivery", user?.email ?? undefined);
-      // No implicit WhatsApp popup here — the standard per-status "Message
-      // customer" button below sends the Out-for-Delivery message manually,
-      // consistent with every other status (and avoids a surprise tab in mock mode).
+      setDeliveryError(null);
 
-      if (data.mock) {
-        alert(
-          `✅ Borzo Delivery Booked (MOCK MODE)\n\n` +
-          `Order ID: ${data.carrierOrderId}\n` +
-          `Fare Estimate: ₹${data.fareEstimate}\n\n` +
-          `Set BORZO_API_KEY in .env.local for real Borzo bookings.`,
-        );
-      }
+      setDeliveryModal({
+        type: "success",
+        carrier: "borzo",
+        orderId: order.orderId,
+        carrierOrderId: data.carrierOrderId,
+        fareEstimate: data.fareEstimate,
+        trackingUrl: data.trackingUrl,
+        mock: data.mock,
+      });
     } catch (err) {
-      alert(`Borzo delivery booking failed: ${(err as Error).message}`);
+      const errorMsg = (err as Error).message || "Borzo delivery booking failed";
+      setDeliveryError({ carrier: "Borzo", message: errorMsg });
+      setDeliveryModal({
+        type: "error",
+        carrier: "borzo",
+        title: "Borzo Booking Failed",
+        message: errorMsg,
+        orderId: order.orderId,
+        onRetry: () => executeBookBorzo(dropAddress),
+      });
     } finally {
       setBookingBusy(false);
     }
   };
 
-  /** Build the drop address + coordinates once — reused by ShadowFax quote & booking. */
-  const dropForShadowfax = () => ({
-    dropAddress: order.addressComponents
+  /**
+   * Books a Borzo delivery ride (Automated 1-Click API) via styled confirmation modal.
+   */
+  const handleBookBorzo = () => {
+    const dropAddress = order.addressComponents
       ? `${order.addressComponents.doorAndBuilding}, ${order.addressComponents.displayAddress}${
           order.addressComponents.landmark ? ` (Landmark: ${order.addressComponents.landmark})` : ""
         }`
-      : order.deliveryAddress,
-    dropLat: order.addressComponents?.lat,
-    dropLng: order.addressComponents?.lng,
-  });
+      : order.deliveryAddress;
+
+    setDeliveryModal({
+      type: "confirm",
+      carrier: "borzo",
+      orderId: order.orderId,
+      customerName: order.customerName,
+      customerPhone: order.phone,
+      dropAddress,
+      isBusy: false,
+      onConfirm: () => executeBookBorzo(dropAddress),
+    });
+  };
 
   /** Attaches the admin's Firebase ID token to a request to the guarded routes. */
   const authHeaders = async (): Promise<Record<string, string>> => {
@@ -1014,99 +1063,6 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
       headers.Authorization = `Bearer ${token}`;
     }
     return headers;
-  };
-
-  /** Fetches a ShadowFax fare estimate before booking (advisory — never gates booking). */
-  const handleShadowfaxQuote = async () => {
-    setQuoteBusy(true);
-    setQuoteError(null);
-    try {
-      const res = await fetch("/api/delivery/shadowfax/quote", {
-        method: "POST",
-        headers: await authHeaders(),
-        body: JSON.stringify(dropForShadowfax()),
-      });
-      const data = (await res.json()) as {
-        fareEstimate?: number;
-        distanceKm?: number;
-        etaMinutes?: number;
-        mock?: boolean;
-        error?: string;
-      };
-      if (!res.ok || data.error || data.fareEstimate === undefined) {
-        throw new Error(data.error || `Fare quote failed (${res.status})`);
-      }
-      setQuote({
-        fareEstimate: data.fareEstimate,
-        distanceKm: data.distanceKm,
-        etaMinutes: data.etaMinutes,
-        mock: data.mock,
-      });
-    } catch (err) {
-      setQuoteError((err as Error).message);
-    } finally {
-      setQuoteBusy(false);
-    }
-  };
-
-  /** Books a ShadowFax delivery ride (authenticated 1-click API). */
-  const handleBookShadowfax = async () => {
-    const drop = dropForShadowfax();
-
-    if (!confirm(
-      `Book ShadowFax delivery for ${order.orderId}?\n\n` +
-      `Customer: ${order.customerName}\n` +
-      `Drop: ${drop.dropAddress}` +
-      (quote ? `\nEstimated fare: ₹${quote.fareEstimate}` : ""),
-    )) return;
-
-    setBookingBusy(true);
-    try {
-      const res = await fetch("/api/delivery/shadowfax", {
-        method: "POST",
-        headers: await authHeaders(),
-        body: JSON.stringify({
-          orderId: order.orderId,
-          customerName: order.customerName,
-          customerPhone: order.phone,
-          ...drop,
-        }),
-      });
-
-      const data = (await res.json()) as {
-        carrierId?: string;
-        carrierOrderId?: string;
-        fareEstimate?: number;
-        trackingUrl?: string;
-        mock?: boolean;
-        error?: string;
-      };
-
-      if (!res.ok || data.error) throw new Error(data.error || `ShadowFax API error (${res.status})`);
-
-      await updateDeliveryMeta(order.id, {
-        carrierId: data.carrierId || "shadowfax",
-        carrierOrderId: data.carrierOrderId,
-        fareEstimate: data.fareEstimate,
-        bookedAt: Date.now(),
-        trackingUrl: data.trackingUrl,
-      });
-
-      await updateOrderStatus(order.id, "Out for Delivery", user?.email ?? undefined);
-
-      if (data.mock) {
-        alert(
-          `✅ ShadowFax Delivery Booked (MOCK MODE)\n\n` +
-          `Order ID: ${data.carrierOrderId}\n` +
-          `Fare Estimate: ₹${data.fareEstimate}\n\n` +
-          `Set SHADOWFAX_API_KEY in .env.local for real ShadowFax bookings.`,
-        );
-      }
-    } catch (err) {
-      alert(`ShadowFax delivery booking failed: ${(err as Error).message}`);
-    } finally {
-      setBookingBusy(false);
-    }
   };
 
   /** Show delivery options only when cooking is done or preparing, ride not yet booked,
@@ -1201,7 +1157,7 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
                   card wider than the screen on a long tracking URL / carrier id. */}
               <span className="min-w-0 break-words">
                 <span className="font-semibold text-ink">
-                  {({ borzo: "Borzo", porter: "Porter", shadowfax: "ShadowFax" } as Record<string, string>)[
+                  {({ borzo: "Borzo", porter: "Porter" } as Record<string, string>)[
                     order.deliveryMeta.carrierId ?? ""
                   ] ?? "Delivery"}{" "}
                   booked
@@ -1241,7 +1197,16 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
                 {bookingBusy ? "Booking Borzo..." : "⚡ Book via Borzo (1-Click API)"}
               </button>
               <button
-                onClick={() => launchPorterAppDeepLink(order)}
+                onClick={() =>
+                  launchPorterAppDeepLink(order, (notice) =>
+                    setDeliveryModal({
+                      type: "notice",
+                      title: notice.title,
+                      message: notice.message,
+                      orderId: order.orderId,
+                    }),
+                  )
+                }
                 disabled={bookingBusy || busy}
                 className="rounded-xl border border-turmeric/60 bg-paper px-4 py-2 text-xs font-bold text-ink transition hover:bg-turmeric/10 disabled:opacity-50"
                 title="Opens installed Porter App directly & copies address for 1-tap paste"
@@ -1249,36 +1214,47 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
                 📱 Open Porter App (1-Tap Paste)
               </button>
 
-              {/* ShadowFax — fare calculator (quote) + 1-click booking */}
-              <div className="rounded-xl border border-greenburn/40 bg-greenburn/5 p-2">
-                <button
-                  onClick={handleShadowfaxQuote}
-                  disabled={quoteBusy || bookingBusy || busy}
-                  className="w-full rounded-lg border border-greenburn/50 bg-paper px-4 py-2 text-xs font-bold text-greenburn transition hover:bg-greenburn/10 disabled:opacity-50"
-                  title="Fetches a ShadowFax delivery fare estimate before booking"
-                >
-                  {quoteBusy ? "Getting fare…" : "💰 Get ShadowFax fare"}
-                </button>
-                {quote && (
-                  <p className="mt-1.5 px-1 text-[11px] text-ink">
-                    📍{quote.distanceKm !== undefined ? ` ~${quote.distanceKm} km ·` : ""} est.{" "}
-                    <span className="font-bold">₹{quote.fareEstimate}</span>
-                    {quote.etaMinutes !== undefined ? ` · ~${quote.etaMinutes} min` : ""}
-                    {quote.mock ? " (mock)" : ""}
+              {/* In-Card Delivery / Dispatch Error Callout */}
+              {deliveryError && (
+                <div className="rounded-xl border border-chili/30 bg-chili/5 p-2.5 text-xs text-chilidark">
+                  <div className="flex items-start justify-between gap-1.5">
+                    <div className="flex items-center gap-1 font-bold text-chili">
+                      <span>⚠️</span>
+                      <span>{deliveryError.carrier} Error</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setDeliveryError(null)}
+                      className="px-1 font-bold text-soft hover:text-ink"
+                      title="Dismiss error banner"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                  <p className="mt-1 text-[11px] leading-relaxed text-ink break-words">
+                    {deliveryError.message}
                   </p>
-                )}
-                {quoteError && (
-                  <p className="mt-1.5 px-1 text-[11px] text-chili">Couldn&apos;t fetch fare: {quoteError}</p>
-                )}
-                <button
-                  onClick={handleBookShadowfax}
-                  disabled={bookingBusy || busy}
-                  className="mt-1.5 w-full rounded-lg bg-greenburn px-4 py-2.5 text-xs font-bold text-paper shadow-sm transition hover:bg-greenburn/85 disabled:opacity-50"
-                  title="Books a rider via the ShadowFax partner API with pre-filled details"
-                >
-                  {bookingBusy ? "Booking ShadowFax…" : "⚡ Book via ShadowFax"}
-                </button>
-              </div>
+                  <div className="mt-2 flex items-center gap-2">
+                    {deliveryError.carrier === "Borzo" && (
+                      <button
+                        type="button"
+                        onClick={handleBookBorzo}
+                        disabled={bookingBusy || busy}
+                        className="rounded-lg bg-turmeric px-2.5 py-1 text-[11px] font-bold text-inkdark hover:bg-turmeric/80 transition"
+                      >
+                        Retry Borzo
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setDeliveryError(null)}
+                      className="rounded-lg border border-line bg-paper px-2 py-1 text-[11px] font-semibold text-soft hover:text-ink transition"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <PorterCopyHelper order={order} copied={copied} setCopied={setCopied} />
             </div>
@@ -1356,6 +1332,9 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
           </div>
         </div>
       </div>
+
+      {/* Raku's Kitchen Styled Delivery Modal */}
+      <AdminDeliveryModal modal={deliveryModal} onClose={() => setDeliveryModal(null)} />
     </article>
   );
 }

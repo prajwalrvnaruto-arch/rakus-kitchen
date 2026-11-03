@@ -1,10 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/lib/auth-context";
 import { waMeLink } from "@/lib/whatsapp";
 import { CATERING_MENU, formatINR } from "@/lib/menu";
 import { WhatsAppIcon } from "@/components/icons";
+import { BUSINESS } from "@/lib/config";
+import { HOLIDAY_WEEKDAYS, NO_SUNDAY_DINNER } from "@/lib/order-dates";
+import { AddressPicker } from "@/components/AddressPicker";
+import type { AddressComponents, MealSlot } from "@/types";
 
 const EVENT_TYPES = [
   "Wedding", "Birthday", "Engagement/Roce", "Housewarming", "Office event",
@@ -19,17 +25,97 @@ const PERKS = [
 ];
 
 export default function CateringPage() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+
   const [eventType, setEventType] = useState(EVENT_TYPES[0]);
   const [date, setDate] = useState("");
+  const [slot, setSlot] = useState<MealSlot>("Lunch");
   const [guests, setGuests] = useState("");
+  const [venueAddress, setVenueAddress] = useState<AddressComponents | null>(null);
   const [details, setDetails] = useState("");
+
+  // Address search / "My location" proxy to billable Ola Maps calls that
+  // require a signed-in user — same reason checkout requires sign-in.
+  useEffect(() => {
+    if (!loading && !user) router.replace("/login?next=%2Fcatering");
+  }, [loading, user, router]);
+
+  const handleAddressChange = useCallback((addr: AddressComponents | null) => {
+    setVenueAddress(addr);
+  }, []);
+
+  // Minimum date is tomorrow (orders must be placed at least 1 day in advance)
+  const minDateStr = useMemo(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return `${tomorrow.getFullYear()}-${String(tomorrow.getMonth() + 1).padStart(2, "0")}-${String(
+      tomorrow.getDate(),
+    ).padStart(2, "0")}`;
+  }, []);
+
+  // Check schedule constraints matching regular orders (Mon/Thu closed, Sunday dinner not served).
+  // These are hard blocks for catering too — the enquiry can't be sent until the
+  // customer picks a valid date/slot, rather than just showing a soft warning.
+  const scheduleWarning = useMemo(() => {
+    if (!date) return null;
+    const [y, m, d] = date.split("-").map(Number);
+    const chosen = new Date(y, m - 1, d);
+    const dow = chosen.getDay();
+
+    if (HOLIDAY_WEEKDAYS.includes(dow)) {
+      return "⚠️ Raku's Kitchen is closed on Mondays & Thursdays. Catering can't be scheduled on this day — please pick another date.";
+    }
+    if (slot === "Dinner" && NO_SUNDAY_DINNER && dow === 0) {
+      return "⚠️ Sunday dinner is not served. Please choose Lunch for this date, or pick a different date for a Dinner event.";
+    }
+    return null;
+  }, [date, slot]);
+
+  // Hard block: a date has been chosen and it falls on a closed day (Mon/Thu),
+  // or it's a Sunday with Dinner selected. Blocks sending the enquiry entirely,
+  // not just a warning — matches the Mon/Thu/Sunday-dinner rule regular orders enforce.
+  const scheduleBlocked = useMemo(() => {
+    if (!date) return false;
+    const [y, m, d] = date.split("-").map(Number);
+    const dow = new Date(y, m - 1, d).getDay();
+    if (HOLIDAY_WEEKDAYS.includes(dow)) return true;
+    if (slot === "Dinner" && NO_SUNDAY_DINNER && dow === 0) return true;
+    return false;
+  }, [date, slot]);
+
+  const addressValid = !!venueAddress;
+  const canSend = !scheduleBlocked && addressValid;
+
+  const formattedDate = useMemo(() => {
+    if (!date) return "To be decided (looking for availability)";
+    const [y, m, d] = date.split("-").map(Number);
+    const chosen = new Date(y, m - 1, d);
+    return chosen.toLocaleDateString("en-IN", {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  }, [date]);
+
+  const readyTime = slot === "Lunch" ? BUSINESS.readyLunch : BUSINESS.readyDinner;
 
   const message = [
     "🎉 *Raku's Kitchen — Catering Enquiry*",
     "",
     `Event: ${eventType}`,
-    `Date: ${date || "To be decided (looking for availability)"}`,
+    `Date: ${formattedDate}`,
+    `Meal Slot: ${slot} (Ready by ${readyTime})`,
     `Approx. guests: ${guests || "Not sure yet"}`,
+    `Drop location: ${
+      venueAddress
+        ? `${venueAddress.displayAddress}${
+            venueAddress.doorAndBuilding ? `, ${venueAddress.doorAndBuilding}` : ""
+          }${venueAddress.landmark ? ` (near ${venueAddress.landmark})` : ""}`
+        : "Not provided"
+    }`,
+    scheduleWarning ? `Note: ${scheduleWarning.replace(/^⚠️\s*/, "")}` : "",
     details ? `Details: ${details}` : "",
   ].filter(Boolean).join("\n");
 
@@ -67,14 +153,65 @@ export default function CateringPage() {
             ))}
           </select>
 
+          {/* Meal Slot Picker (Lunch vs Dinner timeline) */}
+          <div className="mb-4">
+            <label className="mb-1.5 block text-sm font-semibold">Meal Slot</label>
+            <div className="grid grid-cols-2 gap-2.5">
+              <button
+                type="button"
+                onClick={() => setSlot("Lunch")}
+                className={`rounded-xl border-2 px-3 py-2.5 text-left transition ${
+                  slot === "Lunch"
+                    ? "border-chili bg-chili/5 font-semibold text-chilidark shadow-sm"
+                    : "border-line bg-paper text-ink hover:border-soft"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-sm">☀️ Lunch</span>
+                  {slot === "Lunch" && <span className="text-chili text-xs font-bold">✓ Selected</span>}
+                </div>
+                <span className="mt-1 block text-xs text-soft">Ready by {BUSINESS.readyLunch}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSlot("Dinner")}
+                className={`rounded-xl border-2 px-3 py-2.5 text-left transition ${
+                  slot === "Dinner"
+                    ? "border-chili bg-chili/5 font-semibold text-chilidark shadow-sm"
+                    : "border-line bg-paper text-ink hover:border-soft"
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-sm">🌙 Dinner</span>
+                  {slot === "Dinner" && <span className="text-chili text-xs font-bold">✓ Selected</span>}
+                </div>
+                <span className="mt-1 block text-xs text-soft">Ready by {BUSINESS.readyDinner}</span>
+              </button>
+            </div>
+            <p className="mt-1.5 text-[11px] text-soft">
+              Lunch ready {BUSINESS.readyLunch} · Dinner ready {BUSINESS.readyDinner} · Closed Mon &amp; Thu · Sunday dinner not served
+            </p>
+          </div>
+
           <label htmlFor="date" className="mb-1.5 block text-sm font-semibold">Event date</label>
           <input
             id="date"
             type="date"
+            min={minDateStr}
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="field mb-4"
+            className="field mb-2"
           />
+          <p className="mb-3 text-[11px] text-soft">
+            Catering orders must be planned at least 1 day in advance.
+          </p>
+
+          {scheduleWarning && (
+            <div className="mb-4 rounded-xl border border-turmeric/50 bg-turmeric/10 p-3 text-xs text-ink leading-relaxed animate-fade-in">
+              {scheduleWarning}
+            </div>
+          )}
 
           <label htmlFor="guests" className="mb-1.5 block text-sm font-semibold">Approximate guests</label>
           <input
@@ -88,6 +225,17 @@ export default function CateringPage() {
             className="field mb-4"
           />
 
+          <label className="mb-1.5 block text-sm font-semibold">
+            Event / drop location{" "}
+            <span className="text-chili" aria-hidden>*</span>
+          </label>
+          <div className="mb-4">
+            <AddressPicker value={venueAddress} onChange={handleAddressChange} />
+          </div>
+          <p className="-mt-3 mb-4 text-[11px] text-soft">
+            So we can quote delivery and plan logistics for your event.
+          </p>
+
           <label htmlFor="details" className="mb-1.5 block text-sm font-semibold">Anything else?</label>
           <textarea
             id="details"
@@ -98,10 +246,36 @@ export default function CateringPage() {
             className="field mb-5 resize-none"
           />
 
-          <a href={href} target="_blank" rel="noopener noreferrer" className="btn btn-chili w-full">
-            <WhatsAppIcon className="h-5 w-5" />
-            Send catering enquiry
-          </a>
+          {scheduleBlocked ? (
+            <button
+              type="button"
+              disabled
+              className="btn btn-chili w-full cursor-not-allowed opacity-50"
+              title="Pick a date Raku's Kitchen is open for"
+            >
+              <WhatsAppIcon className="h-5 w-5" />
+              Choose a different date to send enquiry
+            </button>
+          ) : (
+            <a
+              href={canSend ? href : undefined}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-disabled={!canSend}
+              onClick={(e) => {
+                if (!canSend) e.preventDefault();
+              }}
+              className={`btn btn-chili w-full ${!canSend ? "cursor-not-allowed opacity-50" : ""}`}
+            >
+              <WhatsAppIcon className="h-5 w-5" />
+              Send catering enquiry ({slot} · Ready {readyTime})
+            </a>
+          )}
+          {!addressValid && !scheduleBlocked && (
+            <p className="mt-2 text-[11px] text-soft">
+              Add the event / drop location above to send your enquiry.
+            </p>
+          )}
         </div>
 
         {/* Perks */}

@@ -2,15 +2,15 @@
 
 import {
   addDoc, collection, doc, getDoc, getDocs,
-  onSnapshot, query, runTransaction, serverTimestamp, setDoc,
-  updateDoc, where, writeBatch, type Unsubscribe,
+  limit, onSnapshot, orderBy, query, runTransaction, serverTimestamp, setDoc,
+  startAfter, updateDoc, where, writeBatch, type Unsubscribe, type QueryDocumentSnapshot,
 } from "firebase/firestore";
 import { getIdToken, getIdTokenResult } from "firebase/auth";
 import { auth, db } from "./firebase";
 import { sanitizeFirestoreData } from "./sanitize";
 import { recordAuditLog } from "./auditLogger";
 import type { MenuItemConfig } from "./menuLimits";
-import type { AddressComponents, DeliveryMeta, FulfillmentType, Order, OrderLineItem, OrderStatus, StatusEvent } from "@/types";
+import type { AddressComponents, DeliveryMeta, FulfillmentType, Order, OrderLineItem, OrderStatus, PaymentMeta, StatusEvent } from "@/types";
 
 /* ── Order creation ────────────────────────────────────────────────────── */
 //
@@ -59,6 +59,15 @@ export function subscribeMyOrders(
   );
 }
 
+// How many most-recent orders the live admin dashboard listener keeps subscribed
+// to. This is what stops subscribeAllOrders from downloading the full order
+// history as volume grows — the listener is capped by document count (not a
+// date window, since Firestore can't combine "most recent N" with a plain date
+// range without a composite index). 500 comfortably covers the live kitchen
+// view (active + recently archived orders); it is NOT used for Analytics "All
+// Time" / CSV export, which calls fetchAllOrdersOnce below instead.
+const LIVE_ORDERS_LIMIT = 500;
+
 export function subscribeAllOrders(
   onOrders: (orders: Order[]) => void,
   onError?: (message: string) => void,
@@ -75,9 +84,15 @@ export function subscribeAllOrders(
   let seededFirstSnapshot = false;
   const knownOrderIds = new Set<string>();
 
+  const q = query(
+    collection(firestore, "orders"),
+    orderBy("createdAt", "desc"),
+    limit(LIVE_ORDERS_LIMIT),
+  );
+
   return retryingListener("subscribeAllOrders", (onSnapshotError) =>
     onSnapshot(
-      collection(firestore, "orders"),
+      q,
       (snap) => {
         const orders = snap.docs.map(mapOrder).sort((a, b) => b.createdAt - a.createdAt);
         onOrders(orders);
@@ -90,11 +105,26 @@ export function subscribeAllOrders(
         }
         if (!onNewOrders) return;
 
-        // Collect newly added orders (skipping local pending writes)
+        // Collect newly added orders (skipping local pending writes). Only
+        // orders still at the pre-acceptance "Confirmed" stage belong in the
+        // kitchen alert queue — anything already moved past that (Preparing,
+        // Out for Delivery, Delivered, Cancelled, ...) has already been
+        // actioned, so it must never (re-)trigger an "Accept" alert. Without
+        // this guard, a page refresh re-subscribes with fresh in-memory
+        // dedup state (knownOrderIds/seededFirstSnapshot both reset), and
+        // this listener's own "added" docChange for an order that was simply
+        // reordered within the window by its updatedAt-independent position,
+        // or any other snapshot replay, could resurface an already-accepted
+        // order as if it were brand new.
         const freshOrders: Order[] = [];
         for (const change of snap.docChanges()) {
-          if (change.type === "added" && !change.doc.metadata.hasPendingWrites) {
-            freshOrders.push(mapOrder(change.doc));
+          if (
+            change.type === "added" &&
+            !change.doc.metadata.hasPendingWrites &&
+            !knownOrderIds.has(change.doc.id)
+          ) {
+            const order = mapOrder(change.doc);
+            if (order.status === "Confirmed") freshOrders.push(order);
             knownOrderIds.add(change.doc.id);
           }
         }
@@ -102,7 +132,8 @@ export function subscribeAllOrders(
         // Robust fallback: also check if any document was not previously known
         for (const doc of snap.docs) {
           if (!knownOrderIds.has(doc.id) && !doc.metadata.hasPendingWrites) {
-            freshOrders.push(mapOrder(doc));
+            const order = mapOrder(doc);
+            if (order.status === "Confirmed") freshOrders.push(order);
             knownOrderIds.add(doc.id);
           }
         }
@@ -116,6 +147,35 @@ export function subscribeAllOrders(
     ),
     onError,
   );
+}
+
+/**
+ * One-time (non-live) fetch of the FULL order history, ordered newest-first.
+ * Used only by AdminAnalyticsTab's "All Time" preset and CSV export, which
+ * need true lifetime totals — unlike the live dashboard feed (subscribeAllOrders),
+ * which is capped at LIVE_ORDERS_LIMIT most-recent orders to bound listener cost.
+ * Paginates via startAfter in LIVE_ORDERS_LIMIT-sized pages so a large history
+ * doesn't require a single unbounded query.
+ */
+export async function fetchAllOrdersOnce(): Promise<Order[]> {
+  if (!db) return [];
+  const firestore = db;
+  const all: Order[] = [];
+  let cursor: QueryDocumentSnapshot | undefined;
+
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const q = cursor
+      ? query(collection(firestore, "orders"), orderBy("createdAt", "desc"), startAfter(cursor), limit(LIVE_ORDERS_LIMIT))
+      : query(collection(firestore, "orders"), orderBy("createdAt", "desc"), limit(LIVE_ORDERS_LIMIT));
+    const snap = await getDocs(q);
+    if (snap.empty) break;
+    all.push(...snap.docs.map(mapOrder));
+    if (snap.docs.length < LIVE_ORDERS_LIMIT) break;
+    cursor = snap.docs[snap.docs.length - 1];
+  }
+
+  return all;
 }
 
 /**
@@ -298,6 +358,8 @@ function mapOrder(doc: { id: string; data: () => Record<string, unknown> }): Ord
     status: (d.status as OrderStatus) ?? "Confirmed",
     statusHistory: (d.statusHistory as StatusEvent[]) ?? [],
     notes: (d.notes as string) ?? undefined,
+    // Razorpay payment record — undefined for legacy pre-Razorpay orders.
+    payment: d.payment ? (d.payment as PaymentMeta) : undefined,
     createdAt: toEpoch(createdAt),
     updatedAt: toEpoch(updatedAt),
   };

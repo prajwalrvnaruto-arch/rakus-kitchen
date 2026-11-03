@@ -12,6 +12,10 @@ export function Footer() {
             Authentic Nati-style home-cooked food — fresh ingredients, traditional
             taste, hygienic preparation. Lunch & dinner, plus catering for events.
           </p>
+          <div className="pt-2 text-xs text-soft border-t border-line/40">
+            <p className="font-semibold text-ink">FSSAI Registration</p>
+            <p>Lic. No. {BUSINESS.fssaiNumber}</p>
+          </div>
         </div>
 
         <div>
@@ -31,6 +35,7 @@ export function Footer() {
             <li>Lunch ready 12:30 PM · Dinner ready 7:30 PM</li>
             <li>Closed Mondays & Thursdays</li>
             <li>Orders placed one day in advance</li>
+            <li><Link className="text-chilidark font-semibold hover:underline" href="/contact">View Location & Map →</Link></li>
           </ul>
         </div>
 
@@ -59,15 +64,29 @@ export function Footer() {
           </div>
         </div>
       </div>
-      <div className="border-t border-line/60 px-4 py-5 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-soft">
+
+      {/* Mandatory Regulatory & Legal Compliance Bar (Cashfree & DPDP required) */}
+      <div className="border-t border-line/60 px-4 py-5 max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-soft">
         <p>© {new Date().getFullYear()} Raku&apos;s Kitchen · Pure Taste of Nati Style · Bangalore</p>
-        <div className="flex items-center gap-4">
-          <Link href="/privacy" className="hover:text-ink hover:underline">
-            Privacy Policy & DPDP Notice
-          </Link>
-          <span>·</span>
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2">
           <Link href="/terms" className="hover:text-ink hover:underline">
             Terms of Service
+          </Link>
+          <span>·</span>
+          <Link href="/privacy" className="hover:text-ink hover:underline">
+            Privacy Policy
+          </Link>
+          <span>·</span>
+          <Link href="/refund-policy" className="hover:text-ink hover:underline">
+            Refund & Cancellation Policy
+          </Link>
+          <span>·</span>
+          <Link href="/delivery-policy" className="hover:text-ink hover:underline">
+            Shipping & Delivery Policy
+          </Link>
+          <span>·</span>
+          <Link href="/contact" className="hover:text-ink hover:underline">
+            Contact Us
           </Link>
         </div>
       </div>

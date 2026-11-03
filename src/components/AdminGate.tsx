@@ -21,9 +21,9 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
     return <div className="mx-auto max-w-5xl px-4 py-12 text-center text-soft">Loading…</div>;
   }
 
-  // Not signed in — bounce to login with a return URL.
+  // Not signed in — bounce to admin login with a return URL.
   if (!user) {
-    router.replace("/login?next=%2Fadmin");
+    router.replace("/admin/login?next=%2Fadmin");
     return null;
   }
 
@@ -34,14 +34,14 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
         <span className="text-5xl" aria-hidden>🔒</span>
         <h1 className="section-title mt-4">Admins only</h1>
         <p className="mt-2 text-sm text-soft">
-          You&apos;re signed in as <span className="font-semibold text-ink">{user.phoneNumber ?? user.email ?? user.uid}</span> ({user.uid}),
+          You&apos;re signed in as <span className="font-semibold text-ink">{user.email ?? user.phoneNumber ?? user.uid}</span> ({user.uid}),
           but this account isn&apos;t on the admin list. An existing admin needs to add it under{" "}
           <code className="rounded bg-cream px-1.5 py-0.5 text-xs">/admins/&lt;your-uid&gt;</code> in Firestore.
         </p>
         <div className="mt-5 flex justify-center gap-2">
           <Link href="/orders" className="btn btn-ghost px-4 py-2 text-xs">My orders</Link>
-          <button onClick={() => { signOut(auth!); router.push("/"); }} className="btn btn-ghost px-4 py-2 text-xs">
-            Sign out
+          <button onClick={() => { signOut(auth!); router.push("/admin/login"); }} className="btn btn-ghost px-4 py-2 text-xs">
+            Sign out & Switch
           </button>
         </div>
       </div>

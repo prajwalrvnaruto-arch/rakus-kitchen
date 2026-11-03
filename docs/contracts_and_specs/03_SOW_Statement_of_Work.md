@@ -4,7 +4,7 @@
 **Client Entity:** Raku's Kitchen (Bengaluru)  
 **Service Provider:** Nexus Development ([nexusdevelopment.in](https://nexusdevelopment.in))  
 **Contract Ref:** `NX-SOW-RK-2026-03`  
-**Total Value:** ₹1,50,000 INR (Freelancer Billing, Exempt from GST)  
+**Total Contract Value:** ₹55,000 INR (Fixed Price, All-Inclusive — Product & 1-Year Maintenance ₹50,000 + Domain & Cloud Hosting ₹5,000)  
 **Timeline:** 2 Months Agile Concurrent Delivery (August 2026 – October 2026)  
 
 ---
@@ -15,14 +15,13 @@ This Statement of Work ("SOW") establishes the formal agreement between **Nexus 
 
 ---
 
-## 2. Milestone Deliverables & Financial Breakdown
+## 2. Deliverables & Commercial Breakdown
 
-| Milestone | Key Deliverables | Share | Value (INR) | Status |
+| Component | Key Deliverables & Scope | Share | Value (INR) | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| **Milestone 1: Discovery & UI/UX Architecture** | Information architecture, mobile-first design, weight-tier picker layout, slot booking UX. | 30% | **₹45,000** | Completed |
-| **Milestone 2: Core Platform Engineering** | Next.js 14 App Router, Firebase Phone OTP Auth, Cloud Firestore data layer, Ola Maps geocoding, Razorpay Payment Gateway integration. | 40% | **₹60,000** | Completed |
-| **Milestone 3: Logistics Automation & Handover** | Real-time Admin Command Dashboard (`/admin`), Borzo 1-Click API courier booking, Porter deep-links, WhatsApp messaging links, production go-live. | 30% | **₹45,000** | Completed |
-| **TOTAL** | **Full End-to-End Cloud Kitchen Solution** | **100%** | **₹1,50,000** | **Delivered** |
+| **1. Web Application Platform & Handover (Product)** | Full-stack Next.js 14 App Router, Mobile-First UI/UX, Biryani Weight-Tier Picker (½ kg, 1 kg, multi-kg), Advance Slot Scheduling (Lunch 12:30 PM & Dinner 7:30 PM), Phone OTP Auth, Cloud Firestore Data Layer, Ola Maps Geocoding, Razorpay Payment Gateway integration, Real-Time Admin Command Dashboard (`/admin`), Borzo 1-Click Courier API, Porter deep-links, WhatsApp Notification Links, plus **1-Year Comprehensive Support & Bug-Fix Warranty** (100% bug remediation, seasonal menu additions/removals, price & portion weight updates, packaging fee adjustments, and priority SLA resolution). | 90.91% | **₹50,000** | Delivered |
+| **2. Domain, Hosting & SMS Gateway Setup** | Custom domain configuration, DNS routing, SSL/TLS certificate provisioning, CDN edge caching, serverless cloud hosting setup, and Fast2SMS gateway technical integration & configuration (SMS recharge credits managed directly by Client). | 9.09% | **₹5,000** | Configured & Active |
+| **TOTAL CONTRACT VALUE** | **All-Inclusive Fixed Price — Product & 1-Year Maintenance + Domain, Hosting & SMS Gateway Setup** | **100%** | **₹55,000** | **Committed** |
 
 ---
 
@@ -32,14 +31,15 @@ This Statement of Work ("SOW") establishes the formal agreement between **Nexus 
   - Google Cloud / Firebase (Hosting, Firestore, Auth)
   - Razorpay Merchant Gateway (Payouts to Raku's Kitchen bank account)
   - Ola Maps API (Geocoding quota)
+  - Fast2SMS Gateway (SMS credits & DLT compliance)
   - Borzo & Porter Courier accounts
 - Nexus Development provides configuration and deployment services without holding client credentials or intermediate transaction balances.
 
 ---
 
-## 4. Maintenance & Support Terms (Included in ₹1,50,000)
+## 4. Maintenance & Support Terms (Covered under 1-Year Warranty within ₹55,000 Contract)
 
-1. **Covered at Zero Additional Expense:**
+1. **Covered at Zero Additional Expense (Under 1-Year Maintenance Warranty):**
    - 100% bug fixes and performance resolution for all delivered software code.
    - Ongoing minor maintenance: updating menu dish names, modifying prices, adjusting packaging fees, updating operating holidays, and revising notification text.
 2. **New Feature Additions (Out of Scope):**

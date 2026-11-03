@@ -5,7 +5,7 @@
 **Document Ref:** `NX-CWK-RK-2026-00`  
 **Effective Date:** October 2026  
 **Engagement Type:** Custom Food Ordering Platform & Kitchen Dispatch Engine  
-**Contract Value:** ₹1,50,000 INR (Freelancer Supply / Exempt from GST)  
+**Contract Value:** ₹55,000 INR (Total Contract Value: ₹50,000 Web App Product & 1-Year Maintenance Warranty, ₹5,000 Domain, Cloud Hosting & SMS Gateway Setup)  
 
 ---
 
@@ -34,7 +34,7 @@ Your platform is built on modern, scalable, enterprise-grade cloud architecture:
 | System Layer | Technology | Business Function |
 | :--- | :--- | :--- |
 | **Customer Storefront** | Next.js 14 (App Router) + React + Tailwind CSS | Sub-second mobile ordering experience, Biryani weight selectors (½ kg, 1 kg, multi-kg), lunch/dinner advance booking slots. |
-| **Authentication** | Firebase Phone OTP (Passwordless) | Frictionless customer sign-in with verified mobile numbers; zero lost passwords. |
+| **Authentication** | Phone OTP Authentication (Passwordless) | Frictionless customer sign-in with verified mobile numbers; zero lost passwords. |
 | **Database & Real-Time Sync** | Google Cloud Firestore | Live real-time order synchronization between customer orders and your kitchen screen. |
 | **Address & Geocoding** | Ola Maps API | Bangalore hyper-local address autocomplete, pin-drop precision, and doorstep delivery accuracy. |
 | **Payment Gateway** | Razorpay PG with Server-Side HMAC-SHA256 | Instant UPI, Credit/Debit card, and Net Banking payments with 100% automated prepayment validation. |
@@ -104,13 +104,16 @@ To ensure seamless daily order fulfillment during your lunch (12:30 PM) and dinn
 
 ## 5. Ongoing Support & Maintenance (SLA Summary)
 
-Your **₹1,50,000 contract value** includes full, ongoing Annual Maintenance Contract (AMC) coverage provided by Nexus Development:
+Your **₹55,000 contract value** includes dedicated **1-Year Comprehensive Maintenance & Bug-Fix Warranty** coverage provided by Nexus Development:
 
-### What Is Covered at ZERO Additional Cost:
-- **100% Bug Remediation:** Any issue related to Next.js, Firebase Auth, Firestore, Razorpay checkout, Ola Maps, Borzo API, or the Admin panel is fixed immediately.
+### What Is Covered at ZERO Additional Cost (Under 1-Year Maintenance Warranty):
+- **100% Bug Remediation:** Any issue related to Next.js, Phone OTP Auth, Firestore, Razorpay checkout, Ola Maps, Borzo API, or the Admin panel is fixed immediately.
 - **Menu Additions & Removals:** Adding new seasonal curries, starters, or Biryani cuts.
 - **Price Tweaks & Portion Adjustments:** Changing per-kg prices, portion weights, or descriptions.
 - **Operational Settings:** Toggling festival holidays, modifying packaging charges (₹20/unit), or updating delivery slot timings.
+
+### Setup & Operational Infrastructure (Covered under ₹5,000 Allocation):
+- **Domain, Hosting & Fast2SMS Gateway Setup:** ₹5,000 dedicated technical setup covering custom domain DNS architecture, SSL/TLS certificates, high-availability serverless cloud hosting infrastructure, and Fast2SMS Quick OTP Route integration & configuration (ongoing SMS recharge credits and carrier fees are directly managed and funded by Raku's Kitchen).
 
 ### What Is Billed Separately (New Features):
 - Any brand-new software modules beyond the delivered scope (e.g., multi-outlet kitchen management, native iOS/Android App Store builds, custom loyalty points) are quoted in advance and billed at **₹600/hour** (Time & Materials).
@@ -147,11 +150,11 @@ Your full legal, technical, and commercial agreement suite is available in the d
 
 | Document | Description | Format Links |
 | :--- | :--- | :--- |
-| **01. BRD** | Business Requirements Document (Workflows, KPIs, ROI) | [HTML](file:///Volumes/Segate%20SSD/Desktop/For_Instagram_influencers/rakus-kitchen/docs/contracts_and_specs/01_BRD_Business_Requirements_Document.html) \| [Markdown](file:///Volumes/Segate%20SSD/Desktop/For_Instagram_influencers/rakus-kitchen/docs/contracts_and_specs/01_BRD_Business_Requirements_Document.md) |
-| **02. PRD** | Product Requirements Document (Architecture & Specs) | [HTML](file:///Volumes/Segate%20SSD/Desktop/For_Instagram_influencers/rakus-kitchen/docs/contracts_and_specs/02_PRD_Product_Requirements_Document.html) \| [Markdown](file:///Volumes/Segate%20SSD/Desktop/For_Instagram_influencers/rakus-kitchen/docs/contracts_and_specs/02_PRD_Product_Requirements_Document.md) |
-| **03. SOW** | Statement of Work (₹1,50,000 Scope & Milestone Terms) | [HTML](file:///Volumes/Segate%20SSD/Desktop/For_Instagram_influencers/rakus-kitchen/docs/contracts_and_specs/03_SOW_Statement_of_Work.html) \| [Markdown](file:///Volumes/Segate%20SSD/Desktop/For_Instagram_influencers/rakus-kitchen/docs/contracts_and_specs/03_SOW_Statement_of_Work.md) |
-| **04. SLA** | Service Level Agreement (Response MTTR & Warranty) | [HTML](file:///Volumes/Segate%20SSD/Desktop/For_Instagram_influencers/rakus-kitchen/docs/contracts_and_specs/04_SLA_Service_Level_Agreement.html) \| [Markdown](file:///Volumes/Segate%20SSD/Desktop/For_Instagram_influencers/rakus-kitchen/docs/contracts_and_specs/04_SLA_Service_Level_Agreement.md) |
-| **05. Invoices** | Milestone Tax Invoices & Master Statement of Account | [HTML](file:///Volumes/Segate%20SSD/Desktop/For_Instagram_influencers/rakus-kitchen/docs/contracts_and_specs/05_Milestone_Invoices.html) \| [Markdown](file:///Volumes/Segate%20SSD/Desktop/For_Instagram_influencers/rakus-kitchen/docs/contracts_and_specs/05_Milestone_Invoices.md) |
+| **01. BRD** | Business Requirements Document (Workflows, KPIs, ROI) | [HTML](./01_BRD_Business_Requirements_Document.html) \| [Markdown](./01_BRD_Business_Requirements_Document.md) |
+| **02. PRD** | Product Requirements Document (Architecture & Specs) | [HTML](./02_PRD_Product_Requirements_Document.html) \| [Markdown](./02_PRD_Product_Requirements_Document.md) |
+| **03. SOW** | Statement of Work (₹55,000 Scope & Commercial Breakdown) | [HTML](./03_SOW_Statement_of_Work.html) \| [Markdown](./03_SOW_Statement_of_Work.md) |
+| **04. SLA** | Service Level Agreement (Response MTTR & 1-Year Maintenance Warranty) | [HTML](./04_SLA_Service_Level_Agreement.html) \| [Markdown](./04_SLA_Service_Level_Agreement.md) |
+| **05. Invoices** | Commercial Tax Invoices & Master Statement of Account (₹55,000 All-Inclusive Fixed Price) | [HTML](./05_Milestone_Invoices.html) \| [Markdown](./05_Milestone_Invoices.md) |
 
 ---
 

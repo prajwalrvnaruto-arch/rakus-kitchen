@@ -150,6 +150,14 @@ export interface AddressComponents {
   landmark?: string;
   city: string;
   pincode: string;
+  /** State name (e.g. "Karnataka") from reverse geocoding — the authoritative
+   *  signal the Bengaluru-only delivery geofence uses to exclude cross-border
+   *  points (e.g. Hosur, Tamil Nadu) that a distance-from-kitchen radius alone
+   *  can't tell apart from a legitimate far Bengaluru suburb. Optional so
+   *  pre-existing stored addresses (saved before this field existed) still
+   *  type-check; isWithinServiceArea treats a missing state as unverified
+   *  rather than automatically in-zone. */
+  state?: string;
 }
 
 /**
@@ -159,7 +167,7 @@ export interface AddressComponents {
 export interface DeliveryMeta {
   /** Fare estimate in ₹ fetched from the carrier API at checkout time. */
   fareEstimate?: number;
-  /** Carrier identifier: "porter" | "borzo" | "shadowfax". */
+  /** Carrier identifier: "porter" | "borzo". */
   carrierId?: string;
   /** Order ID returned by the carrier after a successful booking. */
   carrierOrderId?: string;

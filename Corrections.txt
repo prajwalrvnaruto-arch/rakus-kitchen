@@ -1,0 +1,14 @@
+Corrections :
+
+1. In Onboarding Suite document, replace this "Firebase Phone OTP Authentication" to "Phone OTP Authentication".
+
+2. In this "Major Feature Expansions (Out of Scope):
+Brand-new capabilities (e.g., custom loyalty rewards, multi-branch kitchen support, native Android/iOS mobile apps) are quoted in advance at ₹600/hour (Time & Materials)." what is materials I want to know it.
+
+3. In BRD remove this point "Cash Collection Inefficiencies: Cash-on-delivery resulted in high cancellation risks and delivery disputes; manual UPI screenshot verification took up to 15 minutes per customer.
+
+4. In SLA document "Diagnosis, troubleshooting, and bug remediation for all existing codebase components (Next.js frontend, Firestore backend, Firebase OTP Auth, Razorpay checkout, Ola Maps, Borzo API, Admin order engine)." replace with this  "Diagnosis, troubleshooting, and bug remediation for all existing codebase components (Next.js frontend, Firestore backend, Firebase Auth, Razorpay checkout, Ola Maps, Borzo API, Admin order engine)."
+
+6. Discuss with client :
+	- can we from razorpay to cashfree payment gateway securely without affecting the application.
+	- upto 20 lakhs sales and untill march 2027 - 0% platform charges and only 18% gst adds for ordered value.

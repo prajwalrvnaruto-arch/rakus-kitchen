@@ -142,17 +142,21 @@ export function buildPorterDeepLink(order: Order): {
  * Triggers the Porter mobile application on the admin's device via Deep Link,
  * simultaneously copying customer details to the clipboard.
  */
-export async function launchPorterAppDeepLink(order: Order) {
+export async function launchPorterAppDeepLink(
+  order: Order,
+  onFeedback?: (msg: { title: string; message: string }) => void,
+) {
   const { androidIntentUrl, iosSchemeUrl, clipboardText } = buildPorterDeepLink(order);
 
   // Copy clean dropoff address to clipboard so Gboard / keyboard displays 1-tap paste chip
   try {
     await navigator.clipboard.writeText(clipboardText);
-    alert(
-      `📋 Address copied to clipboard!\n\n` +
-      `📍 ${clipboardText}\n\n` +
-      `Opening Porter app...\nTap the search box in Porter and tap Paste!`,
-    );
+    if (onFeedback) {
+      onFeedback({
+        title: "Address Copied for Porter",
+        message: `📍 ${clipboardText}\n\nOpening Porter app...\nTap the search box in Porter and tap Paste!`,
+      });
+    }
   } catch (err) {
     console.warn("Clipboard write failed:", err);
   }

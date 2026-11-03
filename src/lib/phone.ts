@@ -4,7 +4,7 @@
  * "919606888096"). Different consumers need different shapes:
  *   • WhatsApp wa.me links want the international form "919606888096".
  *   • Porter's "Receiver's Mobile" field wants the bare 10 digits "9606888096".
- *   • Borzo / Shadowfax carrier payloads want a clean 10-digit contact.
+ *   • Borzo carrier payloads want a clean 10-digit contact.
  *
  * Every one of those derives from a single canonical 10-digit Indian mobile.
  * This module resolves that once and fails LOUDLY (returns null) for anything

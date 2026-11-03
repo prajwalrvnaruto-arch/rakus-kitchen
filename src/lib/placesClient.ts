@@ -14,6 +14,7 @@ export interface PlaceSuggestion {
   lng: number;
   city: string;
   pincode: string;
+  state: string;
   placeId?: string;
 }
 

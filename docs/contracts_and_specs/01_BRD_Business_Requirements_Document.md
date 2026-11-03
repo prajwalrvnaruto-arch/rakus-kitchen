@@ -15,9 +15,8 @@
 
 ### Critical Bottlenecks of Legacy Operations:
 1. **Order Leakage & Miscommunication:** Weight specifications (½ kg, 1 kg, multi-kg) and ingredient ratios were manually clarified across lengthy chat threads, leading to occasional customer dissatisfaction regarding portion expectations.
-2. **Payment Collection Inefficiencies:** Reliance on manual UPI screenshots caused 12% unpaid order abandonments, verification delays, and cash-on-delivery cancellation risks.
-3. **Logistics Chaos:** Delivery addresses had to be copied by hand into courier apps (Borzo/Porter), resulting in dispatch typos and lost delivery partners.
-4. **Kitchen Capacity Overselling:** With strict batch readiness timings (12:30 PM for Lunch, 7:30 PM for Dinner, closed Mon/Thu, no Sun dinner), manual logging made real-time capacity management impossible.
+2. **Logistics Chaos:** Delivery addresses had to be copied by hand into courier apps (Borzo/Porter), resulting in dispatch typos and lost delivery partners.
+3. **Kitchen Capacity Overselling:** With strict batch readiness timings (12:30 PM for Lunch, 7:30 PM for Dinner, closed Mon/Thu, no Sun dinner), manual logging made real-time capacity management impossible.
 
 ---
 
@@ -65,4 +64,4 @@
 ## 5. Stakeholder Matrix & Governance
 
 - **Client Primary (Raku's Kitchen):** Owner / Operator responsible for day-to-day order preparation, status updates, and customer relationship.
-- **Technology Partner (Nexus Development):** Senior Business Analyst and Project Delivery Lead overseeing cloud infrastructure setup, full-stack development, continuous system maintenance, and free menu/price updates under the ₹1,50,000 contract.
+- **Technology Partner (Nexus Development):** Senior Business Analyst and Project Delivery Lead overseeing cloud infrastructure setup, full-stack development, continuous system maintenance, and free menu/price updates under the ₹55,000 contract (including 1-Year maintenance warranty coverage).

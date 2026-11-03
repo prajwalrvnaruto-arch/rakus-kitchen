@@ -99,9 +99,7 @@ export async function createBorzoOrder(params: {
   const data = (await response.json()) as BorzoOrderResponse;
 
   if (!response.ok || !data.is_successful || !data.order) {
-    const errorMsg =
-      data.errors?.join(", ") ||
-      (data.parameter_errors ? JSON.stringify(data.parameter_errors) : `Borzo API HTTP error ${response.status}`);
+    const errorMsg = formatBorzoErrorResponse(data, response.status);
     throw new Error(errorMsg);
   }
 
@@ -115,4 +113,42 @@ export async function createBorzoOrder(params: {
     fareEstimate: fare,
     trackingUrl: data.order.tracking_url,
   };
+}
+
+/**
+ * Formats Borzo's response errors and nested parameter_errors into human-readable messages.
+ */
+export function formatBorzoErrorResponse(data: BorzoOrderResponse, status: number): string {
+  if (data.errors && Array.isArray(data.errors) && data.errors.length > 0) {
+    return data.errors.filter(Boolean).join("; ");
+  }
+
+  if (data.parameter_errors && typeof data.parameter_errors === "object") {
+    const pieces: string[] = [];
+    const walk = (val: unknown, keyPath: string) => {
+      if (typeof val === "string") {
+        const label = cleanParamKey(keyPath);
+        pieces.push(label ? `${label}: ${val}` : val);
+      } else if (Array.isArray(val)) {
+        val.forEach((item) => walk(item, keyPath));
+      } else if (val && typeof val === "object") {
+        for (const [k, v] of Object.entries(val)) {
+          walk(v, keyPath ? `${keyPath}.${k}` : k);
+        }
+      }
+    };
+    walk(data.parameter_errors, "");
+    if (pieces.length > 0) {
+      return pieces.join(" • ");
+    }
+  }
+
+  return `Borzo API returned error status ${status}`;
+}
+
+function cleanParamKey(key: string): string {
+  if (key.includes("phone")) return "Customer Phone";
+  if (key.includes("address")) return "Delivery Address";
+  if (key.includes("matter")) return "Order Details";
+  return key;
 }

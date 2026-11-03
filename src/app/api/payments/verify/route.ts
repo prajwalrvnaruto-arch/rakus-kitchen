@@ -44,6 +44,53 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Payment verification failed" }, { status: 400 });
     }
 
+    // ─── Idempotent fast-path ────────────────────────────────────────────────
+    // If the webhook already processed this payment (webhook beat the browser
+    // back), the intent is already "paid" and the order is fully materialized.
+    // Skip the Razorpay API call entirely and return the existing order so the
+    // customer reaches the "Confirmed" screen immediately.
+    const { adminDb } = await import("@/lib/server/firebaseAdmin");
+    const db = adminDb();
+    const intentSnap = await db.collection("paymentIntents").doc(body.razorpay_order_id).get();
+    if (intentSnap.exists) {
+      const intent = intentSnap.data() as { status: string; orderId?: string; customerId?: string };
+      if (intent.status === "paid" && intent.orderId) {
+        // Verify caller owns this intent
+        if (intent.customerId && intent.customerId !== uid) {
+          return NextResponse.json({ error: "Payment intent belongs to a different customer" }, { status: 403 });
+        }
+        const orderSnap = await db.collection("orders").doc(intent.orderId).get();
+        if (orderSnap.exists) {
+          const d = orderSnap.data()!;
+          // Minimal safe projection — mirrors mapOrderDoc from paymentIntents.ts
+          const { Timestamp } = await import("firebase-admin/firestore");
+          const toEpoch = (v: unknown) =>
+            typeof v === "number" ? v : v instanceof Timestamp ? v.toMillis() : 0;
+          const order = {
+            id: orderSnap.id,
+            orderId: (d.orderId as string) ?? orderSnap.id,
+            customerId: (d.customerId as string) ?? "",
+            customerName: (d.customerName as string) ?? "",
+            phone: (d.phone as string) ?? "",
+            fulfillmentType: d.fulfillmentType,
+            mealSlot: d.mealSlot,
+            mealDate: d.mealDate,
+            items: d.items,
+            itemTotal: d.itemTotal,
+            packagingFee: d.packagingFee,
+            grandTotal: d.grandTotal,
+            status: d.status,
+            statusHistory: d.statusHistory,
+            payment: d.payment,
+            createdAt: toEpoch(d.createdAt),
+            updatedAt: toEpoch(d.updatedAt),
+          };
+          return NextResponse.json({ order, idempotent: true });
+        }
+      }
+    }
+    // ─── End idempotent fast-path ────────────────────────────────────────────
+
     const payment = await fetchRazorpayPayment(body.razorpay_payment_id);
     if (payment.status !== "captured" && payment.status !== "authorized") {
       return NextResponse.json({ error: `Payment not completed (status: ${payment.status})` }, { status: 400 });
@@ -57,6 +104,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({ order });
+
   } catch (err) {
     console.error("verify error:", err);
     if (err instanceof PaymentFinalizeError) {

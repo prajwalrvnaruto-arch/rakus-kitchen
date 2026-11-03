@@ -34,6 +34,7 @@ export default function OrdersPage() {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [filter, setFilter] = useState<OrderFilter>("active");
+  const [wiped, setWiped] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.replace("/login?next=%2Forders");
@@ -283,14 +284,19 @@ export default function OrdersPage() {
               if (user?.uid) {
                 try {
                   window.localStorage.removeItem(`rk-address-v2-${user.uid}`);
-                  alert("Saved address coordinates have been wiped from this device.");
+                  setWiped(true);
+                  setTimeout(() => setWiped(false), 3000);
                 } catch { /* ignore */ }
               }
             }}
-            className="rounded-xl border border-line bg-paper px-3 py-2 text-xs font-semibold text-ink hover:border-chili transition"
+            className={`rounded-xl border px-3 py-2 text-xs font-semibold transition ${
+              wiped
+                ? "border-ok bg-ok/10 text-ok"
+                : "border-line bg-paper text-ink hover:border-chili"
+            }`}
             title="Right to Erasure under Section 12 of DPDP Act"
           >
-            🗑️ Wipe saved address from this device
+            {wiped ? "✓ Address coordinates wiped from this device" : "🗑️ Wipe saved address from this device"}
           </button>
 
           <a

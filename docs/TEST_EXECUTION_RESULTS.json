@@ -1,0 +1,561 @@
+{
+  "timestamp": "2026-10-06T16:48:10.500Z",
+  "total": 79,
+  "passed": 79,
+  "failed": 0,
+  "results": [
+    {
+      "suite": "TS-01",
+      "id": "TC-NAV-001",
+      "name": "Brand Logo links to home (/)",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-01",
+      "id": "TC-NAV-002-Menu",
+      "name": "Desktop nav includes Menu",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-01",
+      "id": "TC-NAV-002-Biryani",
+      "name": "Desktop nav includes Biryani",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-01",
+      "id": "TC-NAV-002-Catering",
+      "name": "Desktop nav includes Catering",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-01",
+      "id": "TC-NAV-002-About",
+      "name": "Desktop nav includes About",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-01",
+      "id": "TC-NAV-002-Contact",
+      "name": "Desktop nav includes Contact",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-01",
+      "id": "TC-NAV-003",
+      "name": "Admin link hidden for unauthenticated visitor",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-01",
+      "id": "TC-NAV-004",
+      "name": "Header has accessible 'Open cart' button",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-02",
+      "id": "TC-HOME-001",
+      "name": "Page title contains Raku's Kitchen",
+      "status": "PASS",
+      "details": "Title: \"Raku's Kitchen — Pure Taste of Nati Style\""
+    },
+    {
+      "suite": "TS-02",
+      "id": "TC-HOME-002",
+      "name": "Hero H1 heading matches design",
+      "status": "PASS",
+      "details": "H1: \"Home-cooked Nati food, ordered in one tap.\""
+    },
+    {
+      "suite": "TS-02",
+      "id": "TC-HOME-003",
+      "name": "Operating schedule visible in hero (Lunch 12:30 PM · Dinner 7:30 PM)",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-02",
+      "id": "TC-HOME-004",
+      "name": "Hero 'Order now' CTA points to /menu",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-02",
+      "id": "TC-HOME-005",
+      "name": "Hero 'See biryani prices' CTA points to /biryani",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-02",
+      "id": "TC-HOME-006",
+      "name": "Category tiles exist on Home",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-02",
+      "id": "TC-HOME-007",
+      "name": "Value pillars present (Fresh, Authentic, Hygienic)",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-02",
+      "id": "TC-HOME-008",
+      "name": "Direct WhatsApp ordering link present",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-03",
+      "id": "TC-MENU-001",
+      "name": "Menu page loads",
+      "status": "PASS",
+      "details": "Title: \"Menu · Raku's Kitchen\""
+    },
+    {
+      "suite": "TS-03",
+      "id": "TC-MENU-002",
+      "name": "Category quick navigation anchors exist (#biryani, #chicken, #mutton, #other)",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-03",
+      "id": "TC-MENU-003",
+      "name": "Dish Cards have Add buttons",
+      "status": "PASS",
+      "details": "Found 19 Add buttons"
+    },
+    {
+      "suite": "TS-03",
+      "id": "TC-MENU-004",
+      "name": "Add to Cart transforms into Quantity Stepper",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-03",
+      "id": "TC-MENU-005",
+      "name": "Quantity Stepper increments quantity",
+      "status": "PASS",
+      "details": "Clicked '+' stepper"
+    },
+    {
+      "suite": "TS-03",
+      "id": "TC-MENU-006",
+      "name": "WhatsApp 'Ask about a dish' link is present",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-04",
+      "id": "TC-BIR-001",
+      "name": "Biryani page loads with heading",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-04",
+      "id": "TC-BIR-002",
+      "name": "Chicken & Mutton meat toggles present",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-04",
+      "id": "TC-BIR-003",
+      "name": "Mutton Biryani pricing reflects properly (1,599 / 1,600)",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-04",
+      "id": "TC-BIR-004",
+      "name": "Chicken Biryani pricing reflects properly (799 / 800)",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-04",
+      "id": "TC-BIR-005",
+      "name": "All weight tier buttons present (½, 1, 2, 3 kg)",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-04",
+      "id": "TC-BIR-006",
+      "name": "Ingredients ratio text displayed",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-04",
+      "id": "TC-BIR-007",
+      "name": "Extra meat modal opens upon Add to Cart",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-04",
+      "id": "TC-BIR-008",
+      "name": "Add Biryani to cart completed through modal confirm",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-04",
+      "id": "TC-BIR-009",
+      "name": "Price chart table and ratio table rendered",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-05",
+      "id": "TC-CART-001",
+      "name": "Cart Drawer opens successfully",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-05",
+      "id": "TC-CART-002",
+      "name": "Cart lists item lines and quantities",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-05",
+      "id": "TC-CART-003",
+      "name": "Packaging fee calculation displayed (₹20/item)",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-05",
+      "id": "TC-CART-004",
+      "name": "Proceed / Log in to checkout button exists in Cart Drawer",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-06",
+      "id": "TC-AUTH-001",
+      "name": "Login page renders phone sign-in form with DPDP notice",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-06",
+      "id": "TC-AUTH-002",
+      "name": "Phone number input field (#op-phone) present",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-06",
+      "id": "TC-AUTH-003",
+      "name": "Send OTP button is disabled for incomplete phone number (< 10 digits)",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-06",
+      "id": "TC-AUTH-004",
+      "name": "Entered test phone 7411626375 enables Send OTP button",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-06",
+      "id": "TC-AUTH-005",
+      "name": "OTP step rendered (#op-otp) via Firebase Phone Auth",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-06",
+      "id": "TC-AUTH-006",
+      "name": "Entered test OTP 123456",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-06",
+      "id": "TC-AUTH-007",
+      "name": "Verify & sign in button is enabled with 6-digit OTP",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-06",
+      "id": "TC-AUTH-008",
+      "name": "Successful authentication redirects to /orders",
+      "status": "PASS",
+      "details": "Navigated to: http://localhost:3000/orders"
+    },
+    {
+      "suite": "TS-08",
+      "id": "TC-ORD-001",
+      "name": "Orders page loads customer account",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-08",
+      "id": "TC-ORD-002",
+      "name": "Real-time Order Tracking Status & Chimes controller active",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-08",
+      "id": "TC-ORD-003",
+      "name": "Authenticated header renders 'My Orders' button",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-08",
+      "id": "TC-ORD-004",
+      "name": "Sign out button present for authenticated session",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-07",
+      "id": "TC-CHK-001",
+      "name": "Checkout page renders fulfillment & order summary for authenticated user",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-07",
+      "id": "TC-CHK-002",
+      "name": "Fulfillment mode toggle (Delivery / Pickup buttons) present",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-07",
+      "id": "TC-CHK-003",
+      "name": "Meal slots include Lunch (12:30 PM) and Dinner (7:30 PM) options",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-07",
+      "id": "TC-CHK-004",
+      "name": "Summary card shows live cart items and totals",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-07",
+      "id": "TC-CHK-005",
+      "name": "AddressPicker search input present for delivery mode",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-07",
+      "id": "TC-CHK-006",
+      "name": "Pay & Place Order action button present",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-09",
+      "id": "TC-ADM-001",
+      "name": "Admin route protected by AdminGate RBAC role validation",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-09",
+      "id": "TC-ADM-002",
+      "name": "AdminGate accurately identifies user UID and phone context",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-10",
+      "id": "TC-CAT-001",
+      "name": "Catering page loads with heading",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-10",
+      "id": "TC-CAT-002",
+      "name": "Event type dropdown present",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-10",
+      "id": "TC-CAT-003",
+      "name": "Event date input present",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-10",
+      "id": "TC-CAT-004",
+      "name": "Guest count input accepts values (75 guests)",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-10",
+      "id": "TC-CAT-005",
+      "name": "WhatsApp enquiry button present with drafted link (Send catering enquiry)",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-10",
+      "id": "TC-CAT-006",
+      "name": "Catering perks displayed (Any crowd size, Full Nati spread, etc.)",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-11",
+      "id": "TC-ABT-001",
+      "name": "About story cards rendered (It starts at home, Nati-style)",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-11",
+      "id": "TC-ABT-002",
+      "name": "About 'Order now' CTA links to /menu",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-12",
+      "id": "TC-CNT-001",
+      "name": "Contact cards rendered (Pickup: Jambusavari Dinne, Phone: 9606888096)",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-12",
+      "id": "TC-CNT-002",
+      "name": "WhatsApp direct ordering card links to wa.me",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-13",
+      "id": "TC-PRV-001",
+      "name": "DPDP Act 2023 statutory badge visible",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-13",
+      "id": "TC-PRV-002",
+      "name": "Bilingual switch to Kannada renders authentic Kannada legal text",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-13",
+      "id": "TC-PRV-003",
+      "name": "Bilingual switch back to English works",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-14",
+      "id": "TC-TRM-001",
+      "name": "Terms of Service page renders binding clauses",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-15",
+      "id": "TC-FTR-001-menu",
+      "name": "Footer includes link to Full Menu (/menu)",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-15",
+      "id": "TC-FTR-001-biryani",
+      "name": "Footer includes link to Biryani Pricing (/biryani)",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-15",
+      "id": "TC-FTR-001-catering",
+      "name": "Footer includes link to Catering (/catering)",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-15",
+      "id": "TC-FTR-001-orders",
+      "name": "Footer includes link to Track My Order (/orders)",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-15",
+      "id": "TC-FTR-001-privacy",
+      "name": "Footer includes link to Privacy Policy & DPDP Notice (/privacy)",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-15",
+      "id": "TC-FTR-001-terms",
+      "name": "Footer includes link to Terms of Service (/terms)",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-15",
+      "id": "TC-FTR-002",
+      "name": "Footer displays copyright and Bangalore tagline",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-16",
+      "id": "TC-API-001",
+      "name": "POST /api/payments/create-order rejects unauthenticated requests (HTTP 401)",
+      "status": "PASS",
+      "details": "Status: 401"
+    },
+    {
+      "suite": "TS-16",
+      "id": "TC-API-002",
+      "name": "POST /api/payments/verify rejects bad signature (HTTP 400 or 401)",
+      "status": "PASS",
+      "details": "Status: 401"
+    },
+    {
+      "suite": "TS-16",
+      "id": "TC-API-003",
+      "name": "GET /api/maps/autocomplete blocks unauthenticated scrapers (HTTP 401 Security Gate)",
+      "status": "PASS",
+      "details": "Status: 401"
+    }
+  ]
+}

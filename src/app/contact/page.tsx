@@ -26,8 +26,7 @@ export default function ContactPage() {
       <div className="text-center">
         <h1 className="section-title">Find us & order</h1>
         <p className="mt-2 text-sm text-soft">
-          Pickup from JP Nagar 8th Phase, or delivery across Bangalore — the
-          delivery charge is paid to the partner at your door.
+          Pickup from JP Nagar 8th Phase, or delivery across Bangalore — fresh Nati-style food prepared to order.
         </p>
       </div>
 
@@ -80,6 +79,25 @@ export default function ContactPage() {
           </span>
           <span className="text-3xl" aria-hidden>📸</span>
         </a>
+      </div>
+
+      {/* Business Entity & Regulatory Details for Payment Gateway KYC */}
+      <div className="mt-10 card p-6 text-sm text-soft space-y-3">
+        <h2 className="font-display text-base font-semibold text-ink">Commercial & Regulatory Details</h2>
+        <div className="grid gap-4 sm:grid-cols-2 text-xs">
+          <div>
+            <p className="font-semibold text-ink">Operating Entity</p>
+            <p>{BUSINESS.name}</p>
+            <p className="mt-1 font-semibold text-ink">Food Safety Registration</p>
+            <p>FSSAI Lic. No: {BUSINESS.fssaiNumber}</p>
+          </div>
+          <div>
+            <p className="font-semibold text-ink">Registered Kitchen Address</p>
+            <p>{BUSINESS.kitchenAddress}</p>
+            <p className="mt-1 font-semibold text-ink">Grievance & Support Email</p>
+            <p>{BUSINESS.grievanceOfficer.email}</p>
+          </div>
+        </div>
       </div>
     </div>
   );

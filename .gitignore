@@ -2,3 +2,8 @@
 node_modules/
 *.tsbuildinfo
 firebase-debug.log
+.env*
+!.env.example
+!.env.local.example
+*service-account*.json
+*.pem

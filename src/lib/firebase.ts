@@ -18,6 +18,10 @@ const app = FIREBASE_CONFIGURED && getApps().length === 0 ? initializeApp(fireba
 export const auth = app ? getAuth(app) : null;
 export const db = app ? getFirestore(app) : null;
 
+if (typeof window !== "undefined" && auth && process.env.NODE_ENV !== "production") {
+  auth.settings.appVerificationDisabledForTesting = true;
+}
+
 const useEmulator = process.env.NEXT_PUBLIC_EMULATOR === "true";
 
 if (app && useEmulator && auth && db) {

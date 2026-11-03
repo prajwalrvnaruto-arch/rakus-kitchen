@@ -76,7 +76,7 @@ export default function TermsPage() {
             <div className="rounded-xl border border-line bg-paper p-4">
               <p className="font-bold text-ink">🛵 Courier Delivery</p>
               <p className="mt-1 text-xs text-soft">
-                Delivery rides are dispatched via third-party logistics aggregators (Borzo, Porter, Shadowfax). Delivery
+                Delivery rides are dispatched via third-party logistics aggregators (Borzo, Porter). Delivery
                 times are estimates subject to Bangalore traffic and weather conditions. Customers must ensure an accurate
                 drop location and be reachable at their registered mobile number.
               </p>

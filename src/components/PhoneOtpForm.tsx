@@ -3,33 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import {
-  RecaptchaVerifier,
-  signInWithPhoneNumber,
-  type ConfirmationResult,
-} from "firebase/auth";
+import { signInWithCustomToken } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 
 type Step = "phone" | "otp";
-
-function helperText(err: unknown): string {
-  const code = (err as { code?: string })?.code ?? "";
-  switch (code) {
-    case "auth/invalid-phone-number":
-      return "Please enter a valid 10-digit mobile number.";
-    case "auth/invalid-verification-code":
-      return "That code doesn't look right. Please check and try again.";
-    case "auth/code-expired":
-      return "This code has expired. Request a new one.";
-    case "auth/too-many-requests":
-      return "Too many attempts. Wait a few minutes and try again.";
-    case "auth/quota-exceeded":
-      return "We've hit our SMS limit for now. Please try again shortly.";
-    default:
-      return "Something went wrong. Please try again.";
-  }
-}
 
 export function PhoneOtpForm() {
   const router = useRouter();
@@ -41,20 +19,24 @@ export function PhoneOtpForm() {
   const [otp, setOtp] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const recaptchaContainerRef = useRef<HTMLDivElement>(null);
-  const verifierRef = useRef<RecaptchaVerifier | null>(null);
-  const confirmationRef = useRef<ConfirmationResult | null>(null);
+  const [cooldown, setCooldown] = useState(0);
   const mountedRef = useRef(true);
 
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      verifierRef.current?.clear();
-      verifierRef.current = null;
     };
   }, []);
+
+  // Cooldown countdown timer
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const interval = setInterval(() => {
+      setCooldown((c) => (c > 1 ? c - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [cooldown]);
 
   // Already signed in → redirect.
   useEffect(() => {
@@ -64,40 +46,35 @@ export function PhoneOtpForm() {
     }
   }, [loading, user, router, searchParams]);
 
-  // Invisible reCAPTCHA is required by Firebase Phone Auth on web to confirm
-  // the request comes from an allowed domain. One instance per mount; a used
-  // or expired verifier must be recreated before the next send.
-  function getVerifier(): RecaptchaVerifier {
-    if (!auth) throw new Error("Firebase not configured");
-    if (!verifierRef.current) {
-      verifierRef.current = new RecaptchaVerifier(auth, recaptchaContainerRef.current!, {
-        size: "invisible",
-      });
-    }
-    return verifierRef.current;
-  }
-
-  const sendOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const sendOtp = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     setError(null);
     if (!auth) return;
-    if (phone.length !== 10) {
-      setError("Please enter a valid 10-digit mobile number.");
+
+    const cleanPhone = phone.replace(/[^\d]/g, "");
+    if (cleanPhone.length !== 10) {
+      setError("Please enter a valid 10-digit Indian mobile number.");
       return;
     }
 
     setBusy(true);
     try {
-      const confirmation = await signInWithPhoneNumber(auth, `+91${phone}`, getVerifier());
+      const res = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: cleanPhone }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to send verification code.");
+      }
+
       if (!mountedRef.current) return;
-      confirmationRef.current = confirmation;
+      setCooldown(data.cooldownSeconds ?? 60);
       setStep("otp");
     } catch (err) {
-      if (mountedRef.current) setError(helperText(err));
-      // A failed send leaves the reCAPTCHA in a used state — drop it so the
-      // next attempt creates a fresh one instead of silently failing again.
-      verifierRef.current?.clear();
-      verifierRef.current = null;
+      if (mountedRef.current) setError((err as Error).message);
     } finally {
       if (mountedRef.current) setBusy(false);
     }
@@ -106,17 +83,32 @@ export function PhoneOtpForm() {
   const verifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    if (otp.length !== 6 || !confirmationRef.current) {
+    if (!auth) return;
+
+    const cleanOtp = otp.replace(/[^\d]/g, "").slice(0, 6);
+    if (cleanOtp.length !== 6) {
       setError("Please enter the 6-digit code.");
       return;
     }
 
     setBusy(true);
     try {
-      await confirmationRef.current.confirm(otp);
+      const res = await fetch("/api/auth/verify-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: phone.replace(/[^\d]/g, ""), otp: cleanOtp }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || "Verification failed.");
+      }
+
+      // Complete sign in with Firebase custom token
+      await signInWithCustomToken(auth, data.customToken);
       // onAuthStateChanged fires → redirect effect above handles navigation.
     } catch (err) {
-      if (mountedRef.current) setError(helperText(err));
+      if (mountedRef.current) setError((err as Error).message);
     } finally {
       if (mountedRef.current) setBusy(false);
     }
@@ -126,7 +118,6 @@ export function PhoneOtpForm() {
     setStep("phone");
     setOtp("");
     setError(null);
-    confirmationRef.current = null;
   };
 
   if (!auth) {
@@ -177,16 +168,26 @@ export function PhoneOtpForm() {
           >
             {busy ? "Sending code…" : "Send OTP"}
           </button>
-          <p className="pt-1 text-center text-[11px] leading-relaxed text-soft">
-            By signing in, you confirm you are 18+ years of age, agree to our{" "}
-            <Link href="/terms" className="text-chilidark underline hover:text-ink">
-              Terms of Service
-            </Link>{" "}
-            and acknowledge our{" "}
-            <Link href="/privacy" className="text-chilidark underline hover:text-ink">
-              Privacy Policy (DPDP Act, 2023)
-            </Link>.
-          </p>
+          <div className="space-y-3 pt-1 text-center">
+            <p className="text-[11px] leading-relaxed text-soft">
+              By signing in, you confirm you are 18+ years of age, agree to our{" "}
+              <Link href="/terms" className="text-chilidark underline hover:text-ink">
+                Terms of Service
+              </Link>{" "}
+              and acknowledge our{" "}
+              <Link href="/privacy" className="text-chilidark underline hover:text-ink">
+                Privacy Policy (DPDP Act, 2023)
+              </Link>.
+            </p>
+            <div className="border-t border-line/60 pt-3">
+              <Link
+                href="/admin/login"
+                className="text-xs font-semibold text-soft hover:text-chilidark transition"
+              >
+                Kitchen Staff & Admin? Sign in with Email →
+              </Link>
+            </div>
+          </div>
         </form>
       ) : (
         <form onSubmit={verifyOtp} className="space-y-4">
@@ -213,7 +214,7 @@ export function PhoneOtpForm() {
               placeholder="123456"
               value={otp}
               onChange={(e) => setOtp(e.target.value.replace(/[^\d]/g, "").slice(0, 6))}
-              className="field"
+              className="field tracking-widest text-center text-lg font-mono font-bold"
               required
             />
           </div>
@@ -224,11 +225,25 @@ export function PhoneOtpForm() {
           >
             {busy ? "Verifying…" : "Verify & sign in"}
           </button>
+
+          <div className="text-center pt-2">
+            {cooldown > 0 ? (
+              <span className="text-xs text-soft">
+                Resend OTP in <strong className="font-semibold text-ink">{cooldown}s</strong>
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => sendOtp()}
+                disabled={busy}
+                className="text-xs font-semibold text-chilidark underline underline-offset-2 hover:text-ink"
+              >
+                Resend OTP
+              </button>
+            )}
+          </div>
         </form>
       )}
-
-      {/* Invisible reCAPTCHA anchor — Firebase renders no visible widget here. */}
-      <div ref={recaptchaContainerRef} />
     </div>
   );
 }

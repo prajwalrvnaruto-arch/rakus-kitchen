@@ -1,0 +1,141 @@
+{
+  "timestamp": "2026-10-06T17:06:03.428Z",
+  "total": 19,
+  "passed": 19,
+  "failed": 0,
+  "results": [
+    {
+      "suite": "TS-01-MOB",
+      "id": "TC-NAV-MOB-001",
+      "name": "Mobile bottom sticky navigation bar visible (< 768px)",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-01-MOB",
+      "id": "TC-NAV-MOB-002-Home",
+      "name": "Mobile nav tab 'Home' is present and reachable",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-01-MOB",
+      "id": "TC-NAV-MOB-002-Menu",
+      "name": "Mobile nav tab 'Menu' is present and reachable",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-01-MOB",
+      "id": "TC-NAV-MOB-002-Biryani",
+      "name": "Mobile nav tab 'Biryani' is present and reachable",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-01-MOB",
+      "id": "TC-NAV-MOB-002-Catering",
+      "name": "Mobile nav tab 'Catering' is present and reachable",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-01-MOB",
+      "id": "TC-NAV-MOB-002-Orders",
+      "name": "Mobile nav tab 'Orders' is present and reachable",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-01-MOB",
+      "id": "TC-NAV-MOB-002-Cart",
+      "name": "Mobile nav tab 'Cart' is present and reachable",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-01-MOB",
+      "id": "TC-NAV-MOB-003",
+      "name": "Mobile nav tabs trigger smooth client navigation to /menu",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-01-MOB",
+      "id": "TC-NAV-MOB-004",
+      "name": "Mobile bottom bar Cart button opens slide-over drawer",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-05-DEEP",
+      "id": "TC-CART-DEEP-001",
+      "name": "Biryani + Extra meat modal selection completes into cart",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-05-DEEP",
+      "id": "TC-CART-DEEP-002",
+      "name": "Cart Drawer '+' increments item quantity and updates packaging fee",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-05-DEEP",
+      "id": "TC-CART-DEEP-003",
+      "name": "Cart Drawer '−' decrements item quantity",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-05-DEEP",
+      "id": "TC-CART-DEEP-004",
+      "name": "Packaging fee explicitly specified at ₹20/item in totals",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-07-DEEP",
+      "id": "TC-CHK-DEEP-001",
+      "name": "Full Name field accepts input ('Prajwal V')",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-07-DEEP",
+      "id": "TC-CHK-DEEP-002",
+      "name": "Phone number pre-filled from authenticated user session",
+      "status": "PASS",
+      "details": "Phone: 7411626375"
+    },
+    {
+      "suite": "TS-07-DEEP",
+      "id": "TC-CHK-DEEP-003",
+      "name": "Pickup mode displays Kitchen Address (Jambusavari Dinne)",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-07-DEEP",
+      "id": "TC-CHK-DEEP-004",
+      "name": "Delivery mode restores structured AddressPicker requirement",
+      "status": "PASS",
+      "details": ""
+    },
+    {
+      "suite": "TS-08-DEEP",
+      "id": "TC-ORD-DEEP-001",
+      "name": "Order audio chime toggle button switches state",
+      "status": "PASS",
+      "details": "State: 🔇 Chimes Muted"
+    },
+    {
+      "suite": "TS-08-DEEP",
+      "id": "TC-ORD-DEEP-002",
+      "name": "Sign out clears session and redirects to home (/)",
+      "status": "PASS",
+      "details": ""
+    }
+  ]
+}

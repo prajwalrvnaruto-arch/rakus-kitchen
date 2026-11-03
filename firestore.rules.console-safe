@@ -54,6 +54,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Phone verification records holding hashed OTPs & cooldown timestamps — server-only.
+    match /phoneVerifications/{phone} {
+      allow read, write: if false;
+    }
+
     // Per-item order-quantity tracking + availability config, one doc per
     // menu item (menuConfig/{menuId}). Public read so customers see
     // availability without signing in; only admins can edit limits/overrides

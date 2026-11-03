@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Statement of Work (SOW) — Raku's Kitchen | Nexus Development</title>
+  <link rel="stylesheet" href="esignature.css">
   <style>
     :root {
       --primary: #0F172A;
@@ -151,6 +152,21 @@
       font-size: 13px;
       color: var(--muted);
     }
+    @media (max-width: 768px) {
+      body { padding: 12px 10px; }
+      .page { padding: 24px 16px; border-radius: 8px; max-width: 100%; box-shadow: none; }
+      .top-nav { display: none; }
+      header { flex-direction: column; gap: 14px; align-items: stretch; margin-bottom: 20px; padding-bottom: 14px; }
+      .company-info { gap: 10px; align-items: flex-start; }
+      .company-details h2 { font-size: 17px; }
+      .doc-meta { text-align: left; border-top: 1px dashed var(--border); padding-top: 10px; }
+      h1 { font-size: 21px; line-height: 1.25; margin-bottom: 6px; word-break: break-word; }
+      .lead { font-size: 13.5px; margin-bottom: 18px; line-height: 1.45; }
+      h2.section-title { font-size: 16px; margin-top: 22px; margin-bottom: 10px; }
+      table { display: block; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border: none; margin: 12px 0 18px 0; }
+      th, td { font-size: 12px; padding: 8px 10px; min-width: 110px; }
+      .summary-card { padding: 12px 14px; font-size: 13px; }
+    }
     @media print {
       body { background: #FFFFFF; padding: 0; }
       .page { box-shadow: none; padding: 30px; max-width: 100%; border-radius: 0; }
@@ -207,7 +223,7 @@
         </tr>
         <tr>
           <td><strong>Total Contract Price</strong></td>
-          <td><strong>₹1,50,000 INR</strong> (Fixed Price, Freelance Billing — Exempt from Goods and Services Tax)</td>
+          <td><strong>₹55,000 INR</strong> (Fixed Price, All-Inclusive)</td>
         </tr>
         <tr>
           <td><strong>Engagement Timeline</strong></td>
@@ -216,56 +232,52 @@
       </tbody>
     </table>
 
-    <h2 class="section-title">2. In-Scope Deliverables & Milestone Breakdown</h2>
+    <h2 class="section-title">2. In-Scope Deliverables & Commercial Breakdown</h2>
     <table>
       <thead>
         <tr>
-          <th>Milestone</th>
-          <th>Deliverables Summary</th>
+          <th>Component</th>
+          <th>Deliverables Summary & Scope</th>
           <th>Percentage</th>
           <th>Amount (INR)</th>
         </tr>
       </thead>
       <tbody>
         <tr>
-          <td><strong>Milestone 1: Inception & UI/UX Architecture</strong></td>
+          <td><strong>1. Web Application Platform Engineering & Handover (Product)</strong></td>
           <td>
-            • Brand alignment & information architecture.<br>
-            • Mobile-first customer storefront UI layout.<br>
-            • Weight-based Biryani picker & portioning flow design.<br>
-            • Operational schedule & slot-booking UX.
+            • Next.js 14 App Router full-stack responsive web application.<br>
+            • Mobile-first customer storefront UI layout & brand identity translation.<br>
+            • Weight-based Biryani picker (½ kg, 1 kg, multi-kg) & constraint enforcement.<br>
+            • Operational schedule & advance slot-booking UX (Lunch 12:30 PM & Dinner 7:30 PM).<br>
+            • Phone OTP Authentication (passwordless mobile login).<br>
+            • Cloud Firestore schema architecture, indexing & client-isolation security rules.<br>
+            • Ola Maps autocomplete & hyper-local Bengaluru reverse geocoding.<br>
+            • Razorpay Payment Gateway integration with server-side HMAC-SHA256 webhook backstop.<br>
+            • Real-time Admin Command Portal (<span style="font-family:monospace;">/admin</span>) with live order status listeners.<br>
+            • Borzo Business 1-Click Courier Dispatch API & Porter manual deep-link dispatch helper.<br>
+            • WhatsApp contextual click-to-chat messaging link engine.<br>
+            • Production build optimization, automated E2E test suite validation & handover.<br>
+            • <strong>1-Year Comprehensive Maintenance & Bug-Fix Warranty:</strong> 100% full bug remediation across frontend, backend, Firestore, Auth, Ola Maps, Borzo API & Razorpay PG, plus routine menu/pricing updates and priority SLA resolution.
           </td>
-          <td>30%</td>
-          <td><strong>₹45,000</strong></td>
+          <td>90.91%</td>
+          <td><strong>₹50,000</strong></td>
         </tr>
         <tr>
-          <td><strong>Milestone 2: Core Engineering & Integrations</strong></td>
+          <td><strong>2. Domain Setup, Cloud Hosting & Fast2SMS Gateway Setup</strong></td>
           <td>
-            • Next.js 14 App Router full-stack implementation.<br>
-            • Firebase Authentication (Phone OTP login).<br>
-            • Cloud Firestore data models & security rules.<br>
-            • Ola Maps autocomplete & reverse geocoding.<br>
-            • Razorpay Payment Gateway integration (prepayment).
+            • Custom domain registration & DNS routing architecture configuration.<br>
+            • Enterprise SSL/TLS encryption certificate provisioning & automated HTTPS renewals.<br>
+            • High-availability Cloud hosting deployment, CDN edge caching & edge network security rules.<br>
+            • Fast2SMS Quick OTP Route gateway technical setup & API integration (ongoing SMS recharge credits managed directly by Client).
           </td>
-          <td>40%</td>
-          <td><strong>₹60,000</strong></td>
-        </tr>
-        <tr>
-          <td><strong>Milestone 3: Logistics Automation & Go-Live</strong></td>
-          <td>
-            • Real-time Admin Command Portal (<span style="font-family:monospace;">/admin</span>).<br>
-            • Borzo Business 1-Click Courier Dispatch API.<br>
-            • Porter manual deep-link dispatch helper.<br>
-            • WhatsApp contextual click-to-chat messaging.<br>
-            • Production deployment, load verification & handover.
-          </td>
-          <td>30%</td>
-          <td><strong>₹45,000</strong></td>
+          <td>9.09%</td>
+          <td><strong>₹5,000</strong></td>
         </tr>
         <tr style="background: var(--bg-light); font-weight: 700;">
-          <td colspan="2"><strong>TOTAL CONTRACT VALUE</strong></td>
+          <td colspan="2"><strong>TOTAL CONTRACT VALUE (ALL-INCLUSIVE FIXED PRICE)</strong></td>
           <td><strong>100%</strong></td>
-          <td><strong>₹1,50,000 INR</strong></td>
+          <td><strong>₹55,000 INR</strong></td>
         </tr>
       </tbody>
     </table>
@@ -280,15 +292,16 @@
       <li><strong>Google Cloud / Firebase:</strong> Firebase Auth, Cloud Firestore, Firebase Hosting/Storage.</li>
       <li><strong>Razorpay:</strong> Merchant account, KYC verification, and payout settlement bank account.</li>
       <li><strong>Ola Maps API:</strong> Map rendering and geocoding quota billings.</li>
+      <li><strong>Fast2SMS Gateway:</strong> SMS credits, DLT registration and customer verification quota.</li>
       <li><strong>Borzo & Porter:</strong> Business delivery accounts and rider recharge wallets.</li>
     </ul>
 
     <h2 class="section-title">4. Maintenance, Warranty & Ongoing Support Terms</h2>
     <p>
-      The total contract value of <strong>₹1,50,000</strong> includes full warranty and ongoing maintenance support as follows:
+      The total contract value of <strong>₹55,000</strong> includes a dedicated <strong>1-Year Comprehensive Maintenance & Bug-Fix Warranty</strong> providing full 1-year warranty and ongoing maintenance support as follows:
     </p>
     <ul>
-      <li><strong>Included Without Additional Expense:</strong>
+      <li><strong>Included Without Additional Expense (Under 1-Year Maintenance Warranty):</strong>
         <ul>
           <li>Full bug-fixing and technical support for all features and modules delivered under this SOW.</li>
           <li>Ongoing minor operational changes including dish name changes, menu pricing updates, packaging fee adjustments, holiday hours changes, and operational banner updates.</li>
@@ -309,9 +322,20 @@
       <li>Kitchen food preparation hardware or physical tablet/printer hardware procurement.</li>
     </ul>
 
-    <h2 class="section-title">6. Acceptance & Formal Sign-off</h2>
+    <h2 class="section-title">6. Handover & Go-Live Schedule (20 Calendar Days Post-Signing)</h2>
     <p>
-      Both parties hereby acknowledge and agree to the scope, milestones, and governance terms specified in this Statement of Work.
+      Formal public Go-Live of the <strong>Raku's Kitchen Ordering & Delivery Platform</strong> is scheduled exactly <strong>20 calendar days following the execution and digital signing of this document</strong>:
+    </p>
+    <ul>
+      <li><strong>Days 1–7 (Setup & Verification):</strong> Live payment gateway settlement validation, kitchen staff portal training, and final menu catalog verification.</li>
+      <li><strong>Days 8–14 (Operational Drills & Logistics):</strong> Real-world test dispatches with Borzo & Porter delivery riders and simulated kitchen lunch/dinner peak volumes.</li>
+      <li><strong>Days 15–20 (Launch Readiness):</strong> Customer WhatsApp bio-link routing, QR collateral distribution, and final pre-flight health checks.</li>
+      <li><strong>Day 20:</strong> Official Public Go-Live and transition into 1-Year maintenance warranty support.</li>
+    </ul>
+
+    <h2 class="section-title">7. Acceptance & Formal Sign-off</h2>
+    <p>
+      Both parties hereby acknowledge and agree to the scope, milestones, deliverables, and the 20-day Go-Live schedule specified in this Statement of Work.
     </p>
 
     <div class="sign-off-grid">
@@ -327,5 +351,10 @@
       </div>
     </div>
   </div>
+
+  <script src="esignature.js"></script>
+  <script>
+    NexusSign.init('doc_03_sow');
+  </script>
 </body>
 </html>

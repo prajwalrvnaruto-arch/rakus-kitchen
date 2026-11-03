@@ -11,6 +11,7 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import { sanitizeFirestoreData } from "./sanitize";
 import type { AuditAction, AuditLogEntry } from "@/types";
 
 /**
@@ -38,12 +39,15 @@ export async function recordAuditLog(params: {
     const now = Date.now();
     const expiresAt = now + AUDIT_RETENTION_DAYS * 24 * 60 * 60 * 1000;
 
-    await addDoc(collection(db, "auditLogs"), {
-      ...params,
-      createdAt: now,
-      expiresAt,
-      serverTime: serverTimestamp(),
-    });
+    await addDoc(
+      collection(db, "auditLogs"),
+      sanitizeFirestoreData({
+        ...params,
+        createdAt: now,
+        expiresAt,
+        serverTime: serverTimestamp(),
+      }),
+    );
   } catch (err) {
     // Non-blocking: audit log failure should never crash user transactions
     console.warn("[AuditLogger] Failed to write audit log:", err);

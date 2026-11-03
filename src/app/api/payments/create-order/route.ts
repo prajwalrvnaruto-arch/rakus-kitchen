@@ -5,6 +5,7 @@ import { createIntent, enforceOrderRateLimit, RateLimitError } from "@/lib/serve
 import { checkQuantityLimits } from "@/lib/server/menuConfig";
 import { recomputeOrderTotals } from "@/lib/menu";
 import { validateMeal } from "@/lib/order-dates";
+import { isWithinServiceArea, OUT_OF_SERVICE_AREA_MESSAGE } from "@/lib/geofence";
 import type { OrderDraft } from "@/lib/db";
 import type { AddressComponents, FulfillmentType, MealSlot, OrderLineItem } from "@/types";
 
@@ -55,6 +56,22 @@ export async function POST(request: Request) {
     const mealProblem = validateMeal({ date: body.mealDate, slot: body.mealSlot });
     if (mealProblem) {
       return NextResponse.json({ error: mealProblem }, { status: 400 });
+    }
+
+    // Bengaluru-only delivery zone — the authoritative gate. The client already
+    // steers customers away from out-of-zone addresses (AddressPicker), but that's
+    // UI, not a security boundary: a scripted client could post any coordinates.
+    if (fulfillmentType === "delivery") {
+      const coords = body.addressComponents;
+      if (!coords || typeof coords.lat !== "number" || typeof coords.lng !== "number") {
+        return NextResponse.json({ error: "Please pick your address from the search suggestions or use My location." }, { status: 400 });
+      }
+      if (!isWithinServiceArea(coords.lat, coords.lng, { pincode: coords.pincode, state: coords.state })) {
+        return NextResponse.json(
+          { error: OUT_OF_SERVICE_AREA_MESSAGE, code: "out_of_service_area" },
+          { status: 400 },
+        );
+      }
     }
 
     // The only source of truth for prices — client-submitted pricePerUnit/lineTotal

@@ -8,6 +8,8 @@ import { MENU } from "@/lib/menu";
 import { itemHasQuantityLimit, limitUnitLabel, deriveAvailability, DEFAULT_ITEM_LIMIT, type ManualOverride } from "@/lib/menuLimits";
 import { formatINR } from "@/lib/menu";
 
+import { AdminDeliveryModal, type DeliveryModalState } from "@/components/AdminDeliveryModal";
+
 export default function InventoryPage() {
   return (
     <AdminGate>
@@ -20,6 +22,7 @@ function InventoryContent() {
   const [configs, setConfigs] = useState<MenuConfigWithId[] | null>(null);
   const [configError, setConfigError] = useState<string | null>(null);
   const [busy, setBusy] = useState<Record<string, boolean>>({});
+  const [modal, setModal] = useState<DeliveryModalState | null>(null);
 
   useEffect(() => {
     const unsubscribe = subscribeMenuConfig(
@@ -38,7 +41,12 @@ function InventoryContent() {
     try {
       await setMenuItemLimit(menuId, limit);
     } catch (err) {
-      alert(`Failed to update limit: ${(err as Error).message}`);
+      setModal({
+        type: "error",
+        carrier: "general",
+        title: "Failed to Update Limit",
+        message: (err as Error).message,
+      });
     } finally {
       setBusy((prev) => ({ ...prev, [menuId]: false }));
     }
@@ -49,38 +57,75 @@ function InventoryContent() {
     try {
       await setMenuItemAvailabilityOverride(menuId, override);
     } catch (err) {
-      alert(`Failed to update override: ${(err as Error).message}`);
+      setModal({
+        type: "error",
+        carrier: "general",
+        title: "Failed to Update Override",
+        message: (err as Error).message,
+      });
     } finally {
       setBusy((prev) => ({ ...prev, [menuId]: false }));
     }
   };
 
-  const handleReset = async (menuId: string) => {
-    if (!confirm(`Reset ordered quantity to 0 for this item?`)) return;
+  const executeReset = async (menuId: string) => {
     setBusy((prev) => ({ ...prev, [menuId]: true }));
     try {
       await resetMenuItemOrderedQty(menuId);
+      setModal(null);
     } catch (err) {
-      alert(`Failed to reset quantity: ${(err as Error).message}`);
+      setModal({
+        type: "error",
+        carrier: "general",
+        title: "Failed to Reset Quantity",
+        message: (err as Error).message,
+      });
     } finally {
       setBusy((prev) => ({ ...prev, [menuId]: false }));
     }
   };
 
-  const handleResetAll = async () => {
-    if (!confirm(
-      `Reset ALL item quantities to 0?\n\nThis will clear the ordered quantity counter for every menu item. This action cannot be undone.`,
-    )) return;
+  const handleReset = (menuId: string) => {
+    const item = MENU.find((m) => m.id === menuId);
+    setModal({
+      type: "confirm",
+      carrier: "borzo",
+      orderId: item?.name ?? menuId,
+      customerName: "Reset Ordered Quantity",
+      customerPhone: "Action will reset count to 0",
+      dropAddress: `Reset counter for ${item?.name ?? menuId} back to 0. Limit and availability will recalculate automatically.`,
+      onConfirm: () => executeReset(menuId),
+    });
+  };
 
+  const executeResetAll = async () => {
     const allMenuIds = MENU.map((m) => m.id);
     setBusy((prev) => ({ ...prev, resetAll: true }));
     try {
       await resetAllMenuItemOrderedQty(allMenuIds);
+      setModal(null);
     } catch (err) {
-      alert(`Failed to reset all quantities: ${(err as Error).message}`);
+      setModal({
+        type: "error",
+        carrier: "general",
+        title: "Failed to Reset All Quantities",
+        message: (err as Error).message,
+      });
     } finally {
       setBusy((prev) => ({ ...prev, resetAll: false }));
     }
+  };
+
+  const handleResetAll = () => {
+    setModal({
+      type: "confirm",
+      carrier: "borzo",
+      orderId: "All Menu Items",
+      customerName: "Reset All Ordered Counters",
+      customerPhone: "Action cannot be undone",
+      dropAddress: "This will clear the ordered quantity counter for every menu item across the kitchen.",
+      onConfirm: () => executeResetAll(),
+    });
   };
 
   // Join menu with configs — show all menu items, using default values when no Firestore doc exists yet
@@ -263,6 +308,9 @@ function InventoryContent() {
           <li><span className="font-semibold">Reset:</span> Zero out the ordered quantity counter (manual action only, no automatic resets).</li>
         </ul>
       </div>
+
+      {/* Raku's Kitchen Styled Admin Modal */}
+      <AdminDeliveryModal modal={modal} onClose={() => setModal(null)} />
     </div>
   );
 }

@@ -475,6 +475,8 @@ export default function CheckoutPage() {
       // cart, so ask the customer to review it before charging the new amount.
       if (err instanceof ApiError && err.code === "price_changed") {
         setError("Some prices changed since you added items. Please review the updated total above, then pay again.");
+      } else if (err instanceof ApiError && err.code === "out_of_service_area") {
+        setError((err as Error).message);
       } else if (err instanceof ApiError && err.status === 429) {
         // Rate-limited: the server's message already says to wait a moment.
         setError((err as Error).message);

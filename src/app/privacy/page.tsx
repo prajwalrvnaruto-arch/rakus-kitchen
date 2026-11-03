@@ -123,7 +123,7 @@ export default function PrivacyPage() {
               <div className="rounded-xl border border-line bg-paper p-3.5">
                 <p className="font-bold text-ink">🛵 Delivery & Logistics</p>
                 <p className="mt-1 text-xs text-soft">
-                  To route third-party delivery riders (Borzo, Porter, Shadowfax) or prepare your bag for self-pickup.
+                  To route third-party delivery riders (Borzo, Porter) or prepare your bag for self-pickup.
                 </p>
               </div>
               <div className="rounded-xl border border-line bg-paper p-3.5">
@@ -164,7 +164,7 @@ export default function PrivacyPage() {
                 <p className="text-soft">Address autocomplete, places lookup, and delivery coordinate geocoding.</p>
               </div>
               <div className="p-3">
-                <p className="font-bold text-ink">Logistics Carriers (Borzo, Porter, Shadowfax)</p>
+                <p className="font-bold text-ink">Logistics Carriers (Borzo, Porter)</p>
                 <p className="text-soft">Courier dispatch, driver assignment, and live delivery transit.</p>
               </div>
               <div className="p-3">

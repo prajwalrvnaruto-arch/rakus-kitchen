@@ -1,0 +1,14 @@
+{
+  "timestamp": "2026-10-13T08:07:00.233Z",
+  "total": 1,
+  "passed": 1,
+  "failed": 0,
+  "results": [
+    {
+      "id": "RZP-AUTH-001",
+      "name": "Customer logged in with test phone credentials",
+      "status": "PASS",
+      "details": ""
+    }
+  ]
+}

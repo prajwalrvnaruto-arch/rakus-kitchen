@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Client Welcome Kit & Onboarding Guide — Raku's Kitchen | Nexus Development</title>
+  <link rel="stylesheet" href="esignature.css">
   <style>
     :root {
       --primary: #0F172A;
@@ -115,23 +116,23 @@
       margin-bottom: 28px;
     }
     .welcome-card {
-      background: linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
-      color: #FFFFFF;
+      background: #FFFFFF;
+      color: var(--text);
       padding: 28px 32px;
       border-radius: 10px;
       margin-bottom: 35px;
-      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
-      border-left: 6px solid var(--accent);
+      border: 1px solid var(--border);
+      border-left: 6px solid var(--accent-dark);
     }
     .welcome-card h3 {
       font-size: 18px;
       margin-bottom: 10px;
-      color: var(--accent);
+      color: var(--primary);
     }
     .welcome-card p {
       font-size: 14.5px;
       line-height: 1.65;
-      color: #E2E8F0;
+      color: var(--text);
       margin-bottom: 12px;
     }
     .welcome-card p:last-child {
@@ -260,6 +261,22 @@
       font-size: 11px;
       color: var(--muted);
     }
+    @media (max-width: 768px) {
+      body { padding: 12px 10px; }
+      .page { padding: 24px 16px; border-radius: 8px; max-width: 100%; box-shadow: none; }
+      .top-nav { display: none; }
+      header { flex-direction: column; gap: 14px; align-items: stretch; margin-bottom: 20px; padding-bottom: 14px; }
+      .company-info { gap: 10px; align-items: flex-start; }
+      .company-details h2 { font-size: 17px; }
+      .doc-meta { text-align: left; border-top: 1px dashed var(--border); padding-top: 10px; }
+      h1 { font-size: 21px; line-height: 1.25; margin-bottom: 6px; word-break: break-word; }
+      .lead { font-size: 13.5px; margin-bottom: 18px; line-height: 1.45; }
+      h2.section-title { font-size: 16px; margin-top: 22px; margin-bottom: 10px; }
+      table { display: block; width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border: none; margin: 12px 0 18px 0; }
+      th, td { font-size: 12px; padding: 8px 10px; min-width: 110px; }
+      .callout, .recommendation-box { padding: 12px 14px; font-size: 13px; }
+      .step-item { flex-direction: column; gap: 8px; }
+    }
     @media print {
       body { background: #FFFFFF; padding: 0; }
       .page { box-shadow: none; padding: 20px 0; max-width: 100%; }
@@ -329,7 +346,7 @@
         </tr>
         <tr>
           <td><strong>Customer Sign-In</strong></td>
-          <td>Firebase Phone OTP Authentication</td>
+          <td>Phone OTP Authentication</td>
           <td>Frictionless passwordless sign-in with verified mobile numbers. Zero lost passwords or forgotten logins.</td>
         </tr>
         <tr>
@@ -406,6 +423,11 @@
           <td><code>borzodelivery.com/in</code></td>
           <td>Courier wallet recharge, rider history, and delivery dispute resolution.</td>
         </tr>
+        <tr>
+          <td><strong>Fast2SMS Gateway Console</strong></td>
+          <td><code>fast2sms.com</code></td>
+          <td>Phone OTP SMS gateway configuration, DLT routing, and recharge console (Gateway technical integration included in ₹5k Setup Package).</td>
+        </tr>
       </tbody>
     </table>
 
@@ -444,16 +466,22 @@
 
     <h2 class="section-title">4. Ongoing Support, SLA & Maintenance Terms</h2>
     <div class="callout">
-      <strong>Comprehensive 1-Year Support Included:</strong> Your ₹1,50,000 contract value includes ongoing maintenance, bug resolution, and operational support provided directly by Nexus Development.
+      <strong>Comprehensive 1-Year Support Included:</strong> Your ₹55,000 contract value includes dedicated 1-Year Comprehensive Maintenance & Bug-Fix Warranty providing ongoing maintenance, bug resolution, and operational support provided directly by Nexus Development.
     </div>
 
     <ul>
-      <li><strong>100% Free Under Ongoing Support:</strong>
+      <li><strong>100% Free Under Ongoing Support (1-Year Maintenance Warranty):</strong>
         <ul>
           <li>All bug remediation across the storefront, database, Ola Maps, Borzo dispatch, and Razorpay PG.</li>
           <li>Menu adjustments: adding/removing items, updating photos, descriptions, and portion weight tags.</li>
           <li>Price adjustments: changing prices per kg or modifying the ₹20 packaging fee.</li>
           <li>Operational updates: setting holiday closures, festival schedules, or lunch/dinner slot timings.</li>
+        </ul>
+      </li>
+      <li><strong>Domain, Hosting & Fast2SMS Gateway Setup (Covered under ₹5,000 Allocation):</strong>
+        <ul>
+          <li><strong>Domain Setup & Cloud Hosting:</strong> Dedicated setup covering custom domain DNS architecture, SSL certificates, and serverless cloud hosting infrastructure.</li>
+          <li><strong>Phone OTP SMS Gateway Setup:</strong> Fast2SMS Quick OTP Route API integration and DLT routing configuration (ongoing SMS recharge credits and carrier charges funded directly by Client).</li>
         </ul>
       </li>
       <li><strong>Major Feature Expansions (Out of Scope):</strong>
@@ -516,19 +544,19 @@
         <tr>
           <td><strong>03</strong></td>
           <td><strong>Statement of Work (SOW)</strong></td>
-          <td>Contractual baseline, ₹1,50,000 commercial terms, and dual sign-off blocks.</td>
+          <td>Contractual baseline, ₹55,000 commercial terms (₹50k Web App with 1-Yr Maintenance, ₹5k Domain & Cloud Hosting), and dual sign-off blocks.</td>
           <td><a href="03_SOW_Statement_of_Work.html">View SOW &rarr;</a></td>
         </tr>
         <tr>
           <td><strong>04</strong></td>
           <td><strong>Service Level Agreement (SLA)</strong></td>
-          <td>Support tiering, MTTA/MTTR response matrix, and maintenance policy.</td>
+          <td>Support tiering, MTTA/MTTR response matrix, and 1-Year Maintenance & Bug-Fix Warranty policy.</td>
           <td><a href="04_SLA_Service_Level_Agreement.html">View SLA &rarr;</a></td>
         </tr>
         <tr>
           <td><strong>05</strong></td>
           <td><strong>Milestone Tax Invoices</strong></td>
-          <td>Master Statement of Account and Invoices 1, 2, and 3 with 1-click PDF print.</td>
+          <td>Master Statement of Account and Invoices (₹55,000 All-Inclusive Fixed Price) with 1-click PDF print.</td>
           <td><a href="05_Milestone_Invoices.html">View Invoices &rarr;</a></td>
         </tr>
       </tbody>
@@ -549,5 +577,10 @@
       </div>
     </div>
   </div>
+
+  <script src="esignature.js"></script>
+  <script>
+    NexusSign.init('doc_00_welcome');
+  </script>
 </body>
 </html>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { AddressComponents } from "@/types";
 import { autocomplete, reverseGeocode, type PlaceSuggestion } from "@/lib/placesClient";
 import { BUSINESS } from "@/lib/config";
+import { isWithinServiceArea, OUT_OF_SERVICE_AREA_MESSAGE } from "@/lib/geofence";
 
 /* ── Component ──────────────────────────────────────────────────────────── */
 
@@ -45,9 +46,10 @@ export function AddressPicker({ value, onChange }: AddressPickerProps) {
     lng: number;
     placeId?: string;
   } | null>(value ? { lat: value.lat, lng: value.lng, placeId: value.placeId } : null);
-  const [cityPincode, setCityPincode] = useState<{ city: string; pincode: string }>({
+  const [cityPincode, setCityPincode] = useState<{ city: string; pincode: string; state: string }>({
     city: value?.city ?? "",
     pincode: value?.pincode ?? "",
+    state: value?.state ?? "",
   });
 
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
@@ -57,6 +59,7 @@ export function AddressPicker({ value, onChange }: AddressPickerProps) {
 
   const [gpsLoading, setGpsLoading] = useState(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
+  const [areaError, setAreaError] = useState<string | null>(null);
 
   /* ── Debounced search-as-you-type ───────────────────────────────────── */
   useEffect(() => {
@@ -107,30 +110,70 @@ export function AddressPicker({ value, onChange }: AddressPickerProps) {
       landmark: landmark.trim() || undefined,
       city: cityPincode.city,
       pincode: cityPincode.pincode,
+      state: cityPincode.state || undefined,
     });
     // onChange is intentionally excluded — including it would cause infinite loops
     // if the parent re-creates the callback on every render. Parent should memoize.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [coords, mainAddress, doorAndBuilding, landmark, cityPincode.city, cityPincode.pincode]);
+  }, [coords, mainAddress, doorAndBuilding, landmark, cityPincode.city, cityPincode.pincode, cityPincode.state]);
 
   const pickSuggestion = useCallback((s: PlaceSuggestion) => {
-    setQuery(s.label);
-    setMainAddress(s.label);
-    setCoords({ lat: s.lat, lng: s.lng, placeId: s.placeId });
-    setCityPincode({ city: s.city, pincode: s.pincode });
     setSuggestions([]);
     setShowSuggestions(false);
     setActiveIndex(-1);
 
-    // Ola's autocomplete predictions don't include city/pincode — fill them
-    // in with a reverse geocode against the picked point.
-    if (!s.city && !s.pincode) {
+    // Ola's autocomplete predictions never include state — the one signal that
+    // reliably tells a cross-border pick (e.g. Hosur, Tamil Nadu) apart from a
+    // legitimate far Bengaluru suburb at a similar straight-line distance. So
+    // the area check can't run on the raw pick: resolve state via reverse
+    // geocode first, THEN decide, rather than showing the address as confirmed
+    // and validating in the background after the fact.
+    if (!s.state) {
+      setAreaError(null);
+      setQuery(s.label);
+      setMainAddress("");
+      setCoords(null);
+      setGpsLoading(true); // reuse the existing "working" indicator
       reverseGeocode(s.lat, s.lng)
         .then((result) => {
-          if (result) setCityPincode({ city: result.city, pincode: result.pincode });
+          setGpsLoading(false);
+          const state = result?.state ?? "";
+          const pincode = result?.pincode ?? s.pincode;
+          if (!isWithinServiceArea(s.lat, s.lng, { pincode, state })) {
+            setAreaError(OUT_OF_SERVICE_AREA_MESSAGE);
+            setQuery("");
+            return;
+          }
+          setMainAddress(s.label);
+          setCoords({ lat: s.lat, lng: s.lng, placeId: s.placeId });
+          setCityPincode({ city: result?.city ?? s.city, pincode, state });
         })
-        .catch((err) => console.error("[AddressPicker] reverse geocode after pick failed:", err));
+        .catch((err) => {
+          console.error("[AddressPicker] reverse geocode after pick failed:", err);
+          setGpsLoading(false);
+          // Can't confirm state — fall back to the distance-only check rather
+          // than blocking the customer entirely on a transient Ola failure.
+          if (!isWithinServiceArea(s.lat, s.lng, { pincode: s.pincode })) {
+            setAreaError(OUT_OF_SERVICE_AREA_MESSAGE);
+            setQuery("");
+            return;
+          }
+          setMainAddress(s.label);
+          setCoords({ lat: s.lat, lng: s.lng, placeId: s.placeId });
+          setCityPincode({ city: s.city, pincode: s.pincode, state: "" });
+        });
+      return;
     }
+
+    if (!isWithinServiceArea(s.lat, s.lng, { pincode: s.pincode, state: s.state })) {
+      setAreaError(OUT_OF_SERVICE_AREA_MESSAGE);
+      return;
+    }
+    setAreaError(null);
+    setQuery(s.label);
+    setMainAddress(s.label);
+    setCoords({ lat: s.lat, lng: s.lng, placeId: s.placeId });
+    setCityPincode({ city: s.city, pincode: s.pincode, state: s.state });
   }, []);
 
   /* ── Keyboard navigation for the suggestions list ───────────────────── */
@@ -168,11 +211,16 @@ export function AddressPicker({ value, onChange }: AddressPickerProps) {
         try {
           const result = await reverseGeocode(lat, lng);
           setGpsLoading(false);
+          if (!isWithinServiceArea(lat, lng, { pincode: result?.pincode, state: result?.state })) {
+            setAreaError(OUT_OF_SERVICE_AREA_MESSAGE);
+            return;
+          }
+          setAreaError(null);
           if (result) {
             setMainAddress(result.label);
             setQuery(result.label);
             setCoords({ lat, lng, placeId: result.placeId });
-            setCityPincode({ city: result.city, pincode: result.pincode });
+            setCityPincode({ city: result.city, pincode: result.pincode, state: result.state });
           } else {
             setCoords({ lat, lng });
             setGpsError(
@@ -280,6 +328,12 @@ export function AddressPicker({ value, onChange }: AddressPickerProps) {
       {gpsError && (
         <p role="alert" className="text-xs font-medium text-chili">
           {gpsError}
+        </p>
+      )}
+
+      {areaError && (
+        <p role="alert" className="text-xs font-medium text-chili">
+          {areaError}
         </p>
       )}
 

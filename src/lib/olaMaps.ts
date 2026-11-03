@@ -13,6 +13,12 @@ export interface PlaceSuggestion {
   lng: number;
   city: string;
   pincode: string;
+  /** State name (e.g. "Karnataka") — the authoritative signal for excluding
+   *  cross-border points (e.g. Hosur, Tamil Nadu) that a straight-line
+   *  distance-from-kitchen radius alone can't tell apart from a legitimate
+   *  far edge of Bengaluru. Only reverse-geocode populates this; autocomplete
+   *  predictions never carry it. */
+  state: string;
   /** Ola Maps place identifier (format "ola-platform:<id>"), if present. */
   placeId?: string;
 }
@@ -57,18 +63,25 @@ function apiKey(): string {
   return key;
 }
 
-/** City with the same fallback chain the old Google address_components parsing used. */
-function extractCityPincode(components: OlaAddressComponent[]): { city: string; pincode: string } {
+/** City with the same fallback chain the old Google address_components parsing used,
+ *  plus state — captured independently of the city fallback chain, since state
+ *  (administrative_area_level_1) is the authoritative cross-border signal even
+ *  when it's also being used as the city's last-resort fallback value. */
+function extractAddressParts(components: OlaAddressComponent[]): { city: string; pincode: string; state: string } {
   let city = "";
   let pincode = "";
+  let state = "";
   for (const c of components) {
     const types = c.types ?? [];
     if (types.includes("locality") && !city) city = c.long_name;
     if (types.includes("administrative_area_level_2") && !city) city = c.long_name;
-    if (types.includes("administrative_area_level_1") && !city) city = c.long_name;
+    if (types.includes("administrative_area_level_1")) {
+      state = c.long_name;
+      if (!city) city = c.long_name;
+    }
     if (types.includes("postal_code")) pincode = c.long_name;
   }
-  return { city, pincode };
+  return { city, pincode, state };
 }
 
 /** Reverse geocode — turns GPS coordinates into a confirmed address.
@@ -86,13 +99,14 @@ export async function reverseGeocode(
   const result = data.results?.[0];
   if (!result) return null;
 
-  const { city, pincode } = extractCityPincode(result.address_components ?? []);
+  const { city, pincode, state } = extractAddressParts(result.address_components ?? []);
   return {
     label: result.formatted_address,
     lat: result.geometry.location.lat,
     lng: result.geometry.location.lng,
     city,
     pincode,
+    state,
     placeId: result.place_id,
   };
 }
@@ -127,6 +141,7 @@ export async function autocomplete(
       lng: p.geometry.location.lng,
       city: "",
       pincode: "",
+      state: "",
       placeId: p.place_id,
     }));
 }
