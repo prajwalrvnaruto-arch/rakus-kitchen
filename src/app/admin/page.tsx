@@ -6,7 +6,15 @@ import { useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
-import { updateOrderStatus, checkAdminAccess, setAdmin, updateDeliveryMeta, type AdminAccessReport } from "@/lib/db";
+import {
+  updateOrderStatus,
+  checkAdminAccess,
+  setAdmin,
+  updateDeliveryMeta,
+  setKitchenStaff,
+  subscribeKitchenStaff,
+  type AdminAccessReport,
+} from "@/lib/db";
 import { formatINR } from "@/lib/menu";
 import { waLinkToCustomer } from "@/lib/whatsapp";
 import { launchPorterAppDeepLink, buildPorterClipboardData } from "@/lib/porterDeepLink";
@@ -49,6 +57,9 @@ export default function AdminPage() {
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [showAuditLogs, setShowAuditLogs] = useState(true);
   const [pageModal, setPageModal] = useState<DeliveryModalState | null>(null);
+  const [kitchenStaffUids, setKitchenStaffUids] = useState<string[]>([]);
+  const [kitchenUidInput, setKitchenUidInput] = useState("");
+  const [kitchenStaffBusy, setKitchenStaffBusy] = useState(false);
 
   // Subscribe to recent audit logs when Tools panel is open
   useEffect(() => {
@@ -57,6 +68,16 @@ export default function AdminPage() {
       (logs) => setAuditLogs(logs),
       35,
       (err) => console.warn("[AuditLogs] Subscription failed:", err),
+    );
+    return () => unsub();
+  }, [showTools]);
+
+  // Subscribe to kitchen-staff allowlist when Tools panel is open
+  useEffect(() => {
+    if (!showTools) return;
+    const unsub = subscribeKitchenStaff(
+      (uids) => setKitchenStaffUids(uids),
+      (err) => console.warn("[KitchenStaff] Subscription failed:", err),
     );
     return () => unsub();
   }, [showTools]);
@@ -137,6 +158,41 @@ export default function AdminPage() {
       setAccess(await checkAdminAccess(user?.email));
     } finally {
       setChecking(false);
+    }
+  };
+
+  const handleGrantKitchenStaff = async () => {
+    const uid = kitchenUidInput.trim();
+    if (!uid) return;
+    setKitchenStaffBusy(true);
+    try {
+      await setKitchenStaff(uid, true);
+      setKitchenUidInput("");
+    } catch (e) {
+      setPageModal({
+        type: "error",
+        carrier: "general",
+        title: "Could Not Grant Kitchen Access",
+        message: (e as Error).message,
+      });
+    } finally {
+      setKitchenStaffBusy(false);
+    }
+  };
+
+  const handleRevokeKitchenStaff = async (uid: string) => {
+    setKitchenStaffBusy(true);
+    try {
+      await setKitchenStaff(uid, false);
+    } catch (e) {
+      setPageModal({
+        type: "error",
+        carrier: "general",
+        title: "Could Not Revoke Kitchen Access",
+        message: (e as Error).message,
+      });
+    } finally {
+      setKitchenStaffBusy(false);
     }
   };
 
@@ -693,6 +749,58 @@ export default function AdminPage() {
                 )}
               </div>
             )}
+          </div>
+
+          {/* ── Kitchen Staff access (read-only prep sheet) ── */}
+          <div className="mt-6 border-t border-line/60 pt-4">
+            <h3 className="font-display font-bold text-base flex items-center gap-2">
+              <span>🍳 Kitchen Staff</span>
+            </h3>
+            <p className="text-xs text-soft">
+              Grants read-only access to the combined daily prep sheet at{" "}
+              <code className="rounded bg-cream px-1.5 py-0.5">/kitchen</code>. Kitchen staff never
+              see customer names, order IDs, or order-management controls — only summed cooking
+              quantities per meal slot.
+            </p>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              <input
+                type="text"
+                value={kitchenUidInput}
+                onChange={(e) => setKitchenUidInput(e.target.value)}
+                placeholder="Firebase UID to grant"
+                className="field py-2 text-xs flex-1 min-w-[200px]"
+                aria-label="Firebase UID to grant kitchen access"
+              />
+              <button
+                type="button"
+                onClick={handleGrantKitchenStaff}
+                disabled={kitchenStaffBusy || !kitchenUidInput.trim()}
+                className="btn btn-chili px-4 py-2 text-xs"
+              >
+                {kitchenStaffBusy ? "Working…" : "Grant access"}
+              </button>
+            </div>
+
+            <div className="mt-3 rounded-xl border border-line bg-paper divide-y divide-line/40">
+              {kitchenStaffUids.length === 0 ? (
+                <p className="py-4 text-center text-xs text-soft italic">No kitchen staff granted yet.</p>
+              ) : (
+                kitchenStaffUids.map((uid) => (
+                  <div key={uid} className="flex items-center justify-between gap-2 p-3 text-xs">
+                    <span className="font-mono text-ink break-all">{uid}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRevokeKitchenStaff(uid)}
+                      disabled={kitchenStaffBusy}
+                      className="btn btn-ghost shrink-0 px-3 py-1.5 text-xs text-chili"
+                    >
+                      Revoke
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
         </div>
       )}

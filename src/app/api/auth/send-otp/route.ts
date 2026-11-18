@@ -8,7 +8,7 @@ export async function POST(request: Request) {
   try {
     // Route-level IP throttle, on top of phoneAuth.ts's per-phone-number
     // cooldown/quota — stops a single caller from rotating across many
-    // phone numbers to drain the Fast2SMS send quota.
+    // phone numbers to drain the WhatsApp send quota.
     const limited = checkSendOtpRateLimit(clientIp(request));
     if (limited) return limited;
 

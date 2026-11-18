@@ -2,9 +2,9 @@ import "server-only";
 import crypto from "node:crypto";
 import { adminAuth, adminDb } from "./firebaseAdmin";
 import { normalizeIndianMobile } from "../phone";
-import { sendFast2SmsOtp } from "./fast2sms";
+import { sendWhatsAppOtp, WhatsAppSendError } from "./whatsapp";
 
-const SALT = process.env.FAST2SMS_SECRET_SALT || "rakus-kitchen-fast2sms-salt-v1";
+const SALT = process.env.OTP_SECRET_SALT || "rakus-kitchen-otp-salt-v1";
 const COOLDOWN_MS = 60 * 1000; // 60 seconds
 const OTP_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_ATTEMPTS = 5;
@@ -42,11 +42,11 @@ export class PhoneAuthError extends Error {
 
 /**
  * Initiates an OTP request for a 10-digit Indian phone number.
- * Enforces rate limiting, cooldowns, and dispatches via Fast2SMS.
+ * Enforces rate limiting, cooldowns, and dispatches via WhatsApp (Meta Cloud API).
  */
 export async function requestPhoneOtp(
   phoneRaw: string,
-): Promise<{ success: boolean; cooldownSeconds: number; simulated?: boolean }> {
+): Promise<{ success: boolean; cooldownSeconds: number; simulated?: boolean; channel: "whatsapp" }> {
   const { digits10 } = normalizeIndianMobile(phoneRaw);
   if (!digits10) {
     throw new PhoneAuthError("Please enter a valid 10-digit Indian mobile number.", 400);
@@ -89,9 +89,30 @@ export async function requestPhoneOtp(
   }
 
   const hashedOtp = hashOtp(digits10, otp);
+  // requestId doubles as the Firestore doc id and the biz_opaque_callback_data
+  // echoed back on WhatsApp status webhooks, so a later webhook delivery event
+  // can be correlated back to this specific OTP request.
+  const requestId = digits10;
 
-  // Dispatch via Fast2SMS
-  const smsResult = await sendFast2SmsOtp(digits10, otp);
+  // Dispatch via WhatsApp (Meta Cloud API) — WhatsApp-only, no SMS fallback.
+  // A number without WhatsApp (error code 131026) surfaces as a clear error
+  // rather than silently falling back to SMS.
+  let waResult: { success: boolean; simulated?: boolean };
+  try {
+    waResult = await sendWhatsAppOtp(digits10, otp, requestId);
+  } catch (err) {
+    if (err instanceof WhatsAppSendError) {
+      if (err.noWhatsApp) {
+        throw new PhoneAuthError(
+          "This number doesn't appear to have WhatsApp. Please use a number with WhatsApp installed.",
+          400,
+        );
+      }
+      console.error("[phoneAuth] WhatsApp send failed:", err.message, "code:", err.code);
+      throw new PhoneAuthError("Could not send verification code. Please try again.", 502);
+    }
+    throw err;
+  }
 
   // Store verification record in Firestore
   const isWithinHour = existing?.firstSentInHourAt && now - existing.firstSentInHourAt < 60 * 60 * 1000;
@@ -111,7 +132,8 @@ export async function requestPhoneOtp(
   return {
     success: true,
     cooldownSeconds: 60,
-    simulated: smsResult.simulated,
+    simulated: waResult.simulated,
+    channel: "whatsapp",
   };
 }
 
@@ -191,7 +213,7 @@ export async function verifyPhoneOtp(
 
   // Mint Firebase Custom Token
   const customToken = await adminAuth().createCustomToken(uid, {
-    authProvider: "fast2sms",
+    authProvider: "whatsapp",
     phoneNumber: e164Phone,
   });
 

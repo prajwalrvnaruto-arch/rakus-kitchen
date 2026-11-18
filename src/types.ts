@@ -113,7 +113,9 @@ export type AuditAction =
   | "inventory.limit_changed"
   | "inventory.override_changed"
   | "inventory.reset"
-  | "courier.booked";
+  | "courier.booked"
+  | "kitchen.staff_added"
+  | "kitchen.staff_removed";
 
 export interface AuditLogEntry {
   id?: string;

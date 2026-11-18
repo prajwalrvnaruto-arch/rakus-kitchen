@@ -1,7 +1,7 @@
 "use client";
 
 import {
-  addDoc, collection, doc, getDoc, getDocs,
+  addDoc, collection, deleteDoc, doc, getDoc, getDocs,
   limit, onSnapshot, orderBy, query, runTransaction, serverTimestamp, setDoc,
   startAfter, updateDoc, where, writeBatch, type Unsubscribe, type QueryDocumentSnapshot,
 } from "firebase/firestore";
@@ -308,6 +308,7 @@ export async function updateOrderStatus(
   }).catch(() => {});
 }
 
+
 /* ── Admin allowlist bootstrap ─────────────────────────────────────────── */
 
 /** Add (or remove) a uid from the admins allowlist: setAdmin("5bdmfFawjOTWKq7i8kshgVRFrbe2", true). */
@@ -320,6 +321,53 @@ export async function setAdmin(uid: string, active: boolean): Promise<void> {
     const snap = await getDoc(ref);
     if (snap.exists()) await updateDoc(ref, { active: false });
   }
+}
+
+/* ── Kitchen staff allowlist ───────────────────────────────────────────── */
+//
+// Separate from /admins — grants read-only access to all orders (for the
+// combined daily prep sheet at /kitchen) with no write permissions anywhere.
+// Managed by admins from the Kitchen Staff panel in the admin Tools section.
+
+/** Grant or revoke kitchen-staff access for a uid. Admin-only (enforced by rules). */
+export async function setKitchenStaff(uid: string, active: boolean): Promise<void> {
+  if (!db) return;
+  const ref = doc(db, "kitchenStaff", uid);
+  if (active) {
+    await setDoc(ref, { addedAt: serverTimestamp(), addedBy: auth?.currentUser?.uid ?? null });
+  } else {
+    await deleteDoc(ref);
+  }
+  recordAuditLog({
+    action: active ? "kitchen.staff_added" : "kitchen.staff_removed",
+    actor: {
+      uid: auth?.currentUser?.uid,
+      email: auth?.currentUser?.email ?? undefined,
+      type: "admin",
+    },
+    targetId: uid,
+    summary: `Kitchen staff access ${active ? "granted" : "revoked"} for ${uid}`,
+    metadata: { uid, active },
+  }).catch(() => {});
+}
+
+/** Live list of every uid currently on the kitchen-staff allowlist, for the admin panel. */
+export function subscribeKitchenStaff(
+  onData: (uids: string[]) => void,
+  onError?: (message: string) => void,
+): Unsubscribe {
+  if (!db) return () => {};
+  const firestore = db;
+  return retryingListener("subscribeKitchenStaff", (onSnapshotError) =>
+    onSnapshot(
+      collection(firestore, "kitchenStaff"),
+      (snap) => {
+        onData(snap.docs.map((d) => d.id));
+      },
+      onSnapshotError,
+    ),
+    onError,
+  );
 }
 
 /* ── Mapper ────────────────────────────────────────────────────────────── */

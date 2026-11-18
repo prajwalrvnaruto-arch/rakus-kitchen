@@ -17,7 +17,7 @@ const LINKS = [
 
 export function Nav() {
   const pathname = usePathname();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isKitchen } = useAuth();
   const { totalUnits, setCartOpen } = useCart();
 
   return (
@@ -46,6 +46,18 @@ export function Nav() {
               </Link>
             );
           })}
+          {(isKitchen || isAdmin) && (
+            <Link
+              href="/kitchen"
+              className={`inline-flex rounded-full px-3.5 py-2 text-sm font-semibold transition ${
+                pathname.startsWith("/kitchen")
+                  ? "bg-turmeric/15 text-turmericdark"
+                  : "text-soft hover:text-ink"
+              }`}
+            >
+              Kitchen
+            </Link>
+          )}
           {isAdmin && (
             <Link
               href="/admin"

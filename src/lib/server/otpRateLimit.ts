@@ -6,16 +6,16 @@ import { NextResponse } from "next/server";
  *
  * phoneAuth.ts already rate-limits per PHONE NUMBER (60s cooldown + 5/hour quota),
  * but that does nothing to stop a single caller from hammering the route with a
- * different phone number on every request (quota-drain against Fast2SMS billing)
- * or brute-forcing verify-otp's 6-digit code across many phone numbers at once.
- * This adds a per-IP sliding-window throttle at the route level, mirroring
- * src/lib/server/mapsRateLimit.ts's architecture: in-memory, best-effort per
- * serverless instance, cheap, and layered on top of (not replacing) the
- * per-phone-number limiter inside phoneAuth.ts.
+ * different phone number on every request (quota-drain against WhatsApp send
+ * quota/billing) or brute-forcing verify-otp's 6-digit code across many phone
+ * numbers at once. This adds a per-IP sliding-window throttle at the route
+ * level, mirroring src/lib/server/mapsRateLimit.ts's architecture: in-memory,
+ * best-effort per serverless instance, cheap, and layered on top of (not
+ * replacing) the per-phone-number limiter inside phoneAuth.ts.
  *
  * send-otp is capped tighter than verify-otp since each allowed call sends a
- * real, billable SMS; verify-otp has a slightly higher ceiling since a genuine
- * user may legitimately mistype a code a few times in a row.
+ * real, billable WhatsApp message; verify-otp has a slightly higher ceiling
+ * since a genuine user may legitimately mistype a code a few times in a row.
  */
 
 const WINDOW_MS = 60_000;

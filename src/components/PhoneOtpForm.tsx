@@ -161,12 +161,15 @@ export function PhoneOtpForm() {
               />
             </div>
           </div>
+          <p className="text-xs text-soft">
+            We&apos;ll send a 6-digit code to your <strong>WhatsApp</strong>. Make sure this number has WhatsApp installed.
+          </p>
           <button
             type="submit"
             disabled={busy || phone.length !== 10}
             className="btn btn-chili w-full"
           >
-            {busy ? "Sending code…" : "Send OTP"}
+            {busy ? "Sending code…" : "Send code via WhatsApp"}
           </button>
           <div className="space-y-3 pt-1 text-center">
             <p className="text-[11px] leading-relaxed text-soft">
@@ -196,7 +199,7 @@ export function PhoneOtpForm() {
               Enter the 6-digit code
             </label>
             <p className="mb-2 text-xs text-soft">
-              Sent to <strong>+91 {phone}</strong>.{" "}
+              Sent via WhatsApp to <strong>+91 {phone}</strong>.{" "}
               <button
                 type="button"
                 onClick={changeNumber}

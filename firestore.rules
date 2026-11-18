@@ -29,8 +29,21 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Customers own/read their own orders; admins read every order and can update status.
-    // Orders are now created SERVER-SIDE ONLY, by the admin SDK after a verified
+    // Kitchen staff allowlist — keyed by uid, completely separate from /admins.
+    // A staff member may read their own entry (the client uses it for the
+    // `isKitchen` flag that shows the Kitchen nav link). Kitchen staff do NOT
+    // get client read access to /orders: the prep sheet is served by the
+    // /api/kitchen/prep endpoint, which aggregates server-side and returns no
+    // customer PII. Only admins can grant/revoke this access.
+    match /kitchenStaff/{uid} {
+      allow read: if isSignedIn() && request.auth.uid == uid;
+      allow write: if isAdmin();
+    }
+
+    // Customers own/read their own orders; admins read every order and can
+    // update status. Kitchen staff do NOT read orders from the client — see the
+    // note on /kitchenStaff above; their prep sheet comes from the server.
+    // Orders are created SERVER-SIDE ONLY, by the admin SDK after a verified
     // Razorpay payment (see src/lib/server/paymentIntents.ts) — the admin SDK
     // bypasses these rules entirely, so denying client `create` here just closes
     // the leftover client-write path (no legitimate client write should ever

@@ -17,7 +17,7 @@ import {
 
 export function MobileNav() {
   const pathname = usePathname();
-  const { isAdmin } = useAuth();
+  const { isAdmin, isKitchen } = useAuth();
   const { setCartOpen, totalUnits } = useCart();
 
   const isActive = (href: string) =>
@@ -33,7 +33,15 @@ export function MobileNav() {
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-line/70 bg-paper/95 backdrop-blur md:hidden">
-      <div className={isAdmin ? "grid grid-cols-7" : "grid grid-cols-6"}>
+      <div
+        className={`grid ${
+          (isKitchen || isAdmin) && isAdmin
+            ? "grid-cols-8"
+            : isKitchen || isAdmin
+              ? "grid-cols-7"
+              : "grid-cols-6"
+        }`}
+      >
         {tabs.map((tab) => {
           const active = isActive(tab.href);
           const Icon = tab.Icon;
@@ -50,6 +58,19 @@ export function MobileNav() {
             </Link>
           );
         })}
+        {(isKitchen || isAdmin) && (
+          <Link
+            href="/kitchen"
+            className={`flex flex-col items-center gap-1 py-2 text-[11px] font-semibold transition ${
+              isActive("/kitchen") ? "text-turmericdark" : "text-soft hover:text-ink"
+            }`}
+          >
+            <span className={`text-base leading-5 ${isActive("/kitchen") ? "" : "opacity-80"}`} aria-hidden>
+              🍳
+            </span>
+            Kitchen
+          </Link>
+        )}
         {isAdmin && (
           <Link
             href="/admin"

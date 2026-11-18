@@ -74,12 +74,28 @@ env:
     secret: BORZO_API_KEY
     availability:
       - RUNTIME
-  - variable: FAST2SMS_API_KEY
-    secret: FAST2SMS_API_KEY
+  - variable: WHATSAPP_ACCESS_TOKEN
+    secret: WHATSAPP_ACCESS_TOKEN
     availability:
       - RUNTIME
-  - variable: FAST2SMS_SECRET_SALT
-    secret: FAST2SMS_SECRET_SALT
+  - variable: WHATSAPP_PHONE_NUMBER_ID
+    secret: WHATSAPP_PHONE_NUMBER_ID
+    availability:
+      - RUNTIME
+  - variable: WHATSAPP_APP_SECRET
+    secret: WHATSAPP_APP_SECRET
+    availability:
+      - RUNTIME
+  - variable: WHATSAPP_WEBHOOK_VERIFY_TOKEN
+    secret: WHATSAPP_WEBHOOK_VERIFY_TOKEN
+    availability:
+      - RUNTIME
+  - variable: WHATSAPP_GRAPH_API_VERSION
+    secret: WHATSAPP_GRAPH_API_VERSION
+    availability:
+      - RUNTIME
+  - variable: OTP_SECRET_SALT
+    secret: OTP_SECRET_SALT
     availability:
       - RUNTIME
   - variable: CASHFREE_APP_ID
