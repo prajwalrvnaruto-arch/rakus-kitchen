@@ -5,6 +5,13 @@
 
 const OLA_BASE = "https://api.olamaps.io/places/v1";
 
+// Ola Maps validates requests against the domain allowlist configured on the
+// API key. Server-side fetch has no browser Origin header, so we add it
+// explicitly so the key's allowed-domain check passes.
+const OLA_HEADERS = {
+  Origin: "https://rakuskitchen.com",
+} as const;
+
 /** A single geocode/autocomplete result, flattened into what AddressPicker needs. */
 export interface PlaceSuggestion {
   /** Human-readable label to show in the suggestions list / confirmed address. */
@@ -93,7 +100,7 @@ export async function reverseGeocode(
   signal?: AbortSignal,
 ): Promise<PlaceSuggestion | null> {
   const url = `${OLA_BASE}/reverse-geocode?latlng=${lat},${lng}&api_key=${apiKey()}`;
-  const res = await fetch(url, { signal });
+  const res = await fetch(url, { signal, headers: OLA_HEADERS });
   if (!res.ok) throw new Error(`Ola Maps reverse geocode failed (${res.status})`);
   const data = (await res.json()) as OlaReverseGeocodeResponse;
   const result = data.results?.[0];
@@ -129,7 +136,7 @@ export async function autocomplete(
     url += `&location=${biasLat},${biasLng}`;
   }
 
-  const res = await fetch(url, { signal });
+  const res = await fetch(url, { signal, headers: OLA_HEADERS });
   if (!res.ok) throw new Error(`Ola Maps autocomplete failed (${res.status})`);
   const data = (await res.json()) as OlaAutocompleteResponse;
 
