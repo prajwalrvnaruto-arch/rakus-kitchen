@@ -4,7 +4,17 @@ import { adminAuth, adminDb } from "./firebaseAdmin";
 import { normalizeIndianMobile } from "../phone";
 import { sendWhatsAppOtp, WhatsAppSendError } from "./whatsapp";
 
-const SALT = process.env.OTP_SECRET_SALT || "rakus-kitchen-otp-salt-v1";
+const SALT = (() => {
+  const fromEnv = process.env.OTP_SECRET_SALT;
+  if (fromEnv) return fromEnv;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "OTP_SECRET_SALT is not set. Refusing to start in production with a missing OTP salt."
+    );
+  }
+  // Dev/test fallback only — never reached in production.
+  return "rakus-kitchen-otp-salt-v1";
+})();
 const COOLDOWN_MS = 60 * 1000; // 60 seconds
 const OTP_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_ATTEMPTS = 5;
