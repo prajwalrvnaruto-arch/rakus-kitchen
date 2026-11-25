@@ -7,3 +7,6 @@ firebase-debug.log
 !.env.local.example
 *service-account*.json
 *.pem
+
+# Client-supplied business documents and credentials — never commit
+Client_Docs/

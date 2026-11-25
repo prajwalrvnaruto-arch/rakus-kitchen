@@ -121,6 +121,15 @@ export default function CheckoutPage() {
   const [notes, setNotes] = useState("");
   const [consentAgreed, setConsentAgreed] = useState(false);
 
+  // Live Borzo delivery-fee estimate — informational only, shown alongside
+  // (never replacing) the "pay the rider directly" disclaimer below.
+  const [deliveryFeeEstimate, setDeliveryFeeEstimate] = useState<number | null>(null);
+  const [estimateLoading, setEstimateLoading] = useState(false);
+  // Tracks the lat/lng pair we already have (or are fetching) an estimate for,
+  // so editing doorAndBuilding/landmark — which re-fires AddressPicker's
+  // onChange without moving the coordinates — doesn't trigger a refetch.
+  const lastEstimatedKeyRef = useRef<string | null>(null);
+
   const mealOptions = useMemo(() => upcomingMeals(7), []);
 
   // Restore the last saved structured address for returning customers.
@@ -162,6 +171,43 @@ export default function CheckoutPage() {
   const handleAddressChange = useCallback((addr: AddressComponents | null) => {
     setAddressComponents(addr);
   }, []);
+
+  // Fetch a live Borzo delivery-fee estimate once the address is confirmed
+  // (has lat/lng), debounced on the coordinate pair — AddressPicker re-emits
+  // onChange for every doorAndBuilding/landmark keystroke too, but those don't
+  // move the coordinates, so they must not re-trigger a Borzo API call.
+  useEffect(() => {
+    if (fulfillmentType !== "delivery" || !addressComponents) {
+      setDeliveryFeeEstimate(null);
+      lastEstimatedKeyRef.current = null;
+      return;
+    }
+
+    const key = `${addressComponents.lat},${addressComponents.lng}`;
+    if (key === lastEstimatedKeyRef.current) return;
+
+    const timer = setTimeout(async () => {
+      lastEstimatedKeyRef.current = key;
+      setEstimateLoading(true);
+      try {
+        const result = await postJSON<{ deliveryFee: number }>("/api/delivery/borzo/estimate", {
+          dropAddress: addressComponents.displayAddress,
+          lat: addressComponents.lat,
+          lng: addressComponents.lng,
+          pincode: addressComponents.pincode,
+          state: addressComponents.state,
+        });
+        setDeliveryFeeEstimate(result.deliveryFee);
+      } catch (err) {
+        console.error("Delivery fee estimate failed:", err);
+        setDeliveryFeeEstimate(null);
+      } finally {
+        setEstimateLoading(false);
+      }
+    }, 600);
+
+    return () => clearTimeout(timer);
+  }, [fulfillmentType, addressComponents]);
 
   /**
    * Step 2 of payment: hand Razorpay's callback payload to /api/payments/verify.
@@ -638,6 +684,13 @@ export default function CheckoutPage() {
                   </button>
                 </div>
               )}
+              {addressComponents && (estimateLoading || deliveryFeeEstimate !== null) && (
+                <p className="mt-2.5 rounded-lg bg-cream px-3 py-2 text-xs text-soft">
+                  {estimateLoading
+                    ? "Estimating delivery fee…"
+                    : `Estimated delivery fee: ${formatINR(deliveryFeeEstimate!)} — final amount collected by the rider.`}
+                </p>
+              )}
             </fieldset>
           ) : (
             <div className="card p-5">
@@ -749,9 +802,19 @@ export default function CheckoutPage() {
             <div className="flex justify-between text-base font-bold"><span>Total</span><span>{formatINR(grandTotal)}</span></div>
           </div>
           {fulfillmentType === "delivery" && (
-            <p className="mt-3 rounded-lg bg-cream px-3 py-2 text-xs text-soft">
-              🛵 Delivery charge is paid to the partner at your door and isn&apos;t included above.
-            </p>
+            <>
+              {(estimateLoading || deliveryFeeEstimate !== null) && (
+                <div className="mt-3 flex justify-between text-sm text-soft">
+                  <span>Estimated delivery fee</span>
+                  <span className="font-semibold">
+                    {estimateLoading ? "…" : formatINR(deliveryFeeEstimate!)}
+                  </span>
+                </div>
+              )}
+              <p className="mt-3 rounded-lg bg-cream px-3 py-2 text-xs text-soft">
+                🛵 Delivery charge is paid to the partner at your door and isn&apos;t included above.
+              </p>
+            </>
           )}
         </aside>
       </div>

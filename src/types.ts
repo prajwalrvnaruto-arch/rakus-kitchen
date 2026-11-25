@@ -114,6 +114,8 @@ export type AuditAction =
   | "inventory.override_changed"
   | "inventory.reset"
   | "courier.booked"
+  | "courier.status_updated"
+  | "courier.cancelled"
   | "kitchen.staff_added"
   | "kitchen.staff_removed";
 
@@ -177,6 +179,16 @@ export interface DeliveryMeta {
   bookedAt?: number;
   /** Live tracking URL provided by the carrier, if available. */
   trackingUrl?: string;
+  /** Latest raw order/delivery status reported by the carrier's webhook
+   *  (e.g. "courier_assigned", "parcel_picked_up") — for admin visibility
+   *  only. Only the terminal delivered/canceled states feed back into the
+   *  order's own `status`; everything else is informational. */
+  carrierStatus?: string;
+  /** Epoch ms the carrier reported `carrierStatus` as of — guards against an
+   *  out-of-order webhook delivery clobbering a newer status with an older one. */
+  carrierStatusAt?: number;
+  /** Epoch ms when the booking was cancelled via the cancel-order API. */
+  cancelledAt?: number;
 }
 
 export interface Order {

@@ -1141,6 +1141,62 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
   };
 
   /**
+   * Executes the actual Borzo cancel-order API call after confirmation.
+   */
+  const executeCancelBorzo = async () => {
+    setBookingBusy(true);
+    setDeliveryModal((prev) =>
+      prev?.type === "confirm-cancel" ? { ...prev, isBusy: true } : prev,
+    );
+
+    try {
+      const res = await fetch("/api/delivery/borzo/cancel", {
+        method: "POST",
+        headers: await authHeaders(),
+        body: JSON.stringify({ docId: order.id }),
+      });
+
+      const data = (await res.json()) as { ok?: boolean; error?: string };
+      if (!res.ok || data.error) throw new Error(data.error || `Borzo API error (${res.status})`);
+
+      setDeliveryError(null);
+      setDeliveryModal({
+        type: "notice",
+        title: "Delivery Cancelled",
+        message: `The Borzo booking for ${order.orderId} has been cancelled and the order marked Cancelled.`,
+        orderId: order.orderId,
+      });
+    } catch (err) {
+      const errorMsg = (err as Error).message || "Borzo delivery cancellation failed";
+      setDeliveryError({ carrier: "Borzo", message: errorMsg });
+      setDeliveryModal({
+        type: "error",
+        carrier: "borzo",
+        title: "Borzo Cancellation Failed",
+        message: errorMsg,
+        orderId: order.orderId,
+        onRetry: () => executeCancelBorzo(),
+      });
+    } finally {
+      setBookingBusy(false);
+    }
+  };
+
+  /**
+   * Cancels a dispatched Borzo delivery via styled confirmation modal.
+   */
+  const handleCancelBorzo = () => {
+    setDeliveryModal({
+      type: "confirm-cancel",
+      carrier: "borzo",
+      orderId: order.orderId,
+      carrierOrderId: order.deliveryMeta?.carrierOrderId,
+      isBusy: false,
+      onConfirm: () => executeCancelBorzo(),
+    });
+  };
+
+  /**
    * Books a Borzo delivery ride (Automated 1-Click API) via styled confirmation modal.
    */
   const handleBookBorzo = () => {
@@ -1179,6 +1235,15 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
     (order.status === "Confirmed" || order.status === "Preparing") &&
     !order.deliveryMeta?.carrierOrderId &&
     order.fulfillmentType !== "pickup";
+
+  /** Cancel is only offered for a real Borzo booking (not a Porter deep-link
+   *  hand-off, which has no API order to cancel) that hasn't already reached
+   *  a terminal state. */
+  const canCancelDelivery =
+    order.deliveryMeta?.carrierId === "borzo" &&
+    !!order.deliveryMeta?.carrierOrderId &&
+    order.status !== "Delivered" &&
+    order.status !== "Cancelled";
 
   return (
     <article className={`card overflow-hidden ${archived ? "opacity-75" : ""}`}>
@@ -1286,6 +1351,11 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
                     Track rider ↗
                   </a>
                 )}
+                {order.deliveryMeta.carrierStatus && (
+                  <span className="ml-1 text-soft">
+                    · Carrier status: {order.deliveryMeta.carrierStatus}
+                  </span>
+                )}
               </span>
             </div>
           )}
@@ -1293,6 +1363,17 @@ function AdminOrderCard({ order, archived = false }: { order: Order; archived?: 
 
         {/* Actions */}
         <div className="flex min-w-0 flex-col gap-2 md:w-52 md:items-stretch">
+          {canCancelDelivery && (
+            <button
+              onClick={handleCancelBorzo}
+              disabled={bookingBusy || busy}
+              className="rounded-xl border border-chili/40 bg-chili/5 px-4 py-2 text-xs font-bold text-chilidark transition hover:bg-chili/10 disabled:opacity-50"
+              title="Cancels the Borzo booking and marks the order Cancelled"
+            >
+              🛑 Cancel Borzo Delivery
+            </button>
+          )}
+
           {/* Dual Delivery Dispatch Buttons — Borzo API & Porter Deep Link */}
           {canBookDelivery && (
             <div className="flex flex-col gap-1.5">
