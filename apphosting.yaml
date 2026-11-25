@@ -48,8 +48,11 @@ env:
     availability:
       - BUILD
       - RUNTIME
+  # NOTE: pointed at Borzo's TEST server while using the test BORZO_API_KEY.
+  # Revert to https://robot-in.borzodelivery.com/api/business/1.8 once the
+  # production key is approved.
   - variable: BORZO_API_BASE
-    value: https://robot-in.borzodelivery.com/api/business/1.8
+    value: https://robotapitest-in.borzodelivery.com/api/business/1.8
     availability:
       - RUNTIME
 
@@ -72,6 +75,10 @@ env:
       - RUNTIME
   - variable: BORZO_API_KEY
     secret: BORZO_API_KEY
+    availability:
+      - RUNTIME
+  - variable: BORZO_WEBHOOK_SECRET
+    secret: BORZO_WEBHOOK_SECRET
     availability:
       - RUNTIME
   - variable: WHATSAPP_ACCESS_TOKEN
@@ -110,4 +117,3 @@ env:
     secret: CASHFREE_WEBHOOK_SECRET
     availability:
       - RUNTIME
-
