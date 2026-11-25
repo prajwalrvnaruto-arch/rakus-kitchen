@@ -4,7 +4,7 @@ import { adminAuth, adminDb } from "./firebaseAdmin";
 import { normalizeIndianMobile } from "../phone";
 import { sendWhatsAppOtp, WhatsAppSendError } from "./whatsapp";
 
-const SALT = (() => {
+function getSalt(): string {
   const fromEnv = process.env.OTP_SECRET_SALT;
   if (fromEnv) return fromEnv;
   if (process.env.NODE_ENV === "production") {
@@ -14,7 +14,7 @@ const SALT = (() => {
   }
   // Dev/test fallback only — never reached in production.
   return "rakus-kitchen-otp-salt-v1";
-})();
+}
 const COOLDOWN_MS = 60 * 1000; // 60 seconds
 const OTP_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_ATTEMPTS = 5;
@@ -40,7 +40,7 @@ interface PhoneVerificationData {
 function hashOtp(phone10: string, otp: string): string {
   return crypto
     .createHash("sha256")
-    .update(`${phone10}:${otp.trim()}:${SALT}`)
+    .update(`${phone10}:${otp.trim()}:${getSalt()}`)
     .digest("hex");
 }
 
