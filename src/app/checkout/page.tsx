@@ -10,48 +10,46 @@ import { useCart } from "@/lib/cart-context";
 import { auth } from "@/lib/firebase";
 import { formatINR } from "@/lib/menu";
 import { upcomingMeals, validateMeal, type MealOption } from "@/lib/order-dates";
-import { waLinkToKitchen } from "@/lib/whatsapp";
 import { BUSINESS } from "@/lib/config";
+import { normalizeIndianMobile } from "@/lib/phone";
 import { toFriendlyErrorMessage } from "@/lib/friendlyErrors";
 import { AddressPicker } from "@/components/AddressPicker";
-import { OrderStatusSteps } from "@/components/OrderStatusSteps";
 import { WhatsAppIcon } from "@/components/icons";
-import type { AddressComponents, FulfillmentType, Order } from "@/types";
+import type { AddressComponents, FulfillmentType } from "@/types";
 
-type Phase = "form" | "processing" | "verifying" | "done";
+type Phase = "form" | "processing";
 
-/* ── Razorpay Checkout.js types (the SDK ships no types of its own) ──────── */
+/* ── Cashfree JS SDK types ───────────────────────────────────────────────── */
 
-interface RazorpayHandlerResponse {
-  razorpay_payment_id: string;
-  razorpay_order_id: string;
-  razorpay_signature: string;
+interface CashfreeCheckoutOptions {
+  paymentSessionId: string;
+  redirectTarget?: "_self" | "_blank" | "_top" | "_modal";
 }
 
-interface RazorpayOptions {
-  key: string;
-  amount: number;
-  currency: string;
-  order_id: string;
-  name: string;
-  description?: string;
-  prefill?: { name?: string; contact?: string; email?: string };
-  theme?: { color?: string };
-  handler: (response: RazorpayHandlerResponse) => void;
-  modal?: { ondismiss?: () => void };
+/** Result of checkout() in `_modal` mode. `error` is set when the customer
+ *  closes the popup or payment fails; `paymentDetails` when it completes. */
+interface CashfreeCheckoutResult {
+  error?: { message?: string };
+  redirect?: boolean;
+  paymentDetails?: unknown;
+}
+
+interface CashfreeInstance {
+  checkout: (options: CashfreeCheckoutOptions) => Promise<CashfreeCheckoutResult | void>;
 }
 
 declare global {
   interface Window {
-    Razorpay?: new (options: RazorpayOptions) => { open: () => void };
+    Cashfree?: (config: { mode: "sandbox" | "production" }) => CashfreeInstance;
   }
 }
 
 interface CreateOrderResponse {
-  razorpayOrderId: string;
+  cashfreeOrderId: string;
+  paymentSessionId: string;
   amount: number;
   currency: string;
-  keyId?: string;
+  mode: "sandbox" | "production";
 }
 
 class ApiError extends Error {
@@ -60,11 +58,6 @@ class ApiError extends Error {
   }
 }
 
-/**
- * Calls one of our /api/payments/* routes with a fresh Firebase ID token.
- * Always force-refreshes the token first — a stale token is the #1 cause of
- * a spurious 401 mid-checkout (see the same pattern in src/lib/db.ts).
- */
 async function postJSON<T>(url: string, body: unknown): Promise<T> {
   if (!auth?.currentUser) {
     throw new ApiError("Your session has expired. Please sign in again to continue.", 401);
@@ -91,22 +84,13 @@ async function postJSON<T>(url: string, body: unknown): Promise<T> {
 
 export default function CheckoutPage() {
   const { user, loading } = useAuth();
-  const { items, itemTotal, packagingFee, grandTotal, clear, setCartOpen } = useCart();
+  const { items, itemTotal, packagingFee, grandTotal } = useCart();
   const router = useRouter();
 
   const [phase, setPhase] = useState<Phase>("form");
-  const [placedOrder, setPlacedOrder] = useState<Order | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [sessionExpired, setSessionExpired] = useState(false);
 
-  // Held so the "Retry verification" button can replay the exact same
-  // signed payload — verify is idempotent, so replaying it is always safe.
-  const [pendingVerification, setPendingVerification] = useState<RazorpayHandlerResponse | null>(null);
-
-  // Guards against a double-click / rapid re-submit firing create-order twice.
-  // The disabled button is only a visual guard; this ref makes submit itself a
-  // no-op while one attempt is already in flight, so we never create two
-  // Razorpay orders + payment intents for a single checkout.
   const submitting = useRef(false);
 
   const [scriptReady, setScriptReady] = useState(false);
@@ -115,24 +99,17 @@ export default function CheckoutPage() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [fulfillmentType, setFulfillmentType] = useState<FulfillmentType>("delivery");
-  // Structured address — replaces the old plain-text `address` string.
   const [addressComponents, setAddressComponents] = useState<AddressComponents | null>(null);
   const [meal, setMeal] = useState<MealOption | null>(null);
   const [notes, setNotes] = useState("");
   const [consentAgreed, setConsentAgreed] = useState(false);
 
-  // Live Borzo delivery-fee estimate — informational only, shown alongside
-  // (never replacing) the "pay the rider directly" disclaimer below.
   const [deliveryFeeEstimate, setDeliveryFeeEstimate] = useState<number | null>(null);
   const [estimateLoading, setEstimateLoading] = useState(false);
-  // Tracks the lat/lng pair we already have (or are fetching) an estimate for,
-  // so editing doorAndBuilding/landmark — which re-fires AddressPicker's
-  // onChange without moving the coordinates — doesn't trigger a refetch.
   const lastEstimatedKeyRef = useRef<string | null>(null);
 
   const mealOptions = useMemo(() => upcomingMeals(7), []);
 
-  // Restore the last saved structured address for returning customers.
   useEffect(() => {
     if (!user) return;
     try {
@@ -145,15 +122,12 @@ export default function CheckoutPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid]);
 
-  // Prefill from the verified login number — still editable, since the
-  // delivery contact may differ from whoever is signed in.
   useEffect(() => {
     if (user?.phoneNumber) {
       setPhone(user.phoneNumber.replace(/^\+91/, ""));
     }
   }, [user?.phoneNumber]);
 
-  // Default to the first orderable slot (usually tomorrow's lunch).
   useEffect(() => {
     if (!meal) {
       const first = mealOptions.find((m) => !m.blocked);
@@ -161,21 +135,14 @@ export default function CheckoutPage() {
     }
   }, [mealOptions, meal]);
 
-  // Not signed in → redirect to login, then back here. Cart + address stay
-  // intact (both persisted to localStorage), so a re-login loses no work.
   useEffect(() => {
     if (!loading && !user) router.replace("/login?next=%2Fcheckout");
   }, [loading, user, router]);
 
-  // Stable callback so AddressPicker doesn't re-bind Autocomplete on every render.
   const handleAddressChange = useCallback((addr: AddressComponents | null) => {
     setAddressComponents(addr);
   }, []);
 
-  // Fetch a live Borzo delivery-fee estimate once the address is confirmed
-  // (has lat/lng), debounced on the coordinate pair — AddressPicker re-emits
-  // onChange for every doorAndBuilding/landmark keystroke too, but those don't
-  // move the coordinates, so they must not re-trigger a Borzo API call.
   useEffect(() => {
     if (fulfillmentType !== "delivery" || !addressComponents) {
       setDeliveryFeeEstimate(null);
@@ -209,80 +176,13 @@ export default function CheckoutPage() {
     return () => clearTimeout(timer);
   }, [fulfillmentType, addressComponents]);
 
-  /**
-   * Step 2 of payment: hand Razorpay's callback payload to /api/payments/verify.
-   * Kept outside `submit` so the "Retry verification" button can call it again
-   * with the exact same payload — safe because finalizePayment is idempotent.
-   */
-  const verifyPayment = useCallback(async (payload: RazorpayHandlerResponse) => {
-    setPendingVerification(payload);
-    setPhase("verifying");
-    setError(null);
-    setSessionExpired(false);
-    try {
-      const { order } = await postJSON<{ order: Order }>("/api/payments/verify", payload);
-      clear();
-      setPendingVerification(null);
-      setPlacedOrder(order);
-      setPhase("done");
-    } catch (err) {
-      console.error("Payment verification failed:", err);
-      if (err instanceof ApiError && err.status === 401) setSessionExpired(true);
-      setError(toFriendlyErrorMessage(err));
-      // Stay on the "verifying" phase — the retry UI renders when error is set.
-    }
-  }, [clear]);
-
-  const openRazorpayCheckout = useCallback(
-    (order: CreateOrderResponse) => {
-      if (!order.keyId) {
-        setError("Payment is not configured on this server. Please contact support.");
-        setPhase("form");
-        return;
-      }
-      if (typeof window.Razorpay !== "function") {
-        setError("Could not load the payment window. Please check your connection and try again.");
-        setPhase("form");
-        return;
-      }
-
-      const rzp = new window.Razorpay({
-        key: order.keyId,
-        amount: order.amount,
-        currency: order.currency,
-        order_id: order.razorpayOrderId,
-        name: "Raku's Kitchen",
-        description: meal ? `${meal.slot} · ${meal.date}` : undefined,
-        prefill: {
-          name: name.trim() || undefined,
-          contact: phone ? `+91${phone}` : undefined,
-          email: user?.email ?? undefined,
-        },
-        theme: { color: "#d94f30" },
-        handler: (response) => {
-          void verifyPayment(response);
-        },
-        modal: {
-          ondismiss: () => {
-            // No order was ever created — the intent just sits inert.
-            submitting.current = false;
-            setPhase("form");
-            setError("Payment was not completed. You can try again when you're ready.");
-          },
-        },
-      });
-      rzp.open();
-    },
-    [meal, name, phone, user?.email, verifyPayment],
-  );
-
   if (loading) {
     return <div className="mx-auto max-w-3xl px-4 py-12 text-center text-soft">Loading…</div>;
   }
 
   if (!user) return null;
 
-  if (items.length === 0 && phase !== "done") {
+  if (items.length === 0) {
     return (
       <div className="mx-auto flex max-w-md flex-col items-center gap-3 px-4 py-16 text-center">
         <span className="text-5xl" aria-hidden>🛒</span>
@@ -293,154 +193,17 @@ export default function CheckoutPage() {
     );
   }
 
-  /* ── "Confirming payment" screen (between Checkout and materialized order) ── */
-  if (phase === "verifying") {
-    return (
-      <>
-        <div className="mx-auto max-w-md px-4 py-16 text-center">
-          {error ? (
-            <>
-              <span className="text-5xl" aria-hidden>⏳</span>
-              <h1 className="section-title mt-4">Confirming payment taking a moment</h1>
-              <div className="mt-3 rounded-2xl border border-line bg-paper p-4 text-xs text-soft text-left leading-relaxed shadow-sm">
-                <p className="font-bold text-ink mb-1">Your payment is safe</p>
-                <p>{error}</p>
-              </div>
-              <div className="mt-6 flex flex-col gap-2.5">
-                {sessionExpired ? (
-                  <Link href="/login?next=%2Fcheckout" className="btn btn-chili py-3 text-sm font-bold">Sign in again</Link>
-                ) : (
-                  <button
-                    className="btn btn-chili py-3 text-sm font-bold shadow"
-                    onClick={() => pendingVerification && verifyPayment(pendingVerification)}
-                  >
-                    🔄 Retry confirming payment
-                  </button>
-                )}
-                <Link href="/orders" className="btn btn-ghost py-2.5 text-xs">
-                  📋 Check My Orders
-                </Link>
-                <a
-                  href={`https://wa.me/919606888096?text=${encodeURIComponent(
-                    `Hi Raku's Kitchen, I need assistance verifying my order payment. Payment ID: ${pendingVerification?.razorpay_payment_id || "N/A"}`
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-ghost py-2.5 text-xs border border-line text-chilidark hover:bg-cream flex items-center justify-center gap-1.5"
-                >
-                  💬 WhatsApp Kitchen Support
-                </a>
-              </div>
-            </>
-          ) : (
-            <>
-              <span className="text-5xl" aria-hidden>⏳</span>
-              <h1 className="section-title mt-4">Confirming your payment…</h1>
-              <p className="mt-2 text-sm text-soft">This only takes a moment. Please don&apos;t close this page.</p>
-            </>
-          )}
-        </div>
-      </>
-    );
-  }
-
-  /* ── Confirmation screen (order placed) ─────────────────────────────── */
-  if (phase === "done" && placedOrder) {
-    const waHref = waLinkToKitchen(placedOrder);
-    return (
-      <div className="mx-auto max-w-xl px-4 py-12">
-        <div className="text-center">
-          <span className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-turmeric/20 text-4xl" aria-hidden>
-            ✅
-          </span>
-          <h1 className="section-title mt-4">Payment successful!</h1>
-          <p className="mt-1 text-sm text-soft">
-            Your order <span className="font-bold text-ink">{placedOrder.orderId}</span> is paid and in.
-            Send it to Raku&apos;s Kitchen on WhatsApp so they can confirm it.
-          </p>
-        </div>
-
-        <div className="mt-8">
-          <OrderStatusSteps status={placedOrder.status} fulfillmentType={placedOrder.fulfillmentType} />
-        </div>
-
-        <a
-          href={waHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="btn btn-chili mt-8 w-full py-4 text-base"
-        >
-          <WhatsAppIcon className="h-5 w-5" />
-          Send order on WhatsApp
-        </a>
-        <p className="mt-2 text-center text-xs text-soft">
-          The kitchen will see your order and call you to confirm delivery.
-          You can also track it anytime from <strong>My Orders</strong>.
-        </p>
-
-        <div className="card mt-6 divide-y divide-line/60 text-sm">
-          <div className="flex justify-between px-5 py-3">
-            <span className="text-soft">Order ID</span>
-            <span className="font-bold">{placedOrder.orderId}</span>
-          </div>
-          <div className="flex justify-between px-5 py-3">
-            <span className="text-soft">Meal</span>
-            <span className="font-semibold">{placedOrder.mealSlot} · {placedOrder.mealDate}</span>
-          </div>
-          {placedOrder.fulfillmentType === "pickup" ? (
-            <div className="px-5 py-3 text-soft">
-              <span className="block text-xs font-semibold text-soft">Self-Pickup</span>
-              <span className="block font-semibold text-ink">{BUSINESS.kitchenAddress}</span>
-              <span className="block text-xs">
-                Ready by {placedOrder.mealSlot === "Lunch" ? BUSINESS.readyLunch : BUSINESS.readyDinner}
-              </span>
-            </div>
-          ) : placedOrder.addressComponents ? (
-            <div className="px-5 py-3 text-soft">
-              <span className="block text-xs font-semibold text-soft">Delivery to</span>
-              <span className="block font-semibold text-ink">
-                {placedOrder.addressComponents.doorAndBuilding}
-              </span>
-              <span className="block text-xs">{placedOrder.addressComponents.displayAddress}</span>
-            </div>
-          ) : null}
-          {placedOrder.items.map((it) => (
-            <div key={`${it.menuId}-${it.variant}`} className="flex justify-between px-5 py-3">
-              <span className="text-soft">
-                {it.name}{it.variant ? ` (${it.variant})` : ""} ×{it.qty}
-              </span>
-              <span className="font-semibold">{formatINR(it.lineTotal)}</span>
-            </div>
-          ))}
-          <div className="flex justify-between px-5 py-3 text-soft">
-            <span>Items</span><span>{formatINR(placedOrder.itemTotal)}</span>
-          </div>
-          <div className="flex justify-between px-5 py-3 text-soft">
-            <span>Packaging</span><span>{formatINR(placedOrder.packagingFee)}</span>
-          </div>
-          <div className="flex justify-between px-5 py-3 text-base font-bold">
-            <span>Total paid</span><span>{formatINR(placedOrder.grandTotal)}</span>
-          </div>
-        </div>
-
-        <div className="mt-4 grid gap-2 sm:grid-cols-2">
-          <Link href="/orders" className="btn btn-ghost">Track order</Link>
-          <Link href="/menu" className="btn btn-chili">Order something else</Link>
-        </div>
-      </div>
-    );
-  }
-
-  /* ── Checkout form ───────────────────────────────────────────────────── */
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // No-op if a submission is already in flight (double-click / rapid re-tap),
-    // so we never fire create-order twice for one checkout.
     if (submitting.current) return;
     setError(null);
     setSessionExpired(false);
 
     if (!user) return;
+    if (!normalizeIndianMobile(phone).digits10) {
+      setError("Please enter a valid 10-digit Indian mobile number.");
+      return;
+    }
     if (!meal || !meal.date) {
       setError("Please choose a meal day and slot.");
       return;
@@ -448,7 +211,6 @@ export default function CheckoutPage() {
     const problem = validateMeal({ date: meal.date, slot: meal.slot });
     if (problem) { setError(problem); return; }
 
-    // Require a confirmed structured address for delivery orders only.
     if (fulfillmentType === "delivery") {
       if (!addressComponents) {
         setError("Please search for your delivery address above.");
@@ -469,8 +231,11 @@ export default function CheckoutPage() {
       return;
     }
 
-    // Send only what the server needs to independently recompute prices —
-    // pricePerUnit/lineTotal are display-only client state and are never sent.
+    if (typeof window.Cashfree !== "function") {
+      setError("Could not load the payment window. Please check your connection and try again.");
+      return;
+    }
+
     const lineInputs = items.map((it) => ({
       menuId: it.menuId,
       name: it.name,
@@ -494,15 +259,12 @@ export default function CheckoutPage() {
       mealDate: meal.date,
       items: lineInputs,
       notes: notes.trim() || undefined,
-      // Advisory: the total we showed. The server recomputes prices from scratch
-      // and charges its own total; this only lets it flag a mid-session change.
       clientGrandTotal: grandTotal,
     };
 
     submitting.current = true;
     setPhase("processing");
     try {
-      // Persist structured address for the next visit.
       try {
         window.localStorage.setItem(
           `rk-address-v2-${user.uid}`,
@@ -511,37 +273,47 @@ export default function CheckoutPage() {
       } catch { /* ignore storage errors */ }
 
       const created = await postJSON<CreateOrderResponse>("/api/payments/create-order", requestBody);
-      openRazorpayCheckout(created);
-      // Phase stays "processing" while the Razorpay modal is open on top —
-      // it moves to "verifying" from the handler, or back to "form" on dismiss/error.
+
+      const cashfree = window.Cashfree({ mode: created.mode });
+
+      // Popup over the page, so Back never leaves the app.
+      const result = await cashfree.checkout({
+        paymentSessionId: created.paymentSessionId,
+        redirectTarget: "_modal",
+      });
+
+      if (result && result.error && !result.paymentDetails) {
+        // Popup closed or payment failed. The server-side intent stays inert.
+        setError("Payment was not completed. You can try again when you're ready.");
+        setPhase("form");
+        return;
+      }
+      // Paid (or the SDK fell back to a redirect): /checkout/confirm
+      // re-checks the order with Cashfree before creating it.
+      router.push(`/checkout/confirm?order_id=${encodeURIComponent(created.cashfreeOrderId)}`);
     } catch (err) {
       console.error("Could not start payment:", err);
       if (err instanceof ApiError && err.status === 401) setSessionExpired(true);
-      // A price changed mid-session: the shown Total already reflects the live
-      // cart, so ask the customer to review it before charging the new amount.
       if (err instanceof ApiError && err.code === "price_changed") {
         setError("Some prices changed since you added items. Please review the updated total above, then pay again.");
-      } else if (err instanceof ApiError && err.code === "out_of_service_area") {
+      } else if (err instanceof ApiError && (err.code === "out_of_service_area" || err.code === "invalid_phone" || err.code === "field_too_long")) {
         setError((err as Error).message);
       } else if (err instanceof ApiError && err.status === 429) {
-        // Rate-limited: the server's message already says to wait a moment.
         setError((err as Error).message);
       } else {
         setError((err as Error).message || "We couldn't start payment. Please check your connection and try again.");
       }
       setPhase("form");
     } finally {
-      // Release the guard once the attempt settles (create-order failed, or the
-      // Razorpay modal has been handed control). The modal's own handlers move
-      // the flow forward from here; a fresh submit is safe again.
       submitting.current = false;
     }
   };
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10 sm:py-14">
+      {/* Cashfree JS SDK — loaded from their official CDN */}
       <Script
-        src="https://checkout.razorpay.com/v1/checkout.js"
+        src="https://sdk.cashfree.com/js/v3/cashfree.js"
         strategy="afterInteractive"
         onLoad={() => setScriptReady(true)}
         onError={() => setScriptError(true)}
@@ -550,7 +322,7 @@ export default function CheckoutPage() {
       <h1 className="section-title mb-2">Checkout</h1>
       <p className="mb-6 text-sm text-soft">
         Orders are made to order — please plan ahead by at least one day. Payment is collected
-        upfront via Razorpay to confirm your order.
+        upfront via Cashfree to confirm your order.
       </p>
 
       <div className="grid gap-6 lg:grid-cols-[1.15fr_.85fr]">
@@ -596,6 +368,7 @@ export default function CheckoutPage() {
                 <label htmlFor="name" className="mb-1.5 block text-sm font-semibold">Full name</label>
                 <input
                   id="name"
+                  maxLength={80}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="field"
@@ -635,7 +408,7 @@ export default function CheckoutPage() {
               >
                 <span className="block text-lg" aria-hidden>🛵</span>
                 <span className="block font-semibold">Delivery</span>
-                <span className="text-xs opacity-80">We'll deliver to your address</span>
+                <span className="text-xs opacity-80">We&apos;ll deliver to your address</span>
               </button>
               <button
                 type="button"
@@ -653,7 +426,7 @@ export default function CheckoutPage() {
             </div>
           </fieldset>
 
-          {/* Delivery address — shown only for delivery */}
+          {/* Delivery address */}
           {fulfillmentType === "delivery" ? (
             <fieldset className="card p-5">
               <legend className="mb-1 text-sm font-semibold text-ink">Delivery address</legend>
@@ -719,6 +492,7 @@ export default function CheckoutPage() {
             <legend className="mb-1.5 text-sm font-semibold text-ink">Order note (optional)</legend>
             <input
               id="notes"
+              maxLength={500}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               className="field"
@@ -726,7 +500,7 @@ export default function CheckoutPage() {
             />
           </fieldset>
 
-          {/* DPDP Act 2023 Statutory Affirmative Consent & Privacy Notice */}
+          {/* DPDP Act 2023 Statutory Affirmative Consent */}
           <div className="rounded-2xl border border-line bg-cream/50 p-4 text-xs text-soft space-y-2">
             <div className="flex items-center gap-1.5 font-semibold text-ink">
               <span>🛡️</span>
@@ -779,12 +553,6 @@ export default function CheckoutPage() {
         <aside className="card h-fit p-5">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-display text-lg font-semibold">Summary</h2>
-            <button
-              onClick={() => setCartOpen(true)}
-              className="text-sm font-semibold text-chilidark hover:underline"
-            >
-              Edit cart
-            </button>
           </div>
           <ul className="divide-y divide-line/60 text-sm">
             {items.map((it) => (

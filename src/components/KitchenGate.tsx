@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
-import Link from "next/link";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/lib/auth-context";
 import { isKitchenSigningOut } from "@/components/kitchenSignOut";
@@ -30,7 +29,7 @@ export function KitchenGate({ children }: { children: React.ReactNode }) {
     // header is already navigating to "/", and racing it to /login would cancel
     // that. A genuine signed-out visit (flag not raised) still redirects.
     if (!loading && !user && pathname?.startsWith("/kitchen") && !isKitchenSigningOut()) {
-      router.replace("/login?next=%2Fkitchen");
+      router.replace("/kitchen/login?next=%2Fkitchen");
     }
   }, [loading, user, router, pathname]);
 
@@ -56,8 +55,7 @@ export function KitchenGate({ children }: { children: React.ReactNode }) {
           <code className="rounded bg-cream px-1.5 py-0.5 text-xs">/kitchenStaff/&lt;your-uid&gt;</code> in Firestore.
         </p>
         <div className="mt-5 flex justify-center gap-2">
-          <Link href="/orders" className="btn btn-ghost px-4 py-2 text-xs">My orders</Link>
-          <button onClick={() => { signOut(auth!); router.push("/login"); }} className="btn btn-ghost px-4 py-2 text-xs">
+          <button onClick={() => { signOut(auth!); router.push("/kitchen/login"); }} className="btn btn-ghost px-4 py-2 text-xs">
             Sign out & Switch
           </button>
         </div>

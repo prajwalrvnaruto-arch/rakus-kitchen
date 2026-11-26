@@ -657,7 +657,7 @@ export function exportOrdersToCSV(orders: Order[]): string {
     "Packaging (INR)",
     "Grand Total (INR)",
     "Payment Status",
-    "Razorpay Payment ID",
+    "Cashfree Payment ID",
     "Order Status",
   ];
 
@@ -682,7 +682,7 @@ export function exportOrdersToCSV(orders: Order[]): string {
       o.packagingFee || 0,
       o.grandTotal || 0,
       `"${o.payment?.status || (o.status === "Cancelled" ? "cancelled" : "paid")}"`,
-      `"${o.payment?.razorpayPaymentId || ""}"`,
+      `"${o.payment?.cfPaymentId || ""}"`,
       `"${o.status}"`,
     ].join(",");
   });

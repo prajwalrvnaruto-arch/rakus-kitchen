@@ -91,8 +91,9 @@ export async function requestPhoneOtp(
   }
 
   // Generate 6-digit OTP
+  // TEST_ACCOUNTS bypass is dev/test only — never active in production.
   let otp: string;
-  if (TEST_ACCOUNTS[digits10]) {
+  if (process.env.NODE_ENV !== "production" && TEST_ACCOUNTS[digits10]) {
     otp = TEST_ACCOUNTS[digits10];
   } else {
     otp = crypto.randomInt(100000, 1000000).toString();

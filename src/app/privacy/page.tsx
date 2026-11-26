@@ -94,10 +94,10 @@ export default function PrivacyPage() {
                 special cooking notes, billing amounts, packaging fees, and fulfillment type (courier delivery or self-pickup).
               </li>
               <li>
-                <strong>Payment Metadata:</strong> Transaction reference IDs, Razorpay Order IDs, and payment status.
+                <strong>Payment Metadata:</strong> Transaction reference IDs, Cashfree Order IDs, and payment status.
                 <span className="block mt-1 text-xs text-soft italic">
                   * Note: We do NOT store or process your credit/debit card numbers, CVVs, net-banking credentials, or UPI PINs.
-                  All monetary transactions are processed securely through RBI-authorized payment aggregator Razorpay.
+                  All monetary transactions are processed securely through RBI-authorized payment aggregator Cashfree Payments.
                 </span>
               </li>
               <li>
@@ -152,7 +152,7 @@ export default function PrivacyPage() {
             </p>
             <div className="divide-y divide-line/60 rounded-xl border border-line bg-paper overflow-hidden text-xs">
               <div className="p-3">
-                <p className="font-bold text-ink">Razorpay Software Private Limited</p>
+                <p className="font-bold text-ink">Cashfree Payments India Private Limited</p>
                 <p className="text-soft">Payment processing, transaction settlements, and refund management (RBI Regulated).</p>
               </div>
               <div className="p-3">
@@ -306,7 +306,7 @@ export default function PrivacyPage() {
               <li><strong>ಗುರುತು ಮತ್ತು ಸಂಪರ್ಕ:</strong> ನಿಮ್ಮ ಹೆಸರು ಮತ್ತು ಒಟಿಪಿ (OTP) ಮೂಲಕ ಪರಿಶೀಲಿಸಲಾದ ೧೦-ಅಂಕಿಯ ಮೊಬೈಲ್ ಸಂಖ್ಯೆ.</li>
               <li><strong>ವಿತರಣಾ ವಿಳಾಸ ಮತ್ತು ಸ್ಥಳ:</strong> ನಿಮ್ಮ ವಿಳಾಸ, ಮನೆ/ಫ್ಲಾಟ್ ಸಂಖ್ಯೆ, ಹೆಗ್ಗುರುತು, ಪಿನ್‌ಕೋಡ್ ಮತ್ತು ಓಲಾ ಮ್ಯಾಪ್ಸ್ (Ola Maps) ಮೂಲಕ ಪಡೆದ ಜಿಪಿಎಸ್ ಅಕ್ಷಾಂಶ-ರೇಖಾಂಶಗಳು (ಡೆಲಿವರಿ ರೈಡರ್‌ಗಳು ಊಟವನ್ನು ತಲುಪಿಸಲು ಮಾತ್ರ).</li>
               <li><strong>ಆರ್ಡರ್ ವಿವರಗಳು:</strong> ಊಟದ ಸಮಯ (ಮಧ್ಯಾಹ್ನ/ರಾತ್ರಿ), ದಿನಾಂಕ, ಆರ್ಡರ್ ಮಾಡಿದ ಅಡುಗೆಗಳು ಮತ್ತು ವಿಶೇಷ ಸೂಚನೆಗಳು.</li>
-              <li><strong>ಪಾವತಿ ವಿವರಗಳು:</strong> ರೇಜರ್‌ಪೇ (Razorpay) ವಹಿವಾಟು ಐಡಿ. ನಾವು ನಿಮ್ಮ ಕ್ರೆಡಿಟ್/ಡೆಬಿಟ್ ಕಾರ್ಡ್ ಸಂಖ್ಯೆ ಅಥವಾ ಯುಪಿಐ ಪಿನ್ (UPI PIN) ಅನ್ನು ಎಂದಿಗೂ ಸಂಗ್ರಹಿಸುವುದಿಲ್ಲ.</li>
+              <li><strong>ಪಾವತಿ ವಿವರಗಳು:</strong> ಕ್ಯಾಶ್‌ಫ್ರೀ (Cashfree) ವಹಿವಾಟು ಐಡಿ. ನಾವು ನಿಮ್ಮ ಕ್ರೆಡಿಟ್/ಡೆಬಿಟ್ ಕಾರ್ಡ್ ಸಂಖ್ಯೆ ಅಥವಾ ಯುಪಿಐ ಪಿನ್ (UPI PIN) ಅನ್ನು ಎಂದಿಗೂ ಸಂಗ್ರಹಿಸುವುದಿಲ್ಲ.</li>
             </ul>
           </section>
 

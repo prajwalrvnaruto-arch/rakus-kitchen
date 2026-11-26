@@ -374,6 +374,7 @@ export function AddressPicker({ value, onChange }: AddressPickerProps) {
             </label>
             <input
               id="door-and-building"
+              maxLength={200}
               type="text"
               className="field"
               placeholder="e.g. Flat 4B, 3rd Floor, Prestige Tower"
@@ -400,6 +401,7 @@ export function AddressPicker({ value, onChange }: AddressPickerProps) {
             </label>
             <input
               id="landmark"
+              maxLength={200}
               type="text"
               className="field"
               placeholder="e.g. Opposite Metro Station, Near HDFC Bank"

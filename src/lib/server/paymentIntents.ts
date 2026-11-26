@@ -10,16 +10,16 @@ import type { OrderDraft } from "@/lib/db";
 import type { FulfillmentType, Order, OrderStatus, PaymentMeta, StatusEvent } from "@/types";
 
 /**
- * A payment intent is created before the customer ever sees the Razorpay
- * checkout modal, and holds the SERVER-RECOMPUTED draft (never the client's
- * numbers). It only ever becomes a real `orders/{id}` document once payment
- * is verified — see finalizePayment(). Until then it's inert: no cost, no
- * customer-visible effect, safe to leave abandoned.
+ * A payment intent is created before the customer is redirected to the
+ * Cashfree payment page, and holds the SERVER-RECOMPUTED draft (never the
+ * client's numbers). It only ever becomes a real `orders/{id}` document once
+ * payment is verified — see finalizePayment(). Until then it's inert: no
+ * cost, no customer-visible effect, safe to leave abandoned.
  */
 export interface PaymentIntentDoc {
   customerId: string;
   draft: OrderDraft;
-  amount: number; // paise
+  amount: number; // rupees
   currency: string;
   status: "created" | "paid" | "failed";
   orderId?: string; // set once materialized
@@ -27,17 +27,17 @@ export interface PaymentIntentDoc {
 }
 
 export async function createIntent(params: {
-  razorpayOrderId: string;
+  cashfreeOrderId: string;
   customerId: string;
   draft: OrderDraft;
-  amountPaise: number;
+  amountRupees: number;
 }): Promise<void> {
   const db = adminDb();
-  await db.collection("paymentIntents").doc(params.razorpayOrderId).set(
+  await db.collection("paymentIntents").doc(params.cashfreeOrderId).set(
     sanitizeFirestoreData({
       customerId: params.customerId,
       draft: params.draft,
-      amount: params.amountPaise,
+      amount: params.amountRupees,
       currency: "INR",
       status: "created" as const,
       createdAt: Date.now(),
@@ -45,9 +45,9 @@ export async function createIntent(params: {
   );
 }
 
-export async function markIntentFailed(razorpayOrderId: string, reason: string): Promise<void> {
+export async function markIntentFailed(cashfreeOrderId: string, reason: string): Promise<void> {
   const db = adminDb();
-  await db.collection("paymentIntents").doc(razorpayOrderId).set(
+  await db.collection("paymentIntents").doc(cashfreeOrderId).set(
     { status: "failed", failureReason: reason, failedAt: Date.now() },
     { merge: true },
   );
@@ -63,17 +63,9 @@ export class PaymentFinalizeError extends Error {
  * Per-customer order-creation rate limit. A double-click is already caught on
  * the client, and duplicate orders are impossible (finalizePayment is
  * idempotent), but nothing stopped a scripted client from spraying
- * create-order calls — each one spawns a Razorpay order + an inert intent, which
- * is real API/log/storage cost at volume. This caps a single customer to
+ * create-order calls — each one spawns a Cashfree order + an inert intent,
+ * which is real API/log/storage cost at volume. This caps a single customer to
  * MAX_ORDERS_PER_WINDOW create-order calls per rolling window.
- *
- * Backed by one Firestore doc per customer (rateLimits/{uid}) holding the epoch
- * ms of recent attempts, pruned to the window on each check inside a
- * transaction so concurrent requests can't race past the cap. This is a coarse
- * abuse-throttle, not a fairness scheduler — deliberately simple and shared, so
- * it holds across serverless instances (an in-memory counter would not). The
- * pure window/cap decision lives in ../rate-limit-policy (dependency-free, unit
- * tested); this function only wraps it in the Firestore transaction.
  */
 export class RateLimitError extends Error {
   constructor(public retryAfterSeconds: number) {
@@ -98,29 +90,26 @@ export async function enforceOrderRateLimit(uid: string): Promise<void> {
 /**
  * Materializes the real order from a paid intent. Idempotent: if the intent
  * is already "paid" it just re-fetches and returns the existing order rather
- * than writing a second time — this is what makes it safe to call from BOTH
- * the client-facing /verify route and the /webhook route without risking a
- * double-charge or double order for the same payment.
+ * than writing a second time — safe to call from BOTH the client-facing
+ * /verify route and the /webhook route without risking a double order.
  *
- * `expectedAmountPaise` is Razorpay's own reported captured amount (from the
- * payment fetch or the webhook payload) — cross-checked against what the
- * intent was created for, so a signature that's valid but paired with a
- * tampered amount (shouldn't be possible, but cheap to check) can't slip by.
+ * `expectedAmountRupees` is Cashfree's own reported paid amount —
+ * cross-checked against what the intent was created for.
  */
 export async function finalizePayment(params: {
-  razorpayOrderId: string;
-  razorpayPaymentId: string;
-  expectedAmountPaise: number;
+  cashfreeOrderId: string;
+  cfPaymentId: string;
+  expectedAmountRupees: number;
   callerUid?: string; // present when called from /verify; absent from /webhook
 }): Promise<Order> {
   const db = adminDb();
-  const intentRef = db.collection("paymentIntents").doc(params.razorpayOrderId);
+  const intentRef = db.collection("paymentIntents").doc(params.cashfreeOrderId);
 
   const result = await db.runTransaction(async (tx) => {
     const intentSnap = await tx.get(intentRef);
     if (!intentSnap.exists) {
       throw new PaymentFinalizeError(
-        `No payment intent for Razorpay order ${params.razorpayOrderId}`,
+        `No payment intent for Cashfree order ${params.cashfreeOrderId}`,
         "not_found",
       );
     }
@@ -129,8 +118,13 @@ export async function finalizePayment(params: {
     if (params.callerUid && intent.customerId !== params.callerUid) {
       throw new PaymentFinalizeError("Payment intent belongs to a different customer", "customer_mismatch");
     }
-    if (intent.amount !== params.expectedAmountPaise) {
-      throw new PaymentFinalizeError("Captured amount does not match the intent", "amount_mismatch");
+
+    // Allow ±1 rupee tolerance for floating-point rounding across systems
+    if (Math.abs(intent.amount - params.expectedAmountRupees) > 1) {
+      throw new PaymentFinalizeError(
+        `Captured amount (₹${params.expectedAmountRupees}) does not match the intent (₹${intent.amount})`,
+        "amount_mismatch",
+      );
     }
 
     // Already finalized (webhook won the race, or this is a retried call) —
@@ -141,19 +135,15 @@ export async function finalizePayment(params: {
     }
 
     // --- PHASE 1: ALL READS FIRST (Firestore requirement) ---
-    // Generate unique, collision-free, non-sequential order ID (Option A: RK-XXXXX)
-    // Avoids German Tank Problem (business volume leakage) and eliminates meta/counters write contention
     const orderId = await generateUniqueOrderId(tx);
-
-    // Read all touched menu item config docs before any writes
     const applyMenuQuantities = await prepareMenuQuantityIncrements(tx, intent.draft.items);
 
     // --- PHASE 2: ALL WRITES AFTER ALL READS ARE COMPLETE ---
 
     const payment: PaymentMeta = {
-      provider: "razorpay",
-      razorpayOrderId: params.razorpayOrderId,
-      razorpayPaymentId: params.razorpayPaymentId,
+      provider: "cashfree",
+      cashfreeOrderId: params.cashfreeOrderId,
+      cfPaymentId: params.cfPaymentId,
       amount: intent.amount,
       currency: intent.currency,
       status: "paid",
@@ -161,7 +151,6 @@ export async function finalizePayment(params: {
       paidAt: Date.now(),
     };
 
-    // Apply menu quantity increments
     applyMenuQuantities();
 
     const ordersRef = db.collection("orders").doc();
@@ -191,7 +180,6 @@ export async function finalizePayment(params: {
     } satisfies Order;
   });
 
-  // Server audit log for newly created order
   recordServerAuditLog({
     action: "order.created",
     actor: {
@@ -241,12 +229,9 @@ function mapOrderDoc(id: string, d: Record<string, unknown>): Order {
 }
 
 /**
- * Webhook dedupe — Razorpay retries webhook deliveries and can send the same
- * event more than once. Each event has a unique `event_id`-ish identifier we
- * derive from (event type + payment id); recording it here before acting on
- * it makes a duplicate delivery a no-op instead of a repeated finalize call.
- * (finalizePayment is already idempotent on its own, so this is a second,
- * cheaper layer that also avoids extra Razorpay API/log noise.)
+ * Webhook dedupe — Cashfree retries webhook deliveries. Each event is keyed
+ * on (type + cf_payment_id); recording it before acting makes a duplicate
+ * delivery a no-op.
  */
 export async function claimWebhookEvent(eventKey: string): Promise<boolean> {
   const db = adminDb();
@@ -257,9 +242,15 @@ export async function claimWebhookEvent(eventKey: string): Promise<boolean> {
       if (snap.exists) throw new Error("__duplicate__");
       tx.set(ref, { receivedAt: Date.now() });
     });
-    return true; // first time seeing this event
+    return true;
   } catch (err) {
     if ((err as Error).message === "__duplicate__") return false;
     throw err;
   }
+}
+
+/** Releases a claimed webhook event so Cashfree's retry of a delivery we
+ *  could not process yet is handled instead of being treated as a duplicate. */
+export async function releaseWebhookEvent(eventKey: string): Promise<void> {
+  await adminDb().collection("webhookEvents").doc(eventKey).delete().catch(() => {});
 }

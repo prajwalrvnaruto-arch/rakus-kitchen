@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { verifyIdToken } from "@/lib/server/firebaseAdmin";
-import { createRazorpayOrder } from "@/lib/server/razorpay";
+import { verifyIdToken, AuthTokenError } from "@/lib/server/firebaseAdmin";
+import { normalizeIndianMobile } from "@/lib/phone";
+import { createCashfreeOrder, cashfreeMode } from "@/lib/server/cashfree";
 import { createIntent, enforceOrderRateLimit, RateLimitError } from "@/lib/server/paymentIntents";
 import { checkQuantityLimits } from "@/lib/server/menuConfig";
 import { recomputeOrderTotals } from "@/lib/menu";
@@ -10,6 +11,9 @@ import type { OrderDraft } from "@/lib/db";
 import type { AddressComponents, FulfillmentType, MealSlot, OrderLineItem } from "@/types";
 
 export const runtime = "nodejs";
+
+/** Upper bounds on free-text fields, so one order can't store unbounded input. */
+const MAX_LEN = { name: 80, notes: 500, address: 500, addressPart: 200 } as const;
 
 interface CreateOrderBody {
   customerName?: string;
@@ -30,15 +34,16 @@ interface CreateOrderBody {
 /**
  * Step 1 of checkout: recompute the real price from menu.ts (never trust the
  * client's numbers), validate the meal slot is still orderable, then create
- * a Razorpay order for that amount and stash a paymentIntent holding the
+ * a Cashfree order for that amount and stash a paymentIntent holding the
  * verified draft. Nothing is written to /orders yet — see finalizePayment().
+ *
+ * Returns `paymentSessionId` which the browser passes to Cashfree.js to open
+ * the payment modal, and `cashfreeOrderId` which is used to verify after redirect.
  */
 export async function POST(request: Request) {
   try {
     const { uid } = await verifyIdToken(request.headers.get("authorization"));
 
-    // Throttle a single customer's create-order calls before doing any work,
-    // so a scripted client can't spray Razorpay orders + inert intents.
     await enforceOrderRateLimit(uid);
 
     const body = (await request.json()) as CreateOrderBody;
@@ -53,14 +58,30 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Missing required order fields" }, { status: 400 });
     }
 
+    const { digits10: phone10 } = normalizeIndianMobile(body.phone);
+    if (!phone10) {
+      return NextResponse.json(
+        { error: "Please enter a valid 10-digit Indian mobile number.", code: "invalid_phone" },
+        { status: 400 },
+      );
+    }
+
+    const tooLong =
+      body.customerName.trim().length > MAX_LEN.name ? "Name"
+      : (body.notes?.length ?? 0) > MAX_LEN.notes ? "Order note"
+      : (body.deliveryAddress?.length ?? 0) > MAX_LEN.address ? "Delivery address"
+      : (body.addressComponents?.doorAndBuilding?.length ?? 0) > MAX_LEN.addressPart ? "Flat / building"
+      : (body.addressComponents?.landmark?.length ?? 0) > MAX_LEN.addressPart ? "Landmark"
+      : null;
+    if (tooLong) {
+      return NextResponse.json({ error: `${tooLong} is too long.`, code: "field_too_long" }, { status: 400 });
+    }
+
     const mealProblem = validateMeal({ date: body.mealDate, slot: body.mealSlot });
     if (mealProblem) {
       return NextResponse.json({ error: mealProblem }, { status: 400 });
     }
 
-    // Bengaluru-only delivery zone — the authoritative gate. The client already
-    // steers customers away from out-of-zone addresses (AddressPicker), but that's
-    // UI, not a security boundary: a scripted client could post any coordinates.
     if (fulfillmentType === "delivery") {
       const coords = body.addressComponents;
       if (!coords || typeof coords.lat !== "number" || typeof coords.lng !== "number") {
@@ -74,8 +95,6 @@ export async function POST(request: Request) {
       }
     }
 
-    // The only source of truth for prices — client-submitted pricePerUnit/lineTotal
-    // are ignored entirely.
     const recomputed = recomputeOrderTotals(
       body.items.map((it) => ({ menuId: it.menuId, name: it.name, variant: it.variant, qty: it.qty })),
     );
@@ -83,9 +102,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: recomputed.error }, { status: 400 });
     }
 
-    // Block order if any requested quantity would exceed that item's configured
-    // limit. This is the authoritative gate — finalizePayment also increments
-    // counters, but can't reject (payment already captured, no refund path).
     const limitCheck = await checkQuantityLimits(recomputed.items);
     if (!limitCheck.ok) {
       return NextResponse.json(
@@ -94,11 +110,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Catch a price that changed while the customer was browsing: if the total
-    // they confirmed differs from the freshly-recomputed one, don't silently
-    // charge the new amount — surface it so they re-review first. The server
-    // total is always authoritative for the actual charge; clientGrandTotal is
-    // advisory only. A missing clientGrandTotal (older client) skips the check.
     if (
       typeof body.clientGrandTotal === "number"
       && Math.round(body.clientGrandTotal) !== Math.round(recomputed.grandTotal)
@@ -128,34 +139,52 @@ export async function POST(request: Request) {
       notes: body.notes?.trim() || undefined,
     };
 
-    const amountPaise = Math.round(draft.grandTotal * 100);
-    if (amountPaise <= 0) {
+    const amountRupees = recomputed.grandTotal;
+    if (amountRupees <= 0) {
       return NextResponse.json({ error: "Order total must be greater than zero" }, { status: 400 });
     }
 
-    const rzpOrder = await createRazorpayOrder({
-      amountPaise,
-      receipt: `rk-${uid.slice(0, 8)}-${Date.now()}`,
-      notes: { customerId: uid, mealDate: draft.mealDate, mealSlot: draft.mealSlot },
+    // Merchant order ID: short, unique, URL-safe
+    const cashfreeOrderId = `rk-${uid.slice(0, 8)}-${Date.now()}`;
+
+    // Build return URL — Cashfree appends ?order_id={order_id} on redirect
+    const origin = request.headers.get("origin") ?? "https://rakuskitchen.com";
+    const returnUrl = `${origin}/checkout/confirm`;
+
+    const cfOrder = await createCashfreeOrder({
+      orderId: cashfreeOrderId,
+      amountRupees,
+      customerId: uid,
+      customerPhone: phone10,
+      customerName: body.customerName.trim(),
+      returnUrl,
+      note: `${draft.mealSlot} · ${draft.mealDate}`,
     });
 
     await createIntent({
-      razorpayOrderId: rzpOrder.id,
+      cashfreeOrderId,
       customerId: uid,
       draft,
-      amountPaise,
+      amountRupees,
     });
 
     return NextResponse.json({
-      razorpayOrderId: rzpOrder.id,
-      amount: rzpOrder.amount,
-      currency: rzpOrder.currency,
-      keyId: process.env.RAZORPAY_KEY_ID,
+      cashfreeOrderId: cfOrder.orderId,
+      paymentSessionId: cfOrder.paymentSessionId,
+      amount: cfOrder.amount,
+      currency: cfOrder.currency,
+      mode: cashfreeMode(),
     });
   } catch (err) {
     console.error("create-order error:", err);
+    if (err instanceof RateLimitError) {
+      return NextResponse.json(
+        { error: err.message },
+        { status: 429 },
+      );
+    }
     const rawMsg = (err as Error).message || "";
-    if (rawMsg.startsWith("Missing Authorization")) {
+    if (err instanceof AuthTokenError || rawMsg.startsWith("Missing Authorization")) {
       return NextResponse.json(
         { error: "Your session has expired. Please sign in again to place your order." },
         { status: 401 }

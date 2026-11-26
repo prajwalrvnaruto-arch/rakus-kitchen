@@ -48,9 +48,16 @@ export const adminAuth = () => getAuth(getAdminApp());
  * Verifies a Firebase ID token sent by the client (Authorization: Bearer <token>).
  * Throws on missing/invalid/expired tokens — callers should catch and return 401.
  */
+export class AuthTokenError extends Error {}
+
 export async function verifyIdToken(authHeader: string | null): Promise<{ uid: string }> {
   const token = authHeader?.match(/^Bearer (.+)$/)?.[1];
-  if (!token) throw new Error("Missing Authorization bearer token");
-  const decoded = await adminAuth().verifyIdToken(token);
-  return { uid: decoded.uid };
+  if (!token) throw new AuthTokenError("Missing Authorization bearer token");
+  try {
+    const decoded = await adminAuth().verifyIdToken(token);
+    return { uid: decoded.uid };
+  } catch {
+    // Malformed, expired, revoked or wrong-project token: all mean "sign in again".
+    throw new AuthTokenError("Invalid or expired Authorization token");
+  }
 }

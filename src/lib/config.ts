@@ -19,6 +19,9 @@ export const BUSINESS = {
   kitchenAddress: "Jambusavari Dinne, JP Nagar 8th Phase, Bengaluru, Karnataka 560078",
   // Food Safety and Standards Authority of India (FSSAI)
   fssaiNumber: "21224179000000",
+  // GST registration details (TODO: Replace with actual GSTIN from client)
+  gstNumber: "29XXXXXXXXXXXXX", // Karnataka GSTIN format
+  panNumber: "XXXXX0000X", // TODO: Replace with actual PAN
   // DPDP Act 2023 & DPDP Rules 2025: Designated Grievance Officer
   grievanceOfficer: {
     name: "Rakesh K.",

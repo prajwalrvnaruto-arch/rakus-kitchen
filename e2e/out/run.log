@@ -1,0 +1,94 @@
+
+== A. Public pages @ iPhone 13 ==
+PASS A-/ loads 200, no horizontal overflow
+PASS A-/menu loads 200, no horizontal overflow
+PASS A-/biryani loads 200, no horizontal overflow
+PASS A-/catering loads 200, no horizontal overflow
+PASS A-/about loads 200, no horizontal overflow
+PASS A-/contact loads 200, no horizontal overflow
+PASS A-/privacy loads 200, no horizontal overflow
+PASS A-/terms loads 200, no horizontal overflow
+PASS A-/refund-policy loads 200, no horizontal overflow
+PASS A-/delivery-policy loads 200, no horizontal overflow
+PASS A-/login loads 200, no horizontal overflow
+FAIL A-legal legal pages mention the current gateway (Cashfree), not Razorpay  → /privacy,/terms
+
+== B. Route guards ==
+PASS B-checkout /checkout unauthenticated → login  → http://localhost:3000/login?next=%2Fcheckout
+PASS B-/admin /admin unauthenticated shows no private data  → http://localhost:3000/admin/login?next=%2Fadmin :: Raku's Kitchen 🔐 Kitchen Management Console Admin Sign In Sign in with your kitchen administrator e
+PASS B-/kitchen /kitchen unauthenticated shows no private data  → http://localhost:3000/kitchen/login?next=%2Fkitchen :: Raku's Kitchen Loading… Raku's Kitchen Authentic Nati-style home-cooked food — fresh ingredients, tr
+PASS B-/orders /orders unauthenticated shows no private data  → http://localhost:3000/login?next=%2Forders :: Raku's Kitchen 🍲 Pure Taste of Nati Style Sign in to order Sign in with your phone number to place 
+
+== C. Login UI ==
+PASS C-1 non-digits stripped / max 10 digits  → 12345
+PASS C-2 send-code button disabled for short phone
+PASS C-3 number starting with 5 rejected  → Please enter a valid 10-digit Indian mobile number.
+PASS C-4 wrong OTP rejected  → Incorrect code. 4 attempt(s) remaining.
+PASS C-5 correct OTP signs in & leaves /login  → http://localhost:3000/orders
+
+== D. Cart & checkout form ==
+PASS D-1 empty cart shows empty state
+PASS D-2 cart persists to checkout
+PASS D-3 Pay disabled until DPDP consent ticked
+PASS D-4 empty name blocked (HTML5 required)
+FAIL D-5 short mobile number rejected (client or server)  → NO VALIDATION on 5-digit mobile
+
+== E. Cashfree checkout (sandbox) ==
+PASS E-1 create-order succeeded & returns paymentSessionId  → {"cashfreeOrderId":"rk-KNvdNHGD-1795707746966","paymentSessionId":"session_27bmMbrblGgNxOaHQk95-FktppDL_7Zbim98zsx2YidPfzLSBEUQ8mFYilCneRP5b3iyBb_3NzhAx56JaPKMK
+PASS E-2 payment opens as popup/iframe (not full-page redirect)  → url=http://localhost:3000/checkout frames=https://sdk.cashfree.com/js/v3/ccaa4d7ea8350995fc5e9ea573f6af36/atoms/ping_atom.html?context=sandbox,https://sandbox.cashfree.com/checkout/
+PASS E-3 response does not leak secret key
+PASS E-4 verify on UNPAID order refused  → 400 {"error":"Payment not completed (status: ACTIVE). Please try again."}
+sandbox pay response: 200 {"action":"custom","cf_payment_id":"1479504474028161024","channel":"collect","data":{"url":null,"payload":null,"content_type":null,"method":null},"payment_amount":420,"payment_method":"upi"}
+PASS E-5 after sandbox payment, /checkout/confirm shows success  → Raku's Kitchen ✅ Payment successful! Your order RK-C3JHP is paid and in. Send it to Raku's Kitchen on WhatsApp so they can confirm it. ✅ Confirmed 🍳 Preparing 
+PASS E-6 verify idempotent (replay returns same order, no duplicate)  → RK-C3JHP/RK-C3JHP
+PASS E-7 paid order amount matches server total  → pay=420 total=420
+PASS E-8 cart cleared after success
+PASS E-9 other customer cannot claim my paid order (IDOR)  → 403 {"error":"Payment intent belongs to a different customer"}
+PASS E-10 other customer cannot fetch my invoice  → 403
+PASS E-11 unauthenticated invoice fetch refused  → 401
+PASS E-12 paid order visible in My Orders
+
+== F. API security ==
+PASS F-1 create-order without auth → 401
+FAIL F-2 create-order with garbage token → 401
+PASS F-3 client-tampered price (₹1) rejected / ignored  → 409 {"error":"Some prices changed since you added items. Please review the updated total.","code":"price_changed","newTotal"
+PASS F-4 negative quantity rejected  → 400 {"error":"Invalid quantity for Chilly Chicken"}
+PASS F-5 absurd quantity rejected  → 409 {"error":"Chilly Chicken has only 9.5kg left before today's limit.","code":"quantity_limit_exceeded"}
+PASS F-6 fractional quantity rejected  → 429 {"error":"Too many order attempts. Please wait a moment and try again."}
+PASS F-7 unknown menu item rejected
+PASS F-8 past meal date rejected
+FAIL F-9 out-of-Bengaluru delivery rejected  → 429 {"error":"Too many order attempts. Please wait a moment and try again."}
+FAIL F-10 delivery without coordinates rejected
+PASS F-11 malformed JSON handled (no 500 stack)
+PASS F-12 XSS payload in name/notes does not crash create-order  → 429
+PASS F-13 oversized notes (200KB) rejected  → 429 (accepted = unbounded input stored in Firestore)
+PASS F-14 mass-assignment fields (grandTotal/status) ignored  → 429 amount=undefined
+PASS F-15 create-order rate limit kicks in (429)  → 429 count=8
+PASS F-16 verify without auth → 401
+PASS F-17 verify missing id → 400
+PASS F-18 verify unknown order id refused, no 500 leak  → 500 {"error":"We're taking a moment to finalize your order. If your money was deducted, your payment is safe and will be confirmed shortly. Plea
+PASS F-19 path-traversal style order id handled  → 500 {"error":"We're taking a moment to finalize your order. If your money was deducted, your payment is safe and will be con
+PASS F-20 webhook with NO signature headers → 400
+PASS F-21 webhook with WRONG signature → 400
+PASS F-22 validly-signed webhook for unknown order → 409 (retryable), no order created  → 409 {"error":"No payment intent for Cashfree order rk-fake-order"}
+PASS F-23 webhook replay of same event is deduped / handled  → 200 {"ok":true,"deduped":true}
+FAIL F-24 webhook with 24h-old timestamp rejected (replay window)  → 409 (accepted = no timestamp tolerance)
+PASS F-27 borzo estimate without auth → 401
+PASS F-28 borzo book without auth → 401
+FAIL F-29 borzo book as normal customer (non-admin) refused  → 400 {"error":"Missing required order parameters for Borzo delivery"}
+PASS F-30 kitchen prep API without auth refused
+PASS F-31 borzo webhook with bad signature refused
+PASS F-32 whatsapp webhook POST with bad signature refused
+PASS F-33 maps autocomplete does not expose raw API key  → 401
+PASS F-34 send-otp cooldown enforced (60s)  → 200,429,429,429
+PASS F-35 verify-otp brute force locked out (429 within 8 tries)  → 400,400,400,400,400,429,404,404
+PASS F-36 send-otp rejects injection-style phone  → 400
+PASS F-37 verify-otp rejects array-typed params  → 400
+PASS F-38 SECURITY: static test OTP (123456) gated behind NODE_ENV !== production  → phoneAuth.ts TEST_ACCOUNTS
+PASS F-39 Cashfree secret not present in any client JS chunk  → 7 chunks scanned
+FAIL F-40 security headers present (CSP / X-Frame-Options / nosniff)  → csp=false xfo=undefined nosniff=undefined
+FAIL Z-console no console/page errors across the run  → 8: http://localhost:3000/login :: Failed to load resource: the server responded with a status of 400 (Bad Request) || http://localhost:3000/checkout :: Failed to load resource: the server responded with a status of 500 (Internal Server Error) || http://localhost:3000/checkout :: Could not start payment: ApiError: Unable to start checkout right now. Please refresh and try again in a moment.
+    at postJSON (webpack-internal:///(app-pages-browser)/./src/app/checkout/page.tsx:61:15)
+    at async submit (webpack-internal:///(app-pages-browser)/./src/app/checkout/page.tsx:282:29) || http://localhost:3000/checkout :: Invalid Sentry Dsn: https://sentry.io || http://localhost:3000/checkout :: "servicew
+
+==== 68/77 passed, 9 failed ====

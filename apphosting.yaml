@@ -56,6 +56,12 @@ env:
     availability:
       - RUNTIME
 
+  # Keep sandbox until Cashfree production keys are approved.
+  - variable: CASHFREE_ENV
+    value: sandbox
+    availability:
+      - RUNTIME
+
   # ── Secret Server-Side Variables (Injected via Cloud Secret Manager) ──
   - variable: FIREBASE_ADMIN_PROJECT_ID
     secret: FIREBASE_ADMIN_PROJECT_ID
@@ -111,9 +117,5 @@ env:
       - RUNTIME
   - variable: CASHFREE_SECRET_KEY
     secret: CASHFREE_SECRET_KEY
-    availability:
-      - RUNTIME
-  - variable: CASHFREE_WEBHOOK_SECRET
-    secret: CASHFREE_WEBHOOK_SECRET
     availability:
       - RUNTIME

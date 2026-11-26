@@ -58,7 +58,7 @@ export default function TermsPage() {
             </li>
             <li>
               <strong>Mandatory Online Payment:</strong> All orders are confirmed only upon successful payment authorization
-              via our payment partner, <strong>Razorpay</strong>. We do not support Cash on Delivery (COD) for food orders.
+              via our payment partner, <strong>Cashfree Payments</strong>. We do not support Cash on Delivery (COD) for food orders.
             </li>
             <li>
               <strong>Order Confirmation:</strong> An order is deemed accepted only after successful payment verification
@@ -103,7 +103,7 @@ export default function TermsPage() {
           <ul className="list-disc pl-5 space-y-1.5 text-xs text-soft">
             <li>Orders can be cancelled with a full refund up to 12 hours prior to the scheduled meal slot.</li>
             <li>Once cooking has commenced (status set to &quot;Preparing&quot;), orders cannot be cancelled or refunded.</li>
-            <li>In the rare event that the kitchen cannot fulfill an order due to ingredient availability or unforeseen emergency, a 100% refund is initiated automatically through Razorpay back to the original payment method within 5–7 business days.</li>
+            <li>In the rare event that the kitchen cannot fulfill an order due to ingredient availability or unforeseen emergency, a 100% refund is initiated automatically through Cashfree Payments back to the original payment method within 5–7 business days.</li>
           </ul>
         </section>
 

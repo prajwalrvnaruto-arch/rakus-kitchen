@@ -33,12 +33,14 @@ export type BiryaniWeight = 0.5 | 1 | 2 | 3;
 
 export type PaymentStatus = "created" | "paid" | "failed";
 
-/** Razorpay payment metadata attached to an order once payment is verified. */
+/** Cashfree payment metadata attached to an order once payment is verified. */
 export interface PaymentMeta {
-  provider: "razorpay";
-  razorpayOrderId: string;
-  razorpayPaymentId?: string;
-  amount: number; // in paise
+  provider: "cashfree";
+  /** Merchant-assigned order ID sent to Cashfree (e.g. "rk-uid-timestamp") */
+  cashfreeOrderId: string;
+  /** Cashfree's internal payment ID (cf_payment_id), set once paid */
+  cfPaymentId?: string;
+  amount: number; // in rupees
   currency: string; // "INR"
   status: PaymentStatus;
   createdAt: number; // epoch ms
@@ -218,6 +220,21 @@ export interface Order {
   /** Razorpay payment record — present on every order once payment is mandatory;
    *  optional only so pre-Razorpay historical orders still type-check. */
   payment?: PaymentMeta;
+  /** GST breakdown — present on all orders once invoice system ships.
+   *  For historical orders placed before this feature, computed on-demand
+   *  from grandTotal using reverse calculation (grandTotal ÷ 1.05). */
+  gstBreakdown?: {
+    /** Item subtotal before GST (itemTotal ÷ 1.05) */
+    itemTotalBeforeGST: number;
+    /** Packaging fee before GST (packagingFee ÷ 1.05) */
+    packagingFeeBeforeGST: number;
+    /** Combined subtotal before GST */
+    subtotalBeforeGST: number;
+    /** GST amount @ 5% */
+    gstAmount: number;
+    /** GST rate applied (5 for 5%) */
+    gstRate: number;
+  };
   createdAt: number; // epoch ms
   updatedAt: number; // epoch ms
 }

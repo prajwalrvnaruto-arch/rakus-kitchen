@@ -12,6 +12,7 @@ import { formatINR, menuItemById } from "@/lib/menu";
 import { waLinkToKitchen } from "@/lib/whatsapp";
 import { useClientOrderAlerts } from "@/lib/client-order-alerts-context";
 import { OrderStatusSteps } from "@/components/OrderStatusSteps";
+import { InvoiceDownloadButton } from "@/components/InvoiceDownloadButton";
 import { WhatsAppIcon } from "@/components/icons";
 import { BUSINESS } from "@/lib/config";
 import type { Order } from "@/types";
@@ -211,6 +212,12 @@ export default function OrdersPage() {
                   </div>
 
                   <footer className="flex flex-col gap-2 border-t border-line px-5 py-3 sm:flex-row">
+                    <InvoiceDownloadButton
+                      orderId={order.id}
+                      orderDisplayId={order.orderId}
+                      variant="ghost"
+                      size="sm"
+                    />
                     {order.status === "Confirmed" && (
                       <a
                         href={waLinkToKitchen(order)}

@@ -1,0 +1,464 @@
+[
+  {
+    "id": "A-/",
+    "name": "loads 200, no horizontal overflow",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "A-/menu",
+    "name": "loads 200, no horizontal overflow",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "A-/biryani",
+    "name": "loads 200, no horizontal overflow",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "A-/catering",
+    "name": "loads 200, no horizontal overflow",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "A-/about",
+    "name": "loads 200, no horizontal overflow",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "A-/contact",
+    "name": "loads 200, no horizontal overflow",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "A-/privacy",
+    "name": "loads 200, no horizontal overflow",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "A-/terms",
+    "name": "loads 200, no horizontal overflow",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "A-/refund-policy",
+    "name": "loads 200, no horizontal overflow",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "A-/delivery-policy",
+    "name": "loads 200, no horizontal overflow",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "A-/login",
+    "name": "loads 200, no horizontal overflow",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "A-legal",
+    "name": "legal pages mention the current gateway (Cashfree), not Razorpay",
+    "ok": false,
+    "detail": "/privacy,/terms"
+  },
+  {
+    "id": "B-checkout",
+    "name": "/checkout unauthenticated → login",
+    "ok": true,
+    "detail": "http://localhost:3000/login?next=%2Fcheckout"
+  },
+  {
+    "id": "B-/admin",
+    "name": "/admin unauthenticated shows no private data",
+    "ok": true,
+    "detail": "http://localhost:3000/admin/login?next=%2Fadmin :: Raku's Kitchen 🔐 Kitchen Management Console Admin Sign In Sign in with your kitchen administrator e"
+  },
+  {
+    "id": "B-/kitchen",
+    "name": "/kitchen unauthenticated shows no private data",
+    "ok": true,
+    "detail": "http://localhost:3000/kitchen/login?next=%2Fkitchen :: Raku's Kitchen Loading… Raku's Kitchen Authentic Nati-style home-cooked food — fresh ingredients, tr"
+  },
+  {
+    "id": "B-/orders",
+    "name": "/orders unauthenticated shows no private data",
+    "ok": true,
+    "detail": "http://localhost:3000/login?next=%2Forders :: Raku's Kitchen 🍲 Pure Taste of Nati Style Sign in to order Sign in with your phone number to place "
+  },
+  {
+    "id": "C-1",
+    "name": "non-digits stripped / max 10 digits",
+    "ok": true,
+    "detail": "12345"
+  },
+  {
+    "id": "C-2",
+    "name": "send-code button disabled for short phone",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "C-3",
+    "name": "number starting with 5 rejected",
+    "ok": true,
+    "detail": "Please enter a valid 10-digit Indian mobile number."
+  },
+  {
+    "id": "C-4",
+    "name": "wrong OTP rejected",
+    "ok": true,
+    "detail": "Incorrect code. 4 attempt(s) remaining."
+  },
+  {
+    "id": "C-5",
+    "name": "correct OTP signs in & leaves /login",
+    "ok": true,
+    "detail": "http://localhost:3000/orders"
+  },
+  {
+    "id": "D-1",
+    "name": "empty cart shows empty state",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "D-2",
+    "name": "cart persists to checkout",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "D-3",
+    "name": "Pay disabled until DPDP consent ticked",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "D-4",
+    "name": "empty name blocked (HTML5 required)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "D-5",
+    "name": "short mobile number rejected (client or server)",
+    "ok": false,
+    "detail": "NO VALIDATION on 5-digit mobile"
+  },
+  {
+    "id": "E-1",
+    "name": "create-order succeeded & returns paymentSessionId",
+    "ok": true,
+    "detail": "{\"cashfreeOrderId\":\"rk-KNvdNHGD-1795707746966\",\"paymentSessionId\":\"session_27bmMbrblGgNxOaHQk95-FktppDL_7Zbim98zsx2YidPfzLSBEUQ8mFYilCneRP5b3iyBb_3NzhAx56JaPKMK"
+  },
+  {
+    "id": "E-2",
+    "name": "payment opens as popup/iframe (not full-page redirect)",
+    "ok": true,
+    "detail": "url=http://localhost:3000/checkout frames=https://sdk.cashfree.com/js/v3/ccaa4d7ea8350995fc5e9ea573f6af36/atoms/ping_atom.html?context=sandbox,https://sandbox.cashfree.com/checkout/"
+  },
+  {
+    "id": "E-3",
+    "name": "response does not leak secret key",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "E-4",
+    "name": "verify on UNPAID order refused",
+    "ok": true,
+    "detail": "400 {\"error\":\"Payment not completed (status: ACTIVE). Please try again.\"}"
+  },
+  {
+    "id": "E-5",
+    "name": "after sandbox payment, /checkout/confirm shows success",
+    "ok": true,
+    "detail": "Raku's Kitchen ✅ Payment successful! Your order RK-C3JHP is paid and in. Send it to Raku's Kitchen on WhatsApp so they can confirm it. ✅ Confirmed 🍳 Preparing "
+  },
+  {
+    "id": "E-6",
+    "name": "verify idempotent (replay returns same order, no duplicate)",
+    "ok": true,
+    "detail": "RK-C3JHP/RK-C3JHP"
+  },
+  {
+    "id": "E-7",
+    "name": "paid order amount matches server total",
+    "ok": true,
+    "detail": "pay=420 total=420"
+  },
+  {
+    "id": "E-8",
+    "name": "cart cleared after success",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "E-9",
+    "name": "other customer cannot claim my paid order (IDOR)",
+    "ok": true,
+    "detail": "403 {\"error\":\"Payment intent belongs to a different customer\"}"
+  },
+  {
+    "id": "E-10",
+    "name": "other customer cannot fetch my invoice",
+    "ok": true,
+    "detail": "403"
+  },
+  {
+    "id": "E-11",
+    "name": "unauthenticated invoice fetch refused",
+    "ok": true,
+    "detail": "401"
+  },
+  {
+    "id": "E-12",
+    "name": "paid order visible in My Orders",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "F-1",
+    "name": "create-order without auth → 401",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "F-2",
+    "name": "create-order with garbage token → 401",
+    "ok": false,
+    "detail": ""
+  },
+  {
+    "id": "F-3",
+    "name": "client-tampered price (₹1) rejected / ignored",
+    "ok": true,
+    "detail": "409 {\"error\":\"Some prices changed since you added items. Please review the updated total.\",\"code\":\"price_changed\",\"newTotal\""
+  },
+  {
+    "id": "F-4",
+    "name": "negative quantity rejected",
+    "ok": true,
+    "detail": "400 {\"error\":\"Invalid quantity for Chilly Chicken\"}"
+  },
+  {
+    "id": "F-5",
+    "name": "absurd quantity rejected",
+    "ok": true,
+    "detail": "409 {\"error\":\"Chilly Chicken has only 9.5kg left before today's limit.\",\"code\":\"quantity_limit_exceeded\"}"
+  },
+  {
+    "id": "F-6",
+    "name": "fractional quantity rejected",
+    "ok": true,
+    "detail": "429 {\"error\":\"Too many order attempts. Please wait a moment and try again.\"}"
+  },
+  {
+    "id": "F-7",
+    "name": "unknown menu item rejected",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "F-8",
+    "name": "past meal date rejected",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "F-9",
+    "name": "out-of-Bengaluru delivery rejected",
+    "ok": false,
+    "detail": "429 {\"error\":\"Too many order attempts. Please wait a moment and try again.\"}"
+  },
+  {
+    "id": "F-10",
+    "name": "delivery without coordinates rejected",
+    "ok": false,
+    "detail": ""
+  },
+  {
+    "id": "F-11",
+    "name": "malformed JSON handled (no 500 stack)",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "F-12",
+    "name": "XSS payload in name/notes does not crash create-order",
+    "ok": true,
+    "detail": "429"
+  },
+  {
+    "id": "F-13",
+    "name": "oversized notes (200KB) rejected",
+    "ok": true,
+    "detail": "429 (accepted = unbounded input stored in Firestore)"
+  },
+  {
+    "id": "F-14",
+    "name": "mass-assignment fields (grandTotal/status) ignored",
+    "ok": true,
+    "detail": "429 amount=undefined"
+  },
+  {
+    "id": "F-15",
+    "name": "create-order rate limit kicks in (429)",
+    "ok": true,
+    "detail": "429 count=8"
+  },
+  {
+    "id": "F-16",
+    "name": "verify without auth → 401",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "F-17",
+    "name": "verify missing id → 400",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "F-18",
+    "name": "verify unknown order id refused, no 500 leak",
+    "ok": true,
+    "detail": "500 {\"error\":\"We're taking a moment to finalize your order. If your money was deducted, your payment is safe and will be confirmed shortly. Plea"
+  },
+  {
+    "id": "F-19",
+    "name": "path-traversal style order id handled",
+    "ok": true,
+    "detail": "500 {\"error\":\"We're taking a moment to finalize your order. If your money was deducted, your payment is safe and will be con"
+  },
+  {
+    "id": "F-20",
+    "name": "webhook with NO signature headers → 400",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "F-21",
+    "name": "webhook with WRONG signature → 400",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "F-22",
+    "name": "validly-signed webhook for unknown order → 409 (retryable), no order created",
+    "ok": true,
+    "detail": "409 {\"error\":\"No payment intent for Cashfree order rk-fake-order\"}"
+  },
+  {
+    "id": "F-23",
+    "name": "webhook replay of same event is deduped / handled",
+    "ok": true,
+    "detail": "200 {\"ok\":true,\"deduped\":true}"
+  },
+  {
+    "id": "F-24",
+    "name": "webhook with 24h-old timestamp rejected (replay window)",
+    "ok": false,
+    "detail": "409 (accepted = no timestamp tolerance)"
+  },
+  {
+    "id": "F-27",
+    "name": "borzo estimate without auth → 401",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "F-28",
+    "name": "borzo book without auth → 401",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "F-29",
+    "name": "borzo book as normal customer (non-admin) refused",
+    "ok": false,
+    "detail": "400 {\"error\":\"Missing required order parameters for Borzo delivery\"}"
+  },
+  {
+    "id": "F-30",
+    "name": "kitchen prep API without auth refused",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "F-31",
+    "name": "borzo webhook with bad signature refused",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "F-32",
+    "name": "whatsapp webhook POST with bad signature refused",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "id": "F-33",
+    "name": "maps autocomplete does not expose raw API key",
+    "ok": true,
+    "detail": "401"
+  },
+  {
+    "id": "F-34",
+    "name": "send-otp cooldown enforced (60s)",
+    "ok": true,
+    "detail": "200,429,429,429"
+  },
+  {
+    "id": "F-35",
+    "name": "verify-otp brute force locked out (429 within 8 tries)",
+    "ok": true,
+    "detail": "400,400,400,400,400,429,404,404"
+  },
+  {
+    "id": "F-36",
+    "name": "send-otp rejects injection-style phone",
+    "ok": true,
+    "detail": "400"
+  },
+  {
+    "id": "F-37",
+    "name": "verify-otp rejects array-typed params",
+    "ok": true,
+    "detail": "400"
+  },
+  {
+    "id": "F-38",
+    "name": "SECURITY: static test OTP (123456) gated behind NODE_ENV !== production",
+    "ok": true,
+    "detail": "phoneAuth.ts TEST_ACCOUNTS"
+  },
+  {
+    "id": "F-39",
+    "name": "Cashfree secret not present in any client JS chunk",
+    "ok": true,
+    "detail": "7 chunks scanned"
+  },
+  {
+    "id": "F-40",
+    "name": "security headers present (CSP / X-Frame-Options / nosniff)",
+    "ok": false,
+    "detail": "csp=false xfo=undefined nosniff=undefined"
+  },
+  {
+    "id": "Z-console",
+    "name": "no console/page errors across the run",
+    "ok": false,
+    "detail": "8: http://localhost:3000/login :: Failed to load resource: the server responded with a status of 400 (Bad Request) || http://localhost:3000/checkout :: Failed to load resource: the server responded with a status of 500 (Internal Server Error) || http://localhost:3000/checkout :: Could not start payment: ApiError: Unable to start checkout right now. Please refresh and try again in a moment.\n    at postJSON (webpack-internal:///(app-pages-browser)/./src/app/checkout/page.tsx:61:15)\n    at async submit (webpack-internal:///(app-pages-browser)/./src/app/checkout/page.tsx:282:29) || http://localhost:3000/checkout :: Invalid Sentry Dsn: https://sentry.io || http://localhost:3000/checkout :: \"servicew"
+  }
+]
